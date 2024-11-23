@@ -1,0 +1,88 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "node_modules/.cache/**"
+      ]
+    },
+    "build:watch": {
+      "cache": false,
+      "persistent": true
+    },
+    "build-playground": {
+      "dependsOn": [
+        "^build",
+        "^build-playground"
+      ],
+      "outputs": [
+        "dist/**",
+        "node_modules/.cache/**"
+      ]
+    },
+    "build-pioneer": {
+      "dependsOn": [
+        "^build",
+        "^build-pioneer"
+      ],
+      "outputs": [
+        "dist/**",
+        "node_modules/.cache/**"
+      ]
+    },
+    "clean": {
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:bun": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:node": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "preview-pioneer": {
+      "cache": false,
+      "persistent": true
+    },
+    "preview-playground": {
+      "cache": false,
+      "persistent": true
+    },
+    "publish": {
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "test:coverage": {
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "test:watch": {
+      "inputs": [
+        "__tests__/**/*.test.ts",
+        "__tests__/**/*.test.tsx"
+      ],
+      "persistent": true
+    }
+  }
+}

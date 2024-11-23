@@ -1,0 +1,80 @@
+{
+  "devDependencies": {
+    "@babel/core": "7.23.3",
+    "@babel/eslint-parser": "7.23.3",
+    "@changesets/changelog-github": "0.5.0",
+    "@changesets/cli": "2.27.1",
+    "@size-limit/file": "11.0.0",
+    "@typescript-eslint/eslint-plugin": "6.12.0",
+    "@typescript-eslint/parser": "6.12.0",
+    "dotenv-cli": "7.3.0",
+    "eslint": "8.54.0",
+    "eslint-config-prettier": "9.0.0",
+    "eslint-plugin-babel": "5.3.1",
+    "eslint-plugin-eslint-comments": "3.2.0",
+    "eslint-plugin-import": "2.29.0",
+    "eslint-plugin-prettier": "5.0.1",
+    "eslint-plugin-react": "7.33.2",
+    "eslint-plugin-react-hooks": "4.6.0",
+    "eslint-plugin-simple-import-sort": "10.0.0",
+    "eslint-plugin-unused-imports": "3.0.0",
+    "prettier": "3.1.0",
+    "react": "18.2.0",
+    "size-limit": "11.0.0",
+    "turbo": "^1.12.5",
+    "typescript": "5.2.2",
+    "vitest": "0.34.6"
+  },
+  "prettier": {
+    "bracketSameLine": true,
+    "bracketSpacing": true,
+    "printWidth": 100,
+    "semi": true,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "all",
+    "useTabs": false
+  },
+  "private": true,
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "ethers": "^6.9.0",
+      "typescript": "5.2.2",
+      "json5@<=1.0.1": "^1.0.2",
+      "semver@<=4.3.2": "^7.5.4"
+    },
+    "patchedDependencies": {
+    }
+  },
+  "scripts": {
+    "bootstrap": "rm -rf node_modules; pnpm install; pnpm build",
+    "build": "turbo run build",
+    "build:playground": "turbo run build-playground --concurrency=30",
+    "preview:playground": "turbo run preview-playground --concurrency=30",
+    "build:pioneer": "turbo run build-pioneer --concurrency=40",
+    "preview:pioneer": "turbo run preview-pioneer --concurrency=40",
+    "clean": "turbo run clean",
+    "dev:pioneer": "cd ./apps/pioneer; pnpm dev; cd ../..",
+    "dev:playground": "turbo run dev --concurrency=30 --filter=\"{./internal/playground}...\"",
+    "dev:playground:node": "turbo run dev:node --concurrency=30 --filter=\"{./internal/node-playground}...\"",
+    "dev:playground:bun": "turbo run dev:bun --concurrency=30 --filter=\"{./internal/node-playground}...\"",
+    "generate": "cd ./internal/generator; pnpm generate; cd ../..",
+    "generate:tokens": "cd ./packages/swapkit/tokens; pnpm run generate-tokens; cd ../../..; pnpm run lint",
+    "lint": "turbo run lint --continue --filter=!./packages/swapkit/swapkit-sdk",
+    "publish-packages": "pnpm version-bump && pnpm changeset publish",
+    "test": "dotenv -- turbo run test --continue",
+    "test:coverage": "dotenv -- turbo --continue run test:coverage",
+    "version-bump": "dotenv -- pnpm changeset version",
+    "version-bump-forced": "pnpm changeset add --empty && dotenv -- pnpm changeset version"
+  },
+  "dependencies": {
+    "@pioneer-platform/helpers": "^4.0.12",
+    "pioneer": "link:/Users/highlander/WebstormProjects/SwapKit/packages/pioneer"
+  }
+}

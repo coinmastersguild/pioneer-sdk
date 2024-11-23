@@ -1,0 +1,9 @@
+packages:
+  - 'e2e/**'
+  - 'apps/**'
+  - 'internal/**'
+  - 'packages/swapkit/**'
+  - 'packages/toolboxes/**'
+  - 'packages/pioneer/**'
+  - 'packages/wallets/**'
+  - '!internal/generator/template/**'

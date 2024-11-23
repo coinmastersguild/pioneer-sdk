@@ -1,0 +1,63 @@
+{
+  "author": "highlander",
+  "name": "@coinmasters/pioneer-sdk",
+  "version": "4.8.8",
+  "dependencies": {
+    "@coinmasters/api": "workspace:*",
+    "@coinmasters/tokens": "workspace:*",
+    "@coinmasters/types": "workspace:*",
+    "@keepkey/keepkey-sdk": "^0.2.61",
+    "@pioneer-platform/loggerdog": "^8.3.1",
+    "@pioneer-platform/pioneer-caip": "^9.2.37",
+    "@pioneer-platform/pioneer-client": "^9.2.5",
+    "@pioneer-platform/pioneer-coins": "^9.2.23",
+    "@pioneer-platform/pioneer-discovery": "^0.0.15",
+    "coinselect": "^3.1.13"
+  },
+  "description": "Pioneer Core SDK",
+  "devDependencies": {
+    "@internal/config": "workspace:*",
+    "@types/bn.js": "5.1.5",
+    "@types/crypto-js": "4.2.1",
+    "@types/elliptic": "6.4.18",
+    "@types/long": "4.0.2",
+    "@types/node": "20.10.0",
+    "@types/tiny-secp256k1": "1.0.0",
+    "@vitest/coverage-istanbul": "0.34.6",
+    "vite": "4.5.0",
+    "vitest": "0.34.6"
+  },
+  "eslintConfig": {
+    "extends": "../../../internal/eslint-config"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "src/",
+    "dist/"
+  ],
+  "homepage": "https://github.com/thorswap/SwapKit",
+  "license": "GPL-3.0",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.es.js",
+  "publishConfig": {
+    "access": "public"
+  },
+  "react-native": "./src/index.ts",
+  "repository": "https://github.com/thorswap/SwapKit.git",
+  "scripts": {
+    "build": "vite build",
+    "build:watch": "nodemon --watch src --exec 'pnpm run build'",
+    "clean": "rm -rf dist vite.config.ts.* .turbo node_modules",
+    "lint": "eslint ./ --ext .ts,.tsx --fix; tsc --noEmit",
+    "test": "echo 'vitest --run'",
+    "test:coverage": "echo 'vitest run --coverage'"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts"
+}
