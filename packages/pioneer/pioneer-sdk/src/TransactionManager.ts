@@ -1,6 +1,6 @@
 /*
     Tx Manager
- */
+*/
 import type EventEmitter from 'events';
 
 import { CAIP_TO_COIN_MAP, SUPPORTED_CAIPS } from './supportedCaips';
@@ -57,15 +57,12 @@ export class TransactionManager {
       if (!caip) throw Error('Missing required param! caip');
       if (!to) throw Error('Missing required param! to');
       if (!amount) throw Error('Missing required param! amount');
-      //console.log(tag, 'caip: ', caip);
-      //console.log(tag, 'to: ', to);
-      //console.log(tag, 'amount: ', amount);
 
       const type = await this.classifyCaip(caip);
 
       let unsignedTx;
       switch (type) {
-        case 'UTXO':
+        case 'UTXO': {
           console.log(tag, 'UTXO transaction');
           unsignedTx = await createUnsignedUxtoTx(
             caip,
@@ -77,10 +74,13 @@ export class TransactionManager {
             this.keepKeySdk,
           );
           break;
-        case 'TENDERMINT':
+        }
+        case 'TENDERMINT': {
           console.log(tag, 'Tendermint transaction');
+          const txType = 'transfer';
           unsignedTx = await createUnsignedTendermintTx(
             caip,
+            txType,
             to,
             amount,
             memo,
@@ -89,7 +89,8 @@ export class TransactionManager {
             this.keepKeySdk,
           );
           break;
-        case 'EIP155':
+        }
+        case 'EIP155': {
           console.log(tag, 'EIP-155 transaction');
           unsignedTx = await createUnsignedEvmTx(
             caip,
@@ -101,8 +102,9 @@ export class TransactionManager {
             this.keepKeySdk,
           );
           break;
-        case 'OTHER':
-          //xrp
+        }
+        case 'OTHER': {
+          console.log(tag, 'Other transaction type');
           unsignedTx = await createUnsignedRippleTx(
             caip,
             to,
@@ -113,8 +115,10 @@ export class TransactionManager {
             this.keepKeySdk,
           );
           break;
-        default:
+        }
+        default: {
           throw new Error(`Unsupported CAIP: ${caip}`);
+        }
       }
 
       return unsignedTx;
@@ -151,25 +155,11 @@ export class TransactionManager {
           signedTx = responseSign.serializedTx;
           break;
         }
-
         case 'TENDERMINT': {
-          // Detect and handle specific Tendermint-based blockchains
           switch (caip) {
             case 'cosmos:cosmoshub-4/slip44:118': {
-              // CosmosHub transaction
               if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
-                console.log(tag, 'Detected CosmosHub Transfer');
                 const responseSign = await this.keepKeySdk.cosmos.cosmosSignAmino(unsignedTx);
-                signedTx = responseSign.serializedTx;
-              } else if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgIbcTransfer') {
-                console.log(tag, 'Detected CosmosHub IBC Transfer');
-                const responseSign =
-                  await this.keepKeySdk.cosmos.cosmosSignAminoIbcTransfer(unsignedTx);
-                signedTx = responseSign.serializedTx;
-              } else if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgDelegate') {
-                console.log(tag, 'Detected CosmosHub Delegation');
-                const responseSign =
-                  await this.keepKeySdk.cosmos.cosmosSignAminoDelegate(unsignedTx);
                 signedTx = responseSign.serializedTx;
               } else {
                 throw new Error(
@@ -178,73 +168,26 @@ export class TransactionManager {
               }
               break;
             }
-            case 'cosmos:osmosis-1/slip44:118': {
-              // Osmosis transaction
-              if (unsignedTx.signDoc.msgs[0].type === 'osmosis/MsgSend') {
-                console.log(tag, 'Detected Osmosis Transfer');
-                const responseSign = await this.keepKeySdk.cosmos.cosmosSignAmino(unsignedTx);
-                signedTx = responseSign.serializedTx;
-              } else {
-                throw new Error(
-                  `Unsupported Osmosis message type: ${unsignedTx.signDoc.msgs[0].type}`,
-                );
-              }
-              break;
-            }
-            case 'cosmos:mayachain-mainnet-v1/slip44:931': {
-              // Mayachain transaction
-              if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
-                console.log(tag, 'Detected Mayachain Transfer');
-                const responseSign = await this.keepKeySdk.utxo.utxoSignTransaction(unsignedTx);
-                signedTx = responseSign.serializedTx;
-              } else {
-                throw new Error(
-                  `Unsupported Mayachain message type: ${unsignedTx.signDoc.msgs[0].type}`,
-                );
-              }
-              break;
-            }
-            case 'cosmos:thorchain-mainnet-v1/slip44:931': {
-              // Thorchain transaction
-              if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
-                console.log(tag, 'Detected Thorchain Transfer');
-                const responseSign =
-                  await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
-                signedTx = responseSign.serializedTx;
-              } else if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgDeposit') {
-                console.log(tag, 'Detected Thorchain Deposit');
-                const responseSign =
-                  await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);
-                signedTx = responseSign.serializedTx;
-              } else {
-                throw new Error(
-                  `Unsupported Thorchain message type: ${unsignedTx.signDoc.msgs[0].type}`,
-                );
-              }
-              break;
-            }
-            default:
+            default: {
               throw new Error(`Unsupported Tendermint CAIP: ${caip}`);
+            }
           }
+          break;
         }
-
         case 'EIP155': {
-          console.log(tag, 'Signing EIP-155 transaction');
           const responseSign = await this.keepKeySdk.eth.ethSignTransaction(unsignedTx);
-          console.log(tag, responseSign);
           signedTx = responseSign.serializedTx;
           break;
         }
-
         case 'OTHER': {
-          console.log('KEEPKEY input: ', unsignedTx);
           if (caip === 'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144') {
-            let responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
-            console.log(tag, responseSign);
+            const responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
             signedTx = responseSign.serializedTx;
+          } else {
+            throw new Error(`Unsupported OTHER CAIP: ${caip}`);
           }
+          break;
         }
-
         default: {
           throw new Error(`Unsupported CAIP: ${caip}`);
         }

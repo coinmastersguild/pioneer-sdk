@@ -55,8 +55,8 @@ const test_service = async function (this: any) {
             // 'BCH', // PASS
             // 'LTC', //NO BALANCE< NEED SEGWIT PATH
             // 'MATIC',
-            'THOR',
-            // 'GAIA',
+            // 'THOR',
+            'GAIA',
             // 'OSMO',
             // 'BASE',
             // 'OP',
@@ -234,11 +234,16 @@ const test_service = async function (this: any) {
             assert(FAUCET_ADDRESS)
             log.info(tag,'TEST_AMOUNT: ',TEST_AMOUNT)
 
+            //force sync balance for asset
+            await app.getBalance(app.blockchains[i])
+
             //get balance
             let balances = app.balances.filter((e: any) => e.caip === caip);
             let balance = balances[0]
             assert(balance)
             log.info(tag,'balance: ',balance)
+
+            if(balance.balance < TEST_AMOUNT) throw Error('YOU ARE BROKE!!!!!')
 
             let blockchain = app.blockchains[i]
             if (blockchain.indexOf('eip155') > -1) blockchain = "eip155:*";

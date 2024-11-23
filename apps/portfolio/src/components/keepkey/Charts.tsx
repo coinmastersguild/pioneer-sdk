@@ -18,8 +18,8 @@ export function Charts({ usePioneer, onSelect }: any) {
         datasets: [],
         labels: [],
     });
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Custom plugin (keeps it registered but no text rendering here)
     const centerTextPlugin = {
         id: 'centerTextPlugin',
         afterDraw: (chart: any) => {
@@ -79,31 +79,30 @@ export function Charts({ usePioneer, onSelect }: any) {
 
     const updateChart = () => {
         const filteredBalances = showAll
-            ? balances
-            : balances.filter((balance: any) => parseFloat(balance.valueUsd) >= 10);
+          ? balances
+          : balances.filter((balance: any) => parseFloat(balance.valueUsd) >= 10);
 
         filteredBalances.sort((a: any, b: any) => parseFloat(b.valueUsd) - parseFloat(a.valueUsd));
 
         const totalValue = filteredBalances.reduce(
-            (acc: any, balance: any) => acc + parseFloat(balance.valueUsd),
-            0,
+          (acc: any, balance: any) => acc + parseFloat(balance.valueUsd),
+          0,
         );
         setTotalValueUsd(totalValue);
 
         const chartDataValues = filteredBalances.map((balance: any) => parseFloat(balance.valueUsd));
         const chartLabels = filteredBalances.map((balance: any) => balance.symbol);
 
-        // Generate random colors for each segment
         const chartColors = filteredBalances.map(
-            () => `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`,
+          () => `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`,
         );
 
         const dataSet: any = {
             datasets: [
                 {
                     data: chartDataValues,
-                    backgroundColor: chartColors,  // Apply colors
-                    hoverBackgroundColor: chartColors.map((color: any) => `${color}B3`),  // Hover colors
+                    backgroundColor: chartColors,
+                    hoverBackgroundColor: chartColors.map((color: any) => `${color}B3`),
                     borderColor: 'white',
                     borderWidth: 2,
                 },
@@ -117,55 +116,85 @@ export function Charts({ usePioneer, onSelect }: any) {
         updateChart();
     }, [balances, showAll]);
 
+    const refreshApp = async () => {
+        try {
+            setIsRefreshing(true);
+            if (app) {
+                await app.getPubkeys();
+                await app.getBalances();
+                await app.getCharts();
+            } else {
+                alert('App Not Initialized!');
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     return (
-        <Flex direction="column" align="center" justify="center">
-            {balances.length === 0 ? (
-                <Center mt="20px">
-                    {app?.pubkeys?.length === 0 ? (
-                        <Button colorScheme="blue">Pair Wallets</Button>
-                    ) : (
-                        <>
-                            <Spinner mr="3" />
-                            <Text>Loading Wallet Balances...</Text>
-                        </>
-                    )}
-                </Center>
-            ) : (
-                <div>
-                    {/* Centered large balance with CountUp animation */}
-                    <Center>
-                        <Box height="300px" width="300px" position="relative">
-                            <Doughnut data={chartData} options={options} />
-                            {/* Large animated balance in the center */}
-                            <Flex
-                                position="absolute"
-                                top="0"
-                                bottom="0"
-                                left="0"
-                                right="0"
-                                justifyContent="center"
-                                alignItems="center"
-                                flexDirection="column"
-                            >
-                                <Text fontSize="3xl" fontWeight="bold" color="green.500">
-                                    <CountUp
+      <Flex direction="column" align="center" justify="center" onClick={refreshApp}>
+          {balances.length === 0 ? (
+            <Center mt="20px">
+                {app?.pubkeys?.length === 0 ? (
+                  <Button colorScheme="blue" onClick={refreshApp}>
+                      Pair Wallets
+                  </Button>
+                ) : (
+                  <>
+                      <Spinner color='white' mr="3" />
+                      <Text>Loading Wallet Balances...</Text>
+                  </>
+                )}
+            </Center>
+          ) : (
+            <div>
+                <Center>
+                    <Box height="300px" width="300px" position="relative">
+                        <Doughnut data={chartData} options={options} />
+                        <Flex
+                          position="absolute"
+                          top="0"
+                          bottom="0"
+                          left="0"
+                          right="0"
+                          justifyContent="center"
+                          alignItems="center"
+                          flexDirection="column"
+                        >
+                            {isRefreshing ? (
+                              <div>
+                                  Spinner....
+                                  <Spinner
+                                    color="red.500"
+                                    css={{ "--spinner-track-color": "colors.gray.200" }}
+                                  />
+                              </div>
+
+                            ) : (
+                              <>
+                                  <Text fontSize="3xl" fontWeight="bold" color="green.500">
+                                      <CountUp
                                         start={0}
                                         end={totalValueUsd}
                                         duration={2.5}
                                         separator=","
                                         decimals={2}
                                         prefix="$"
-                                    />
-                                </Text>
-                                <Text fontSize="xl" fontWeight="medium" color="gray.300">
-                                    {balances.length} Assets
-                                </Text>
-                            </Flex>
-                        </Box>
-                    </Center>
-                </div>
-            )}
-        </Flex>
+                                      />
+                                  </Text>
+                                  <Text fontSize="xl" fontWeight="medium" color="gray.300">
+                                      {balances.length} Assets
+                                  </Text>
+                              </>
+                            )}
+                        </Flex>
+                    </Box>
+                </Center>
+            </div>
+          )}
+      </Flex>
     );
 }
 
