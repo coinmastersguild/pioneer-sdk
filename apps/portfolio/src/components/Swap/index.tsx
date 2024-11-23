@@ -57,9 +57,7 @@ export function Swap({ usePioneer }: any): JSX.Element {
   const [amountSelected, setAmountSelected] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isContinueDisabled, setIsContinueDisabled] = useState(true);
   const [isContinueVisible, setIsContinueVisible] = useState(true);
-  const [quotesData, setQuotesData] = useState<typeof Quote[]>([]);
   const [showGoBack, setShowGoBack] = useState(false);
   const [continueButtonContent, setContinueButtonContent] = useState('Continue');
 

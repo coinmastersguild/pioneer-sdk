@@ -36,26 +36,14 @@ api docs: [https://pioneers.dev/docs](https://pioneers.dev/docs)
 
 ## Packages
 
-This repo contains packages around SwapKit sdk and its integrations with different blockchains.
 
 | Package                                                                                                             | Description                                            |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| [@coinmasters/api](https://www.npmjs.com/package/@coinmasters/api)                                                  | SwapKit API wrapper                                    |
-| [@coinmasters/core](https://www.npmjs.com/package/@coinmasters/core)                                                | Core package for SwapKit                               |
-| [@coinmasters/sdk](https://www.npmjs.com/package/@coinmasters/sdk)                                                  | All-in-one package for SwapKit                         |
 | [@coinmasters/tokens](https://www.npmjs.com/package/@coinmasters/tokens)                                            | Static tokens lists with decimals & contract addresses |
 | [@coinmasters/types](https://www.npmjs.com/package/@coinmasters/types)                                              | Types & enums for SwapKit                              |
-| [@coinmasters/toolbox-cosmos](https://www.npmjs.com/package/@coinmasters/toolbox-cosmos)                            | Integrate Cosmos chains                                |
-| [@coinmasters/toolbox-evm](https://www.npmjs.com/package/@coinmasters/toolbox-evm)                                  | Integrate EVM chain                                    |
-| [@coinmasters/toolbox-utxo](https://www.npmjs.com/package/@coinmasters/toolbox-utxo)                                | Integrate UTXO chain                                   |
-| [@coinmasters/wallet-evm-extensions](https://www.npmjs.com/package/@coinmasters/wallet-evm-extensions)              | EVM Browser Extensions                                 |
-| [@coinmasters/wallet-keplr](https://www.npmjs.com/package/@coinmasters/wallet-keplr)                                | Keplr Wallet                                           |
-| [@coinmasters/wallet-keystore](https://www.npmjs.com/package/@coinmasters/wallet-keystore)                          | Keystore Wallet                                        |
-| [@coinmasters/wallet-ledger](https://www.npmjs.com/package/@coinmasters/wallet-ledger)                              | Ledger Wallet                                          |
-| [@coinmasters/wallet-okx](https://www.npmjs.com/package/@coinmasters/wallet-okx)                                    | OKX Wallet                                             |
-| [@coinmasters/wallet-trezor](https://www.npmjs.com/package/@coinmasters/wallet-trezor)                              | Trezor Wallet                                          |
-| [@coinmasters/wallet-wc](https://www.npmjs.com/package/@coinmasters/wallet-wc)                                      | Walletconnect Wallet                                   |
-| [@coinmasters/wallet-xdefi](https://www.npmjs.com/package/@coinmasters/wallet-xdefi)                                | XDEFI Wallet                                           |
+| [@coinmasters/pioneer-react](https://www.npmjs.com/package/@coinmasters/pioneer-react)                                              | Pioneer React provider                              |
+| [@coinmasters/pioneer-sdk](https://www.npmjs.com/package/@coinmasters/pioneer-sdk)                                              | Pioneer sdk                              |
+
 
 ## Contributing
 

@@ -1,5 +1,6 @@
+'use client';
 import React, { useEffect, useState } from 'react';
-
+import { useSearchParams } from 'next/navigation';
 import { VStack, Image, Flex, Center, Spinner, Text } from '@chakra-ui/react';
 import AssetTable from '@/components/keepkey/AssetTable';
 import Swap from '@/components/Swap';
@@ -8,19 +9,10 @@ import Wallet from '@/components/keepkey/Wallet';
 import Connect from '@/components/keepkey/Connect';
 
 //@ts-ignore
-export default function Portfolio({ usePioneer, searchParams, currentNav, setCurrentNav }: any) {
+export default function Portfolio({ usePioneer, currentNav, setCurrentNav }: any) {
     const { state } = usePioneer();
     const { app, assets } = state;
 
-    const caip = searchParams.get('caip');
-    const caipIn = searchParams.get('caipIn');
-    const caipOut = searchParams.get('caipOut');
-    const networkId = searchParams.get('networkId');
-    const type = searchParams.get('type'); // e.g., 'tx' or 'swap'
-    console.log('Type:', type);
-    console.log('caipIn:', caipIn);
-    console.log('caipOut:', caipOut);
-    console.log('networkId:', networkId);
 
     const [isConnected, setIsConnected] = useState(false);  // Added isConnected state
     // const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
@@ -28,6 +20,17 @@ export default function Portfolio({ usePioneer, searchParams, currentNav, setCur
     const onStart = async () => {
         if (app?.balances) {  // Only start if not already connected
             setIsConnected(true);  // Mark as connected after successful connection
+
+            const searchParams = useSearchParams();
+            const caip = searchParams.get('caip');
+            const caipIn = searchParams.get('caipIn');
+            const caipOut = searchParams.get('caipOut');
+            const networkId = searchParams.get('networkId');
+            const type = searchParams.get('type'); // e.g., 'tx' or 'swap'
+            console.log('Type:', type);
+            console.log('caipIn:', caipIn);
+            console.log('caipOut:', caipOut);
+            console.log('networkId:', networkId);
 
             if (type === 'swap') {
                 if(caipIn) await app.setAssetContext({caip:caipIn})
