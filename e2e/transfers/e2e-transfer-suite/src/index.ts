@@ -54,19 +54,18 @@ const test_service = async function (this: any) {
             // 'DASH', //PASS!!!!
             // 'BCH', // PASS
             // 'LTC', //NO BALANCE< NEED SEGWIT PATH
-            // 'MATIC',
+            // 'MATIC', //Stuck
             // 'THOR',
             // 'GAIA',
             //'OSMO',
-            // 'BASE',
+            'BASE',
             // 'OP',
             // 'ARB',
             // 'AVAX',
             // 'BSC',
-            'XRP',
+            // 'XRP',
             // 'ETH',
             // 'BTC',
-
             // 'MAYA', //MARKET INFO BROKE
             // 'GNO',
 
@@ -118,6 +117,7 @@ const test_service = async function (this: any) {
             'cosmos:kaiyo-1/slip44:118': 'cosmos1hp7gnr07wprd75f4j4aze9a94aejfcqdsrnape', // KAIYO (ATOM)
             'cosmos:thorchain-mainnet-v1/slip44:931': 'thor10t3zmsks33mgf7ajkmzj2elt553ufrxgav90ms', // RUNE
             'eip155:1/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // ETH
+            'eip155:8453/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // ETH
             'eip155:137/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // MATIC (using same address as ETH)
             'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144': 'rGdMfVVZwUbqAxs5zucKHUpFgFTcPPj5Cn', // XRP
             'zcash:main': 't1arQZhpGdBVRhTybXpeoDFgyNJXFEWDTaP', // ZEC
@@ -135,6 +135,7 @@ const test_service = async function (this: any) {
             'cosmos:kaiyo-1/slip44:118': 0.01, // KAIYO (ATOM)
             'cosmos:thorchain-mainnet-v1/slip44:931': 0.02, // RUNE (Thorchain tends to have higher fees)
             'eip155:1/slip44:60': 0.0005, // ETH (depending on network conditions)
+            'eip155:8453/slip44:60': 0.0005, // ETH (depending on network conditions)
             'eip155:137/slip44:60': 0.01, // MATIC (Polygon typical min tx)
             'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144': .01, // XRP (reserve requirement of 10-20 XRP)
             'zcash:main': 0.0001, // ZEC
@@ -231,7 +232,7 @@ const test_service = async function (this: any) {
             log.info(tag,'FAUCET_ADDRESS: ',FAUCET_ADDRESS)
 
             let TEST_AMOUNT = caipToMinAmountSend[caip]
-            assert(FAUCET_ADDRESS)
+            assert(TEST_AMOUNT)
             log.info(tag,'TEST_AMOUNT: ',TEST_AMOUNT)
 
             //force sync balance for asset
@@ -250,7 +251,7 @@ const test_service = async function (this: any) {
             let pubkeys = app.pubkeys.filter((e: any) => e.networks.includes(blockchain));
             assert(pubkeys[0])
             log.info(tag,'pubkeys[0]: ',pubkeys[0])
-
+            if(!TEST_AMOUNT) throw Error('caip: '+caip+ ' Missing Setting for TEST_AMOUNT')
             const sendPayload = {
                 caip,
                 to:FAUCET_ADDRESS,

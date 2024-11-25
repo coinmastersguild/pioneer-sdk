@@ -210,23 +210,24 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:mayachain-mainnet-v1/slip44:931': {
-              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+              console.log(tag, ' mayachain tx detected! ');
+              if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgSend') {
                 console.log(tag, 'transfer:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
-                  await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
+                  await this.keepKeySdk.mayachain.mayachainSignAminoTransfer(unsignedTx);
                 console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
-              } else if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgDeposit') {
+              } else if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgDeposit') {
                 console.log(tag, 'transfer:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
-                  await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);
+                  await this.keepKeySdk.mayachain.mayachainSignAminoDeposit(unsignedTx);
                 console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
-                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                  `Unsupported mayachain message type: ${unsignedTx.signDoc.msgs[0].type}`,
                 );
               }
               break;

@@ -1,6 +1,7 @@
 import { caipToNetworkId } from '@pioneer-platform/pioneer-caip';
 
 import { cosmosTransferTemplate } from './templates/cosmos';
+import { mayachainDepositTemplate, mayachainTransferTemplate } from './templates/mayachain';
 import { osmosisTransferTemplate } from './templates/osmosis';
 import { thorchainDepositTemplate, thorchainTransferTemplate } from './templates/thorchain';
 
@@ -48,15 +49,27 @@ export async function createUnsignedTendermintTx(
     console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
 
     const fromAddress = relevantPubkeys[0].address;
-    const asset = caip.split(':')[1]; // Assuming format is "network:asset"
+    let asset = caip.split(':')[1]; // Assuming format is "network:asset"
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;
-    console.log(tag, 'accountInfo: ', accountInfo);
-    const account_number = accountInfo.account.account_number || '0';
-    const sequence = accountInfo.account.sequence || '0';
+
+    let account_number, sequence;
+    if (networkId === 'cosmos:cosmoshub-4' || networkId === 'cosmos:osmosis-1') {
+      console.log(tag, 'accountInfo: ', accountInfo);
+      account_number = accountInfo.account.account_number || '0';
+      sequence = accountInfo.account.sequence || '0';
+    } else if (
+      networkId === 'cosmos:thorchain-mainnet-v1' ||
+      networkId === 'cosmos:mayachain-mainnet-v1'
+    ) {
+      account_number = accountInfo.result.value.account_number || '0';
+      sequence = accountInfo.result.value.sequence || '0';
+    }
 
     switch (networkId) {
       case 'cosmos:thorchain-mainnet-v1':
+        amount = amount * 1000000; // Convert to RUNE
+        asset = 'urune';
         return to
           ? thorchainTransferTemplate({
               account_number,
@@ -80,11 +93,21 @@ export async function createUnsignedTendermintTx(
               sequence,
             });
       case 'cosmos:mayachain-mainnet-v1': {
+        amount = amount * 1000000; // Convert to RUNE
+        asset = 'cacao';
         return to
-          ? thorchainTransferTemplate({
+          ? mayachainTransferTemplate({
               account_number,
               chain_id: 'mayachain-mainnet-v1',
-              fee: { gas: '500000000', amount: [] },
+              fee: {
+                gas: '500000000',
+                amount: [
+                  {
+                    amount: '0',
+                    denom: 'cacao',
+                  },
+                ],
+              },
               from_address: fromAddress,
               to_address: to,
               asset,
@@ -92,10 +115,18 @@ export async function createUnsignedTendermintTx(
               memo,
               sequence,
             })
-          : thorchainDepositTemplate({
+          : mayachainDepositTemplate({
               account_number,
               chain_id: 'mayachain-mainnet-v1',
-              fee: { gas: '500000000', amount: [] },
+              fee: {
+                gas: '500000000',
+                amount: [
+                  {
+                    amount: '0',
+                    denom: 'cacao',
+                  },
+                ],
+              },
               from_address: fromAddress,
               asset,
               amount: amount.toString(),
