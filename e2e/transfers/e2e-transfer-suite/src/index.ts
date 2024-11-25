@@ -50,7 +50,7 @@ const test_service = async function (this: any) {
         //get all blockchains
 
         let chains = [
-            // 'DOGE', //PASS
+            'DOGE',
             // 'DASH', //PASS!!!!
             // 'BCH', // PASS
             // 'LTC', //NO BALANCE< NEED SEGWIT PATH
@@ -58,7 +58,7 @@ const test_service = async function (this: any) {
             // 'THOR',
             // 'GAIA',
             //'OSMO',
-            'BASE',
+            // 'BASE',
             // 'OP',
             // 'ARB',
             // 'AVAX',
@@ -171,8 +171,8 @@ const test_service = async function (this: any) {
             paths,
         };
 
-        //console.log(tag,' CHECKPOINT 2');
-        //console.log(tag,' config: ',config);
+        //log.info(tag,' CHECKPOINT 2');
+        //log.info(tag,' config: ',config);
         let app = new SDK.SDK(spec,config)
         let resultInit = await app.init({}, {})
         // log.info(tag,"resultInit: ",resultInit)
@@ -260,12 +260,29 @@ const test_service = async function (this: any) {
                 //Options
             }
             log.info(tag,'sendPayload: ',sendPayload)
-            let result = await app.transfer(sendPayload, true)
-            log.info(tag,'result: ',result)
-
-            // result.on('tx', async (tx: any) => {
-            //     //error
+            // let result = await app.transfer(sendPayload, true)
+            // // log.info(tag,'result: ',result)
+            // assert(result.txid)
+            // log.info(tag,'result: ', result.txid)
             //
+            // result.events.on('message', async (tx: any) => {
+            //     log.info('message', tx)
+            //     //error
+            //     //review tx
+            //
+            //     //signed
+            //
+            //     //broadcast
+            //
+            //     //txid
+            //
+            //     //confirmed
+            // })
+            //
+            //
+            // result.events.on('tx', async (tx: any) => {
+            //     log.info('tx', tx)
+            //     //error
             //     //review tx
             //
             //     //signed
@@ -277,9 +294,17 @@ const test_service = async function (this: any) {
             //     //confirmed
             // })
 
+            let txid = 'f8d8bc960f06a7936bcd739a2044ddc1693f2597c255122bdae3f49d487adb4d'
+            let result = {
+                txid
+            }
+
+            let followTx = await app.followTransaction(caip, result.txid)
+            log.info(tag,'followTx: ',followTx)
+
         }
 
-        console.log("************************* TEST PASS *************************")
+        log.info("************************* TEST PASS *************************")
     } catch (e) {
         log.error(e)
         //process

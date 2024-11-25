@@ -111,10 +111,11 @@ export class SDK {
   public keepKeySdk: any;
   private getGasAssets: () => Promise<any>;
   private transactions: any;
-  private transfer: (newPaths) => Promise<void>;
+  private transfer: (newPaths) => Promise<any>;
   private clearCache: () => Promise<boolean>;
   private sync: () => Promise<void>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
+  private followTransaction: (caip: string, txid: string) => Promise<void>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -528,66 +529,82 @@ export class SDK {
 
           let txid = await txManager.broadcast(payload);
           console.log(tag, 'txid: ', txid);
-
-          //wait on confirmation
-          // Emit 'broadcasted' event
-          this.events.emit('broadcasted', { txid });
-
-          const broadcastTime = Date.now(); // Track the time the transaction was broadcasted
-          let detectedTime = null;
-          let isConfirmed = false;
-
-          // Step 4: Poll for transaction confirmation
-          while (!isConfirmed) {
-            try {
-              let response = await this.pioneer.LookupTx({
-                networkId: caipToNetworkId(caip),
-                txid,
-              });
-
-              if (response && response.data) {
-                let txInfo = response.data;
-
-                if (txInfo.txid && !detectedTime) {
-                  detectedTime = Date.now();
-                  this.events.emit('detected', {
-                    txid,
-                    time: detectedTime,
-                    elapsed: detectedTime - broadcastTime,
-                  });
-                }
-
-                if (txInfo.confirmations > 0) {
-                  isConfirmed = true;
-                  let confirmTime = Date.now();
-                  this.events.emit('confirmed', {
-                    txid,
-                    time: confirmTime,
-                    elapsed: confirmTime - broadcastTime,
-                    detectionElapsed: confirmTime - detectedTime,
-                  });
-
-                  // Emit 'completed' event
-                  this.events.emit('completed', { txid });
-                } else {
-                  this.events.emit('pending', { txid });
-                }
-              } else {
-                this.events.emit('not_detected', { txid });
-              }
-            } catch (e) {
-              this.events.emit('error', e);
-              throw e;
-            }
-
-            // Wait before the next confirmation check
-            await new Promise((resolve) => setTimeout(resolve, 8000));
-          }
+          return { txid, events: this.events };
         }
-
-        return 'FakeTxidBro';
       } catch (e) {
         throw e;
+      }
+    };
+    //TODO get events hook
+    this.followTransaction = async function (caip: string, txid: string) {
+      let tag = ' | followTransaction | ';
+      try {
+        // Lookup transaction
+        let isConfirmed = false;
+        let broadcastTime = Date.now();
+        let detectedTime = null;
+
+        while (!isConfirmed) {
+          try {
+            console.log(tag, 'txid: ', txid);
+            let response = await this.pioneer.LookupTx({
+              networkId: caipToNetworkId(caip),
+              txid,
+            });
+            console.log(tag, 'response: ', response);
+            // Ensure the response data exists
+            if (response && response.data) {
+              let txInfo = response.data;
+              txInfo = txInfo.data;
+              console.log(tag, 'txInfo: ', txInfo);
+              console.log(tag, 'confirmations: ', txInfo.confirmations);
+              // Check if transaction was detected
+              if (txInfo.txid && !detectedTime) {
+                detectedTime = Date.now();
+                //console.log(tag, 'Transaction detected! Waiting for confirmation.');
+                console.log(
+                  tag,
+                  `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
+                );
+              }
+
+              // Check for confirmation
+              if (txInfo.confirmations > 0) {
+                console.log(tag,'isConfirmed!')
+                isConfirmed = true;
+                let confirmTime = Date.now();
+                //console.log(tag, 'Transaction confirmed on network:', caip);
+                console.log(
+                  tag,
+                  `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
+                );
+
+                if (detectedTime !== null) {
+                  console.log(
+                    tag,
+                    `Time from detection to confirmation: ${formatTime(
+                      confirmTime - detectedTime,
+                    )}`,
+                  );
+                }
+              } else {
+                // Transaction is detected but not yet confirmed
+                console.log(tag, 'Transaction detected but not yet confirmed.');
+              }
+            } else {
+              // Transaction not detected yet
+              console.log(tag, 'Transaction not detected yet.');
+            }
+          } catch (e) {
+            // Handle specific error cases if needed
+            console.error(tag, e);
+          }
+
+          // Wait before the next check
+          await new Promise((resolve) => setTimeout(resolve, 8000));
+        }
+      } catch (e) {
+        console.error(tag, e);
       }
     };
     this.transfer = async function (sendPayload, waitOnConfirm = false) {
@@ -622,76 +639,7 @@ export class SDK {
         };
         let txid = await txManager.broadcast(payload);
         console.log(tag, 'txid: ', txid);
-
-        if (!waitOnConfirm) {
-          return txid;
-        } else {
-          // Lookup transaction
-          let isConfirmed = false;
-          let broadcastTime = Date.now();
-          let detectedTime = null;
-
-          while (!isConfirmed) {
-            try {
-              let response = await this.pioneer.LookupTx({
-                networkId: caipToNetworkId(caip),
-                txid,
-              });
-
-              // Ensure the response data exists
-              if (response && response.data) {
-                let txInfo = response.data;
-
-                // Check if transaction was detected
-                if (txInfo.txid && !detectedTime) {
-                  detectedTime = Date.now();
-                  //console.log(tag, 'Transaction detected! Waiting for confirmation.');
-                  console.log(
-                    tag,
-                    `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
-                  );
-                }
-
-                // Check for confirmation
-                if (txInfo.confirmations > 0) {
-                  isConfirmed = true;
-                  let confirmTime = Date.now();
-                  //console.log(tag, 'Transaction confirmed on network:', caip);
-                  console.log(
-                    tag,
-                    `Time from broadcast to confirmation: ${formatTime(
-                      confirmTime - broadcastTime,
-                    )}`,
-                  );
-
-                  if (detectedTime !== null) {
-                    console.log(
-                      tag,
-                      `Time from detection to confirmation: ${formatTime(
-                        confirmTime - detectedTime,
-                      )}`,
-                    );
-                  }
-                } else {
-                  // Transaction is detected but not yet confirmed
-                  console.log(tag, 'Transaction detected but not yet confirmed.');
-                }
-              } else {
-                // Transaction not detected yet
-                console.log(tag, 'Transaction not detected yet.');
-              }
-            } catch (e) {
-              // Handle specific error cases if needed
-              console.error(tag, e);
-            }
-
-            // Wait before the next check
-            await new Promise((resolve) => setTimeout(resolve, 8000));
-          }
-
-          // Optionally return the transaction ID or other info
-          return txid;
-        }
+        return { txid, events: this.events };
       } catch (e) {
         console.error(tag, 'An error occurred during the transfer process:', e.message || e);
         throw e;
