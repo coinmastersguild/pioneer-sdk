@@ -5,9 +5,9 @@ import type EventEmitter from 'events';
 
 import { CAIP_TO_COIN_MAP, SUPPORTED_CAIPS } from './supportedCaips';
 import { createUnsignedEvmTx } from './txbuilder/createUnsignedEvmTx';
+import { createUnsignedRippleTx } from './txbuilder/createUnsignedRippleTx';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx';
 import { createUnsignedUxtoTx } from './txbuilder/createUnsignedUxtoTx';
-import { createUnsignedRippleTx } from './txbuilder/createUnsignedRippleTx';
 
 const TAG = ' | Transaction | ';
 
@@ -57,7 +57,7 @@ export class TransactionManager {
       if (!caip) throw Error('Missing required param! caip');
       if (!to) throw Error('Missing required param! to');
       if (!amount) throw Error('Missing required param! amount');
-
+      if (!memo) memo = ' ';
       const type = await this.classifyCaip(caip);
 
       let unsignedTx;
@@ -159,8 +159,71 @@ export class TransactionManager {
           switch (caip) {
             case 'cosmos:cosmoshub-4/slip44:118': {
               if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+                console.log(tag, 'transfer:');
+                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.cosmos.cosmosSignAmino(unsignedTx);
-                signedTx = responseSign.serializedTx;
+                console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else {
+                throw new Error(
+                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                );
+              }
+              break;
+            }
+            case 'cosmos:osmosis-1/slip44:118': {
+              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+                console.log(tag, 'transfer:');
+                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.osmosis.osmosisSignAmino(unsignedTx);
+                console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else {
+                throw new Error(
+                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                );
+              }
+              break;
+            }
+            case 'cosmos:thorchain-mainnet-v1/slip44:931': {
+              //transfer
+              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+                console.log(tag, 'transfer:');
+                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign =
+                  await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
+                console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgDeposit') {
+                console.log(tag, 'transfer:');
+                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign =
+                  await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);
+                console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else {
+                throw new Error(
+                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                );
+              }
+              //deposit
+              break;
+            }
+            case 'cosmos:mayachain-mainnet-v1/slip44:931': {
+              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+                console.log(tag, 'transfer:');
+                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign =
+                  await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
+                console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgDeposit') {
+                console.log(tag, 'transfer:');
+                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign =
+                  await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);
+                console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
               } else {
                 throw new Error(
                   `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
@@ -180,8 +243,12 @@ export class TransactionManager {
           break;
         }
         case 'OTHER': {
+          console.log(tag, 'OTHER: ', caip);
           if (caip === 'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144') {
-            const responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
+            console.log(tag, 'unsignedTx: ', JSON.stringify(unsignedTx));
+            let responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
+            console.log(tag, 'responseSign: ', responseSign);
+            if (typeof responseSign === 'string') responseSign = JSON.parse(responseSign);
             signedTx = responseSign.serializedTx;
           } else {
             throw new Error(`Unsupported OTHER CAIP: ${caip}`);
@@ -204,8 +271,10 @@ export class TransactionManager {
     let tag = TAG + ' | broadcast | ';
     try {
       if (!this.pioneer) throw Error('Failed to init! pioneer');
+      if(!serialized) throw Error('Failed to broadcast! missing serialized');
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
+      console.log(tag, 'result:', result);
       return result.txid;
     } catch (e: any) {
       console.error(tag, e);

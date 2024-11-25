@@ -621,6 +621,7 @@ export class SDK {
           serialized: signedTx,
         };
         let txid = await txManager.broadcast(payload);
+        console.log(tag, 'txid: ', txid);
 
         if (!waitOnConfirm) {
           return txid;
@@ -884,9 +885,11 @@ export class SDK {
         // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < pubkeys.length; i++) {
           try {
+            console.log(tag, 'pubkey: ', pubkeys[i]);
+            console.log(tag, 'asset: ', asset);
             let balancesData = await this.pioneer.Navigate({ asset, pubkey: pubkeys[i] });
             let balances = balancesData.data;
-            //console.log(tag, 'balances: ', balances);
+            console.log(tag, 'Navigate balances response: ', balances);
             for (let i = 0; i < balances.length; i++) {
               balances[i].chain = balances[i].networkId;
               balances[i].pubkey = pubkeys[i].pubkey || pubkeys[i].address || pubkeys[i].master;
@@ -966,6 +969,7 @@ export class SDK {
         // //console.log(tag, 'balances2: ', balances[1]);
         // //console.log(tag, 'balances3: ', balances[2]);
         // //console.log(tag, 'balances4: ', balances.length);
+        // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
           const existingBalance = balances.find((b) => b.caip === balance.caip);

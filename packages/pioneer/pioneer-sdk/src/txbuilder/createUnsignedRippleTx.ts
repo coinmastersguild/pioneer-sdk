@@ -1,26 +1,23 @@
 /*
   Create Unsigned UTXO Transaction
 */
-import { DerivationPath } from '@coinmasters/types';
 // import type { UTXO, PubKey } from './types';
 // @ts-ignore
-import { caipToNetworkId, NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
-import { bip32ToAddressNList } from '@pioneer-platform/pioneer-coins';
+import { caipToNetworkId } from '@pioneer-platform/pioneer-caip';
 //@ts-ignore
-import coinSelect from 'coinselect';
 
 const TAG = ' | createUnsignedUxtoTx | ';
 
 export async function createUnsignedRippleTx(
   caip: string,
   to: string,
-  amount: number,
+  amount: any,
   memo: string,
   pubkeys: any,
   pioneer: any,
   keepKeySdk: any,
 ): Promise<any> {
-  let tag = TAG + ' | createUnsignedTendermintTx | ';
+  let tag = TAG + ' | createUnsignedRippleTx | ';
 
   try {
     if (!pioneer) throw new Error('Failed to init! pioneer');
@@ -35,12 +32,27 @@ export async function createUnsignedRippleTx(
     }
     console.log(tag, 'relevantPubkeys:', relevantPubkeys);
 
-    const accountInfo = await pioneer.GetAccount({ address:relevantPubkeys[0].address, network: networkId });
+    let accountInfo = await pioneer.GetAccountInfo({
+      address: relevantPubkeys[0].address,
+      network: 'ripple',
+    });
+    accountInfo = accountInfo.data;
+    console.log(tag, 'accountInfo:', accountInfo);
+
     const sequence = accountInfo.Sequence.toString();
     const ledgerIndexCurrent = accountInfo.ledger_index_current;
     const fromAddress = relevantPubkeys[0].address;
     let desttag = memo;
-    if (!desttag) desttag = '0';
+    // Check if desttag is null, undefined, a space, or any non-numeric value
+    //@ts-ignore
+    if (!desttag || /^\s*$/.test(desttag) || isNaN(desttag)) {
+      desttag = '0';
+    }
+
+    //format amount
+    amount = amount * 1000000;
+    amount = amount.toString();
+
     let tx = {
       type: 'auth/StdTx',
       value: {

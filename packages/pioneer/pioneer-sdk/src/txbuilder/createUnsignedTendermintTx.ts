@@ -47,13 +47,13 @@ export async function createUnsignedTendermintTx(
     }
     console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
 
-
     const fromAddress = relevantPubkeys[0].address;
     const asset = caip.split(':')[1]; // Assuming format is "network:asset"
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;
-    const account_number = accountInfo.account_number || '0';
-    const sequence = accountInfo.sequence || '0';
+    console.log(tag, 'accountInfo: ', accountInfo);
+    const account_number = accountInfo.account.account_number || '0';
+    const sequence = accountInfo.account.sequence || '0';
 
     switch (networkId) {
       case 'cosmos:thorchain-mainnet-v1':
@@ -79,7 +79,30 @@ export async function createUnsignedTendermintTx(
               memo,
               sequence,
             });
-
+      case 'cosmos:mayachain-mainnet-v1': {
+        return to
+          ? thorchainTransferTemplate({
+              account_number,
+              chain_id: 'mayachain-mainnet-v1',
+              fee: { gas: '500000000', amount: [] },
+              from_address: fromAddress,
+              to_address: to,
+              asset,
+              amount: amount.toString(),
+              memo,
+              sequence,
+            })
+          : thorchainDepositTemplate({
+              account_number,
+              chain_id: 'mayachain-mainnet-v1',
+              fee: { gas: '500000000', amount: [] },
+              from_address: fromAddress,
+              asset,
+              amount: amount.toString(),
+              memo,
+              sequence,
+            });
+      }
       case 'cosmos:cosmoshub-4':
         return cosmosTransferTemplate({
           account_number,
@@ -88,7 +111,7 @@ export async function createUnsignedTendermintTx(
           from_address: fromAddress,
           to_address: to,
           asset: 'uatom',
-          amount: amount.toString(),
+          amount: (amount * 10000).toString(),
           memo,
           sequence,
         });
@@ -101,7 +124,7 @@ export async function createUnsignedTendermintTx(
           from_address: fromAddress,
           to_address: to,
           asset: 'uosmo',
-          amount: amount.toString(),
+          amount: (amount * 10000).toString(),
           memo,
           sequence,
         });

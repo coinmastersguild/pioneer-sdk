@@ -76,23 +76,23 @@ const test_service = async function (this: any) {
         //add a few custom blockchains
 
         let AllChainsSupported = [
-            // 'ETH',
-            // 'ARB',
-            // 'DOGE',
-            // 'OP',  //Fast
-            // // 'MATIC', //SLOW charting
-            // 'AVAX', //fast
-            // 'BASE', //fast
-            // 'BSC', //fast
-            // 'BTC',
-            // 'BCH',
-            // 'GAIA',
-            // // 'OSMO',
-            // 'XRP',
-            // 'DOGE',
-            // 'DASH',
-            // 'MAYA',
-            // 'LTC',
+            'ETH',
+            'ARB',
+            'DOGE',
+            'OP',  //Fast
+            // 'MATIC', //SLOW charting
+            'AVAX', //fast
+            'BASE', //fast
+            'BSC', //fast
+            'BTC',
+            'BCH',
+            'GAIA',
+            'OSMO',
+            'XRP',
+            'DOGE',
+            'DASH',
+            'MAYA',
+            'LTC',
             'THOR'
         ]
 

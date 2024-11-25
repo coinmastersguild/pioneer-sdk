@@ -31,7 +31,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       'bip122:000007d91d1254d60e2dd1ae58038307': 'UTXO',
       'bip122:00000000001a91e3dace36e2be3bf030': 'UTXO',
       'bip122:12a765e31ffd4059bada1e25190f6e98': 'UTXO',
-      'cosmos:mayachain-mainnet-v1': 'COSMOS',
+      'cosmos:mayachain-mainnet-v1': 'MAYACHAIN',
       'cosmos:osmosis-1': 'OSMOSIS',
       'cosmos:cosmoshub-4': 'COSMOS',
       'cosmos:kaiyo-1': 'COSMOS',
@@ -46,6 +46,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     const networkType = networkIdToType[networkId];
     let address;
 
+    console.log(tag, 'networkType:', networkType, 'networkId:', networkId, 'chain:', chain, 'addressInfo:', addressInfo)
     switch (networkType) {
       case 'UTXO':
         //console.log(tag, 'UTXO addressInfo:', addressInfo);
@@ -59,6 +60,9 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
         break;
       case 'COSMOS':
         ({ address } = await sdk.address.cosmosGetAddress(addressInfo));
+        break;
+      case 'MAYACHAIN':
+        ({ address } = await sdk.address.mayachainGetAddress(addressInfo));
         break;
       case 'THORCHAIN':
         ({ address } = await sdk.address.thorchainGetAddress(addressInfo));
