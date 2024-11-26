@@ -7,21 +7,34 @@ import {
     Input,
     Text,
     VStack,
+    Spinner,
+    Link,
+    Center,
 } from '@chakra-ui/react';
 import React, { useState, useCallback } from 'react';
 //@ts-ignore
 import confetti from 'canvas-confetti';
 import { toaster } from '@/components/ui/toaster';
-import { Avatar } from '@/components/ui/avatar';
-import CountUp from 'react-countup';
+import { Avatar } from '@/components/ui/avatar'; // Preserved original Avatar import
+import {
+    StepsCompletedContent,
+    StepsContent,
+    StepsItem,
+    StepsList,
+    StepsRoot,
+} from '@/components/ui/steps';
 
 export function Transfer({ usePioneer }: any): JSX.Element {
     const { state } = usePioneer();
     const { app } = state;
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputAmount, setInputAmount] = useState('');
     const [recipient, setRecipient] = useState('');
     const [recipientError, setRecipientError] = useState('');
+    const [showSteps, setShowSteps] = useState(false);
+    const [currentStep, setCurrentStep] = useState(0);
+    const [txHash, setTxHash] = useState('');
 
     const validateAddress = (address: string) => {
         // TODO: Replace with actual validation logic (e.g., regex for blockchain address)
@@ -29,7 +42,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     };
 
     const handleSend = useCallback(async () => {
-        let tag = ' | handleSend | '
+        let tag = ' | handleSend | ';
         try {
             if (!inputAmount || !recipient) {
                 toaster.create({
@@ -46,6 +59,14 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             }
 
             setIsSubmitting(true);
+            setShowSteps(true);
+            setCurrentStep(0); // Start with approving on device
+
+            // Simulate user approving on device
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            setCurrentStep(1); // Move to building transaction
+
             const sendPayload = {
                 caip: app.assetContext?.caip,
                 to: recipient,
@@ -53,10 +74,14 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 feeLevel: 5,
             };
 
+            // Simulate building transaction
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
             const result = await app.transfer(sendPayload, true);
-            console.log(tag,"result: ",result)
+            console.log(tag, 'result: ', result);
 
             confetti();
+            setTxHash(result.txHash || result.txid);
             toaster.create({
                 title: 'Transaction Successful',
                 description: `Transaction ID: ${result.txHash || result.txid}`,
@@ -65,16 +90,18 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
             setInputAmount('');
             setRecipient('');
+            setCurrentStep(2); // Move to confirmation
         } catch (error) {
             toaster.create({
                 title: 'Transaction Failed',
                 description: 'An error occurred during the transaction.',
                 duration: 5000,
             });
+            setShowSteps(false); // Hide steps on failure
         } finally {
             setIsSubmitting(false);
         }
-    }, [app, app.assetContext, inputAmount, recipient]);
+    }, [app, inputAmount, recipient]);
 
     const handleRecipientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -87,67 +114,155 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     };
 
     return (
-      <VStack>
-          <Heading as="h1" size="md" color="teal">
+      <VStack
+        spacing={6}
+        p={8}
+        bg="gray.900"
+        borderRadius="lg"
+        shadow="xl"
+        maxW="sm"
+        mx="auto"
+        mt={10}
+        textAlign="center"
+      >
+          <Heading as="h2" size="lg" color="teal.300">
               Send Crypto
           </Heading>
 
-          <Flex align="center" gap={2}>
-              <Avatar size="md" src={app.assetContext?.icon} />
-              <Box>
-                  <Text>
-                      Asset: <Badge colorScheme="green">{app.assetContext?.name}</Badge>
+          <Flex align="center" gap={4}>
+              <Avatar size="lg" src={app.assetContext?.icon} />
+              <VStack align="start" spacing={1}>
+                  <Text fontSize="lg" fontWeight="bold" color="white">
+                      {app.assetContext?.name} ({app.assetContext?.symbol})
                   </Text>
-                  <Text>
-                      CAIP: <Badge colorScheme="purple">{app.assetContext?.caip}</Badge>
+                  <Link
+                    href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
+                    color="teal.400"
+                    isExternal
+                  >
+                      View on Explorer
+                  </Link>
+                  <Text color="gray.400" fontSize="sm">
+                      Asset ID: {app.assetContext?.assetId}
                   </Text>
-                  <Text>
-                      Balance: <Badge colorScheme="blue">{app.assetContext?.balances[0].balance}</Badge>
+                  <Text color="gray.400" fontSize="sm">
+                      Network: {app.assetContext?.networkName}
                   </Text>
-                  {/*<Text*/}
-                  {/*  fontSize="lg"*/}
-                  {/*  fontWeight="bold"*/}
-                  {/*  color={isDisabled ? 'gray.400' : 'green.500'}*/}
-                  {/*>*/}
-                  {/*    <CountUp*/}
-                  {/*      start={0}*/}
-                  {/*      end={app?.assetContext?.balances[0].balance}*/}
-                  {/*      duration={2.5}*/}
-                  {/*      separator=","*/}
-                  {/*      decimals={2}*/}
-                  {/*      prefix="$"*/}
-                  {/*    />*/}
-                  {/*</Text>*/}
-              </Box>
+              </VStack>
           </Flex>
 
-          <Input
-            placeholder="Recipient Address"
-            value={recipient}
-            onChange={handleRecipientChange}
-          />
-          {recipientError && (
-            <Text color="red.500" fontSize="sm">
-                {recipientError}
-            </Text>
-          )}
+          <Box>
+              <Input
+                placeholder="Recipient Address"
+                value={recipient}
+                onChange={handleRecipientChange}
+                size="md"
+                bg="gray.800"
+                color="white"
+                focusBorderColor="teal.400"
+                _placeholder={{ color: 'gray.500' }}
+              />
+              {recipientError && (
+                <Text color="red.400" fontSize="xs" mt={1}>
+                    {recipientError}
+                </Text>
+              )}
+          </Box>
 
-          <Input
-            placeholder="Amount"
-            value={inputAmount}
-            onChange={(e) => setInputAmount(e.target.value)}
-            type="number"
-          />
-          <Text fontSize="sm" color="gray.500">
-              Available Balance: {app.assetContext?.balances[0].balance ?? '0'}
-          </Text>
+          <Box>
+              <Input
+                placeholder="Amount"
+                value={inputAmount}
+                onChange={(e) => setInputAmount(e.target.value)}
+                type="number"
+                size="md"
+                bg="gray.800"
+                color="white"
+                focusBorderColor="teal.400"
+                _placeholder={{ color: 'gray.500' }}
+              />
+              <Text fontSize="sm" color="gray.400" mt={1}>
+                  Available Balance: {app.assetContext?.balances[0].balance ?? '0'}{' '}
+                  {app.assetContext?.symbol}
+              </Text>
+          </Box>
 
           <Button
-            colorScheme="green"
+            colorScheme="teal"
             onClick={handleSend}
+            isLoading={isSubmitting}
+            loadingText="Sending"
+            size="lg"
+            shadow="md"
+            _hover={{ bg: 'teal.600' }}
           >
-              {isSubmitting ? 'Sending...' : 'Send'}
+              Send
           </Button>
+
+          {showSteps && (
+            <StepsRoot value={currentStep} count={3} mt={4}>
+                <StepsList mb={4}>
+                    <StepsItem index={0} title="Approve on Device" />
+                    <StepsItem index={1} title="Building Transaction" />
+                    <StepsItem index={2} title="Confirmation" />
+                </StepsList>
+
+                <StepsContent index={0}>
+                    <Text fontSize="lg" textAlign="center" color="gray.300">
+                        Please approve the transaction on your device.
+                    </Text>
+                    <Center mt={4}>
+                        <Avatar size="2xl" src="https://pioneers.dev/coins/keepkey.png" />
+                    </Center>
+                </StepsContent>
+
+                <StepsContent index={1}>
+                    <Text fontSize="lg" color="gray.300">
+                        Building your transaction...
+                    </Text>
+                    <Center mt={4}>
+                        <Spinner size="xl" />
+                    </Center>
+                </StepsContent>
+
+                <StepsContent index={2}>
+                    <Text fontSize="lg" textAlign="center" color="green.500">
+                        Transaction Successful!
+                    </Text>
+                    <Box mt={4} textAlign="center">
+                        <Text fontWeight="bold">Transaction ID:</Text>
+                        <Link
+                          href={`${app.assetContext?.explorerTxLink}${txHash}`}
+                          color="teal.500"
+                          isExternal
+                        >
+                            {txHash}
+                        </Link>
+                    </Box>
+                </StepsContent>
+
+                <StepsCompletedContent>
+                    <Text textAlign="center" color="gray.300">
+                        All steps are complete!
+                    </Text>
+                </StepsCompletedContent>
+            </StepsRoot>
+          )}
+
+          {txHash && (
+            <Box mt={4}>
+                <Text fontSize="md" color="gray.300">
+                    Transaction ID:
+                </Text>
+                <Link
+                  href={`${app.assetContext?.explorerTxLink}${txHash}`}
+                  color="teal.500"
+                  isExternal
+                >
+                    {txHash}
+                </Link>
+            </Box>
+          )}
       </VStack>
     );
 }
