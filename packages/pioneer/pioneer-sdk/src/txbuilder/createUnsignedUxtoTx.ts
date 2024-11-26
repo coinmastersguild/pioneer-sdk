@@ -76,7 +76,7 @@ export async function createUnsignedUxtoTx(
     //console.log(tag, 'relevantPubkeys:', relevantPubkeys);
 
     const isSegwit = networkId === 'bip122:000000000019d6689c085ae165831e93';
-    //console.log(tag, 'isSegwit:', isSegwit);
+    console.log(tag, 'isSegwit:', isSegwit);
 
     let chain = NetworkIdToChain[networkId];
     //console.log(tag, 'chain:', chain);
@@ -122,7 +122,29 @@ export async function createUnsignedUxtoTx(
       utxo.value = Number(utxo.value);
     }
 
-    const feeRateFromNode = (await pioneer.GetFeeRate({ networkId })).data;
+    let feeRateFromNode: any;
+    try {
+      // Attempt to fetch the fee rate from Pioneer API
+      feeRateFromNode = (await pioneer.GetFeeRate({ networkId })).data;
+    } catch (error) {
+      console.warn(`${tag}: Pioneer API unavailable. Using fallback defaults.`);
+      feeRateFromNode = null;
+    }
+    if (!feeRateFromNode) throw Error('Failed to get FEE RATES');
+    // Provide failover defaults if feeRateFromNode is null or incomplete
+    //TODO change by caip (default fee rates)
+
+    const defaultFeeRates = {
+      slow: 10, // Adjust as needed
+      average: 20, // Adjust as needed
+      fastest: 50, // Adjust as needed
+    };
+
+    if (!feeRateFromNode) {
+      console.warn(`${tag}: Using hardcoded fee rates as defaults.`);
+      feeRateFromNode = defaultFeeRates;
+    }
+
     const feeLevel = 5; // Adjust as needed
     let effectiveFeeRate;
 
@@ -143,9 +165,10 @@ export async function createUnsignedUxtoTx(
     }
 
     if (!effectiveFeeRate) throw new Error('Unable to get fee rate for network');
-    effectiveFeeRate = Math.round((effectiveFeeRate * 1.2) / 1000);
-    //console.log(tag, 'effectiveFeeRate:', effectiveFeeRate);
-
+    effectiveFeeRate = Math.round(effectiveFeeRate * 1.2);
+    console.log(tag, 'effectiveFeeRate:', effectiveFeeRate);
+    if (effectiveFeeRate === 0) throw Error('Failed to build valid fee! 0');
+    if (effectiveFeeRate <= 5) effectiveFeeRate = 8;
     //console.log(tag, 'utxos:', JSON.stringify(utxos));
     //console.log(tag, 'utxos:', utxos.length);
     amount = parseInt(String(amount * 1e8));
@@ -153,10 +176,17 @@ export async function createUnsignedUxtoTx(
     //console.log(tag, 'amount:', amount);
     //console.log(tag, 'amount:', typeof amount);
     if (amount <= 0) throw Error('Invalid amount! 0');
+    console.log(tag, 'amount:', amount);
+    console.log(tag, 'to: ', to);
+    console.log(tag, 'utxos:', utxos);
+    console.log(tag, 'utxos:', utxos.length);
     const result = await coinSelect(utxos, [{ address: to, value: amount }], effectiveFeeRate);
     //console.log(tag, 'result:', result);
     let { inputs, outputs, fee } = result;
-    if (!inputs || !outputs || !fee) throw Error('Failed to create transaction');
+    if (!inputs) throw Error('Failed to create transaction Missing: inputs');
+    if (!outputs) throw Error('Failed to create transaction Missing: outputs');
+    if (!fee) throw Error('Failed to create transaction Missing: fee');
+
     //console.log(tag, 'inputs:', inputs);
     //console.log(tag, 'outputs:', outputs);
     //console.log(tag, 'fee:', fee);
@@ -176,7 +206,7 @@ export async function createUnsignedUxtoTx(
         hex: txHex || '',
       }));
 
-    const scriptType = isSegwit ? 'p2wpkh' : 'p2pkh';
+    const scriptType = isSegwit ? 'p2wpkh' : 'p2sh';
 
     const preparedOutputs = outputs.map(({ value, address }) =>
       address

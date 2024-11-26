@@ -115,7 +115,20 @@ export class SDK {
   private clearCache: () => Promise<boolean>;
   private sync: () => Promise<void>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
-  private followTransaction: (caip: string, txid: string) => Promise<void>;
+  private followTransaction: (
+    caip: string,
+    txid: string,
+  ) => Promise<{
+    detectedTime: string | null;
+    requiredConfirmations: any;
+    timeFromDetectionToConfirm: string | null;
+    txid: string;
+    confirmTime: string | null;
+    caip: string;
+    broadcastTime: string;
+    timeToDetect: string | null;
+    timeToConfirm: string | null;
+  }>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -539,10 +552,20 @@ export class SDK {
     this.followTransaction = async function (caip: string, txid: string) {
       let tag = ' | followTransaction | ';
       try {
-        // Lookup transaction
+        // Define the block confirmation requirements per CAIP
+        const finalConfirmationBlocksByCaip = {
+          dogecoin: 3, // Example: wait for 3 blocks on Dogecoin
+          bitcoin: 6, // Example: wait for 6 blocks on Bitcoin
+          // Add other CAIPs as needed
+        };
+
+        // Lookup the required number of confirmations for the CAIP
+        const requiredConfirmations = finalConfirmationBlocksByCaip[caip] || 1;
+
         let isConfirmed = false;
         let broadcastTime = Date.now();
         let detectedTime = null;
+        let confirmTime = null;
 
         while (!isConfirmed) {
           try {
@@ -552,28 +575,26 @@ export class SDK {
               txid,
             });
             console.log(tag, 'response: ', response);
-            // Ensure the response data exists
+
             if (response && response.data) {
-              let txInfo = response.data;
-              txInfo = txInfo.data;
+              let txInfo = response.data.data;
               console.log(tag, 'txInfo: ', txInfo);
               console.log(tag, 'confirmations: ', txInfo.confirmations);
-              // Check if transaction was detected
+
+              // Transaction detected
               if (txInfo.txid && !detectedTime) {
                 detectedTime = Date.now();
-                //console.log(tag, 'Transaction detected! Waiting for confirmation.');
                 console.log(
                   tag,
                   `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
                 );
               }
 
-              // Check for confirmation
-              if (txInfo.confirmations > 0) {
-                console.log(tag,'isConfirmed!')
+              // Check if the transaction meets the confirmation threshold
+              if (txInfo.confirmations >= requiredConfirmations) {
                 isConfirmed = true;
-                let confirmTime = Date.now();
-                //console.log(tag, 'Transaction confirmed on network:', caip);
+                confirmTime = Date.now();
+                console.log(tag, 'Transaction confirmed on network:', caip);
                 console.log(
                   tag,
                   `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
@@ -588,25 +609,109 @@ export class SDK {
                   );
                 }
               } else {
-                // Transaction is detected but not yet confirmed
                 console.log(tag, 'Transaction detected but not yet confirmed.');
               }
             } else {
-              // Transaction not detected yet
               console.log(tag, 'Transaction not detected yet.');
             }
           } catch (e) {
-            // Handle specific error cases if needed
             console.error(tag, e);
           }
 
           // Wait before the next check
           await new Promise((resolve) => setTimeout(resolve, 8000));
         }
+
+        // Return the tracked times in a structured object
+        return {
+          caip,
+          txid,
+          broadcastTime: new Date(broadcastTime).toISOString(),
+          detectedTime: detectedTime ? new Date(detectedTime).toISOString() : null,
+          confirmTime: confirmTime ? new Date(confirmTime).toISOString() : null,
+          timeToDetect: detectedTime ? formatTime(detectedTime - broadcastTime) : null,
+          timeToConfirm: confirmTime ? formatTime(confirmTime - broadcastTime) : null,
+          timeFromDetectionToConfirm:
+            detectedTime && confirmTime ? formatTime(confirmTime - detectedTime) : null,
+          requiredConfirmations,
+        };
       } catch (e) {
         console.error(tag, e);
+        throw new Error('Failed to follow transaction');
       }
     };
+
+    // this.followTransaction = async function (caip: string, txid: string) {
+    //   let tag = ' | followTransaction | ';
+    //   try {
+    //     // Lookup transaction
+    //     let isConfirmed = false;
+    //     let broadcastTime = Date.now();
+    //     let detectedTime = null;
+    //
+    //     while (!isConfirmed) {
+    //       try {
+    //         console.log(tag, 'txid: ', txid);
+    //         let response = await this.pioneer.LookupTx({
+    //           networkId: caipToNetworkId(caip),
+    //           txid,
+    //         });
+    //         console.log(tag, 'response: ', response);
+    //         // Ensure the response data exists
+    //         if (response && response.data) {
+    //           let txInfo = response.data;
+    //           txInfo = txInfo.data;
+    //           console.log(tag, 'txInfo: ', txInfo);
+    //           console.log(tag, 'confirmations: ', txInfo.confirmations);
+    //           // Check if transaction was detected
+    //           if (txInfo.txid && !detectedTime) {
+    //             detectedTime = Date.now();
+    //             //console.log(tag, 'Transaction detected! Waiting for confirmation.');
+    //             console.log(
+    //               tag,
+    //               `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
+    //             );
+    //           }
+    //
+    //           // Check for confirmation
+    //           if (txInfo.confirmations > 0) {
+    //             console.log(tag,'isConfirmed!')
+    //             isConfirmed = true;
+    //             let confirmTime = Date.now();
+    //             //console.log(tag, 'Transaction confirmed on network:', caip);
+    //             console.log(
+    //               tag,
+    //               `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
+    //             );
+    //
+    //             if (detectedTime !== null) {
+    //               console.log(
+    //                 tag,
+    //                 `Time from detection to confirmation: ${formatTime(
+    //                   confirmTime - detectedTime,
+    //                 )}`,
+    //               );
+    //             }
+    //           } else {
+    //             // Transaction is detected but not yet confirmed
+    //             console.log(tag, 'Transaction detected but not yet confirmed.');
+    //           }
+    //         } else {
+    //           // Transaction not detected yet
+    //           console.log(tag, 'Transaction not detected yet.');
+    //         }
+    //       } catch (e) {
+    //         // Handle specific error cases if needed
+    //         console.error(tag, e);
+    //       }
+    //
+    //       // Wait before the next check
+    //       await new Promise((resolve) => setTimeout(resolve, 8000));
+    //     }
+    //   } catch (e) {
+    //     console.error(tag, e);
+    //   }
+    // };
     this.transfer = async function (sendPayload, waitOnConfirm = false) {
       let tag = `${TAG} | transfer | `;
       try {
@@ -626,12 +731,12 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let unsignedTx = await txManager.transfer(sendPayload);
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
+        console.log(tag, 'unsignedTx: ', unsignedTx);
 
         // Sign the transaction
         let signedTx = await txManager.sign({ caip, unsignedTx });
-        //console.log(tag, 'signedTx: ', signedTx);
-
+        console.log(tag, 'signedTx: ', signedTx);
+        if (!signedTx) throw Error('Failed to sign transaction!');
         // Broadcast the transaction
         let payload = {
           networkId: caipToNetworkId(caip),

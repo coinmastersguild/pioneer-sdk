@@ -240,7 +240,9 @@ export class TransactionManager {
         }
         case 'EIP155': {
           const responseSign = await this.keepKeySdk.eth.ethSignTransaction(unsignedTx);
-          signedTx = responseSign.serializedTx;
+          console.log(tag, 'responseSign: ', responseSign);
+          if (!responseSign.serialized) throw new Error('Failed to sign transaction');
+          signedTx = responseSign.serialized;
           break;
         }
         case 'OTHER': {
@@ -260,7 +262,7 @@ export class TransactionManager {
           throw new Error(`Unsupported CAIP: ${caip}`);
         }
       }
-
+      if (!signedTx) throw Error('Failed to sign! missing signedTx');
       return signedTx;
     } catch (e: any) {
       console.error(tag, e);
@@ -272,7 +274,7 @@ export class TransactionManager {
     let tag = TAG + ' | broadcast | ';
     try {
       if (!this.pioneer) throw Error('Failed to init! pioneer');
-      if(!serialized) throw Error('Failed to broadcast! missing serialized');
+      if (!serialized) throw Error('Failed to broadcast! missing serialized2');
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
       console.log(tag, 'result:', result);

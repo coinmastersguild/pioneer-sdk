@@ -29,6 +29,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     };
 
     const handleSend = useCallback(async () => {
+        let tag = ' | handleSend | '
         try {
             if (!inputAmount || !recipient) {
                 toaster.create({
@@ -53,11 +54,12 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             };
 
             const result = await app.transfer(sendPayload, true);
+            console.log(tag,"result: ",result)
 
             confetti();
             toaster.create({
                 title: 'Transaction Successful',
-                description: `Transaction ID: ${result.txHash}`,
+                description: `Transaction ID: ${result.txHash || result.txid}`,
                 duration: 5000,
             });
 
@@ -85,7 +87,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     };
 
     return (
-      <VStack spacing={4}>
+      <VStack>
           <Heading as="h1" size="md" color="teal">
               Send Crypto
           </Heading>
@@ -143,7 +145,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
           <Button
             colorScheme="green"
             onClick={handleSend}
-            isLoading={isSubmitting}
           >
               {isSubmitting ? 'Sending...' : 'Send'}
           </Button>

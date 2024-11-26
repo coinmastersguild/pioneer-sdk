@@ -50,15 +50,15 @@ const test_service = async function (this: any) {
         //get all blockchains
 
         let chains = [
-            'DOGE',
-            // 'DASH', //PASS!!!!
-            // 'BCH', // PASS
-            // 'LTC', //NO BALANCE< NEED SEGWIT PATH
-            // 'MATIC', //Stuck
-            // 'THOR',
-            // 'GAIA',
-            //'OSMO',
-            // 'BASE',
+            // 'DOGE',
+            // 'DASH',
+            // 'BCH',
+            // 'LTC', //BROKE "Missing inputs
+            'MATIC',
+            'THOR',
+            'GAIA',
+            'OSMO',
+            'BASE',
             // 'OP',
             // 'ARB',
             // 'AVAX',
@@ -110,7 +110,7 @@ const test_service = async function (this: any) {
             'bip122:000000000000000000651ef99cb9fcbe/slip44:145': 'qpd00ucur9gl7rzwe7lqmu9yljr9ajv92q09a0jdrl', // BCH
             'bip122:000007d91d1254d60e2dd1ae58038307/slip44:5': 'XetjxEsGXKLV4mHiWPLscuNFABu9K5eVDd', // DASH
             'bip122:00000000001a91e3dace36e2be3bf030/slip44:3': 'DNchRDXhaW2uPusLVQWZZbQ5QQnzYmarWJ', // DOGE
-            'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2': 'maya14jutklw4xaawvx0p90m45nur64mmhjz3mwmvvs', // LTC
+            'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2': 'LMcHLHjcAhMtM6SPQ7Da9acBQWcviaX2Fu', // LTC
             'cosmos:mayachain-mainnet-v1/slip44:931': 'maya14jutklw4xaawvx0p90m45nur64mmhjz3mwmvvs', // MAYA
             'cosmos:osmosis-1/slip44:118': 'osmo1hp7gnr07wprd75f4j4aze9a94aejfcqdccqdht', // OSMO
             'cosmos:cosmoshub-4/slip44:118': 'cosmos1hp7gnr07wprd75f4j4aze9a94aejfcqdsrnape', // ATOM
@@ -260,47 +260,50 @@ const test_service = async function (this: any) {
                 //Options
             }
             log.info(tag,'sendPayload: ',sendPayload)
-            // let result = await app.transfer(sendPayload, true)
-            // // log.info(tag,'result: ',result)
-            // assert(result.txid)
-            // log.info(tag,'result: ', result.txid)
-            //
-            // result.events.on('message', async (tx: any) => {
-            //     log.info('message', tx)
-            //     //error
-            //     //review tx
-            //
-            //     //signed
-            //
-            //     //broadcast
-            //
-            //     //txid
-            //
-            //     //confirmed
-            // })
-            //
-            //
-            // result.events.on('tx', async (tx: any) => {
-            //     log.info('tx', tx)
-            //     //error
-            //     //review tx
-            //
-            //     //signed
-            //
-            //     //broadcast
-            //
-            //     //txid
-            //
-            //     //confirmed
-            // })
+            let result = await app.transfer(sendPayload, true)
+            // log.info(tag,'result: ',result)
+            assert(result.txid)
+            log.info(tag,'result: ', result.txid)
 
-            let txid = 'f8d8bc960f06a7936bcd739a2044ddc1693f2597c255122bdae3f49d487adb4d'
-            let result = {
-                txid
-            }
+            result.events.on('message', async (tx: any) => {
+                log.info('message', tx)
+                //error
+                //review tx
+
+                //signed
+
+                //broadcast
+
+                //txid
+
+                //confirmed
+            })
+
+
+            result.events.on('tx', async (tx: any) => {
+                log.info('tx', tx)
+                //error
+                //review tx
+
+                //signed
+
+                //broadcast
+
+                //txid
+
+                //confirmed
+            })
+
+            // let txid = 'f8d8bc960f06a7936bcd739a2044ddc1693f2597c255122bdae3f49d487adb4d'
+            // let result = {
+            //     txid
+            // }
 
             let followTx = await app.followTransaction(caip, result.txid)
             log.info(tag,'followTx: ',followTx)
+
+            //result
+
 
         }
 
