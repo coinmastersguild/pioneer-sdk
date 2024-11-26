@@ -13,6 +13,7 @@ import { RiReceiptFill, RiSendPlaneFill, RiCloseCircleFill } from "react-icons/r
 import { Transfer } from './Transfer';
 import { Receive } from './Receive';
 import {AccountsSidebar} from './AccountsSidebar';
+import {Avatar} from '@/components/ui/avatar';
 import AssetCard from './AssetCard';
 
 export default function Wallet({ usePioneer }: any) {
@@ -65,11 +66,29 @@ export default function Wallet({ usePioneer }: any) {
             {/* Asset Context and Buttons */}
             {asset && !activeTab ? (
                 <Box mb={4} width="100%">
-                    {app.balances
-                        .filter((balance: any) => balance.caip === asset.caip)
-                        .map((balance: any, index: any) => (
-                            <AssetCard key={index} asset={asset} balance={balance} />
-                        ))}
+                    <Avatar size="xl" src={app.assetContext.icon} />
+
+                    <Text fontSize="lg" fontWeight="bold">
+                        {app.assetContext.caip}
+                    </Text>
+
+                    <Text fontSize="lg" fontWeight="bold">
+                        {app.assetContext.name}
+                    </Text>
+
+                    <Text fontSize="lg" fontWeight="bold">
+                        {app.assetContext.symbol}
+                    </Text>
+
+                    {/*<Text fontSize="lg" fontWeight="bold">*/}
+                    {/*    {app.assetContext.balances.length}*/}
+                    {/*</Text>*/}
+
+                    {/*{app.balances*/}
+                    {/*    .filter((balance: any) => balance.caip === asset.caip)*/}
+                    {/*    .map((balance: any, index: any) => (*/}
+                    {/*        <AssetCard key={index} asset={asset} balance={balance} />*/}
+                    {/*    ))}*/}
 
                     <Button colorPalette="green" variant="solid" onClick={() => handleOpenDialog('send')}>
                         <RiSendPlaneFill /> Send

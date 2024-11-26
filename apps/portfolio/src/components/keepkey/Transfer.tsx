@@ -115,12 +115,8 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
     return (
       <VStack
-        spacing={6}
         p={8}
         bg="gray.900"
-        borderRadius="lg"
-        shadow="xl"
-        maxW="sm"
         mx="auto"
         mt={10}
         textAlign="center"
@@ -131,14 +127,13 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
           <Flex align="center" gap={4}>
               <Avatar size="lg" src={app.assetContext?.icon} />
-              <VStack align="start" spacing={1}>
+              <VStack align="start">
                   <Text fontSize="lg" fontWeight="bold" color="white">
                       {app.assetContext?.name} ({app.assetContext?.symbol})
                   </Text>
                   <Link
                     href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
                     color="teal.400"
-                    isExternal
                   >
                       View on Explorer
                   </Link>
@@ -159,7 +154,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 size="md"
                 bg="gray.800"
                 color="white"
-                focusBorderColor="teal.400"
                 _placeholder={{ color: 'gray.500' }}
               />
               {recipientError && (
@@ -178,7 +172,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 size="md"
                 bg="gray.800"
                 color="white"
-                focusBorderColor="teal.400"
                 _placeholder={{ color: 'gray.500' }}
               />
               <Text fontSize="sm" color="gray.400" mt={1}>
@@ -190,8 +183,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
           <Button
             colorScheme="teal"
             onClick={handleSend}
-            isLoading={isSubmitting}
-            loadingText="Sending"
             size="lg"
             shadow="md"
             _hover={{ bg: 'teal.600' }}
@@ -200,7 +191,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
           </Button>
 
           {showSteps && (
-            <StepsRoot value={currentStep} count={3} mt={4}>
+            <StepsRoot count={3} mt={4}>
                 <StepsList mb={4}>
                     <StepsItem index={0} title="Approve on Device" />
                     <StepsItem index={1} title="Building Transaction" />
@@ -234,7 +225,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                         <Link
                           href={`${app.assetContext?.explorerTxLink}${txHash}`}
                           color="teal.500"
-                          isExternal
                         >
                             {txHash}
                         </Link>
@@ -257,7 +247,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 <Link
                   href={`${app.assetContext?.explorerTxLink}${txHash}`}
                   color="teal.500"
-                  isExternal
                 >
                     {txHash}
                 </Link>

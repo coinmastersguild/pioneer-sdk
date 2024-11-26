@@ -141,14 +141,17 @@ export class TransactionManager {
           const coin = CAIP_TO_COIN_MAP[caip];
           if (!coin) throw Error(`Unsupported UTXO coin type for CAIP: ${caip}`);
 
-          const signPayload = {
+          const signPayload: any = {
             coin,
             inputs: unsignedTx.inputs,
             outputs: unsignedTx.outputs,
             version: 1,
             locktime: 0,
-            opReturnData: unsignedTx.memo,
+            // opReturnData: unsignedTx.memo,
           };
+          if (unsignedTx.memo && unsignedTx.memo !== ' ') {
+            signPayload.opReturnData = unsignedTx.memo;
+          }
 
           console.log('signPayload: ', JSON.stringify(signPayload));
           const responseSign = await this.keepKeySdk.utxo.utxoSignTransaction(signPayload);
@@ -186,15 +189,16 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:thorchain-mainnet-v1/slip44:931': {
+              console.log(tag,'Thorchain transaction')
               //transfer
-              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+              if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
                 console.log(tag, 'transfer:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
                 console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
-              } else if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgDeposit') {
+              } else if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgDeposit') {
                 console.log(tag, 'transfer:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
@@ -203,7 +207,7 @@ export class TransactionManager {
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
-                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                  `Unsupported Thorchain message type: ${unsignedTx.signDoc.msgs[0].type}`,
                 );
               }
               //deposit

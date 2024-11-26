@@ -24,7 +24,7 @@ const extractChainIdFromNetworkId = (networkId: string): string => {
   if (!id || isNaN(parseInt(id))) {
     throw new Error(`Malformed networkId: ${networkId}`);
   }
-  return toHex(parseInt(id));
+  return parseInt(id).toString();
 };
 
 // Create an unsigned EVM transaction
@@ -62,12 +62,12 @@ export async function createUnsignedEvmTx(
     // Fetch transaction details from pioneer
     let gasPrice = await pioneer.GetGasPriceByNetwork({ networkId });
     gasPrice = gasPrice.data;
-    //console.log(tag, 'gasPrice: ', gasPrice);
+    console.log(tag, 'gasPrice: ', gasPrice);
     if (!gasPrice) throw new Error('Failed to fetch gas price');
     let nonce = await pioneer.GetNonceByNetwork({ networkId, address });
     nonce = nonce.data;
     if (!nonce) throw new Error('Failed to fetch nonce');
-    //console.log(tag, 'nonce: ', nonce);
+    console.log(tag, 'nonce: ', nonce);
 
     // Classify asset type by CAIP
     const assetType = classifyCaipEvm(caip);
@@ -75,6 +75,10 @@ export async function createUnsignedEvmTx(
 
     const txAmount = toHex(BigInt(Math.floor(amount * 1e18)));
 
+    //TODO estimate GAS
+
+    //TODO allow custom GAS
+    if (memo === ' ') memo = '';
     // Build transaction object based on asset type
     switch (assetType) {
       case 'gas': {
@@ -82,7 +86,8 @@ export async function createUnsignedEvmTx(
         unsignedTx = {
           chainId, // Set the extracted chainId
           nonce: toHex(nonce),
-          gasLimit: toHex(21000), // Standard gas limit for ETH transfer
+          gas: toHex(61000), // Standard gas limit for ETH transfer
+          gasLimit: toHex(61000), // Standard gas limit for ETH transfer
           gasPrice: toHex(gasPrice),
           to,
           value: txAmount,
@@ -97,7 +102,8 @@ export async function createUnsignedEvmTx(
         unsignedTx = {
           chainId, // Set the extracted chainId
           nonce: toHex(nonce),
-          gasLimit: toHex(60000), // Adjusted gas limit for ERC20 transfer
+          gas: toHex(80000), // Adjusted gas limit for ERC20 transfer
+          gasLimit: toHex(80000), // Adjusted gas limit for ERC20 transfer
           gasPrice: toHex(gasPrice),
           to: caip, // Token contract address
           value: '0x0',
@@ -115,7 +121,10 @@ export async function createUnsignedEvmTx(
       }
     }
 
-    //console.log(tag, 'Unsigned Transaction:', unsignedTx);
+    //TODO allow custom paths
+    unsignedTx.addressNList = [2147483692, 2147483708, 2147483648, 0, 0];
+
+    console.log(tag, 'Unsigned Transaction:', unsignedTx);
     return unsignedTx;
   } catch (error) {
     console.error(tag, 'Error:', error);

@@ -49,26 +49,31 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
+        // let spec = 'https://pioneers.dev/spec/swagger.json'
+        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+
+
         let chains = [
             // 'DOGE',
             // 'DASH',
-            // 'BCH',
+
             // 'LTC', //BROKE "Missing inputs
-            'MATIC',
+            // 'MATIC',
             'THOR',
-            'GAIA',
-            'OSMO',
-            'BASE',
+            // 'GAIA',
+            // 'OSMO',
+            // 'BASE',
             // 'OP',
             // 'ARB',
             // 'AVAX',
             // 'BSC',
             // 'XRP',
             // 'ETH',
-            // 'BTC',
+
             // 'MAYA', //MARKET INFO BROKE
             // 'GNO',
-
+            // 'BCH',
+            // 'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -159,8 +164,6 @@ const test_service = async function (this: any) {
             curve: 'secp256k1'
         })
 
-        // let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
-        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
         let config:any = {
             username,
@@ -238,73 +241,61 @@ const test_service = async function (this: any) {
             //force sync balance for asset
             await app.getBalance(app.blockchains[i])
 
-            //get balance
+            // Fetch initial balance
             let balances = app.balances.filter((e: any) => e.caip === caip);
-            let balance = balances[0]
-            assert(balance)
-            log.info(tag,'balance: ',balance)
+            let balance = balances[0];
+            assert(balance, `${tag} Balance not found for ${caip}`);
+            log.info(tag, 'Balance before: ', balance);
+            let balanceBefore = balance.balance;
 
-            if(balance.balance < TEST_AMOUNT) throw Error('YOU ARE BROKE!!!!!')
+            if (balanceBefore < TEST_AMOUNT) throw new Error('YOU ARE BROKE!!!!!');
 
-            let blockchain = app.blockchains[i]
-            if (blockchain.indexOf('eip155') > -1) blockchain = "eip155:*";
+            let blockchain = app.blockchains[i];
+            if (blockchain.includes('eip155')) blockchain = "eip155:*";
+
             let pubkeys = app.pubkeys.filter((e: any) => e.networks.includes(blockchain));
-            assert(pubkeys[0])
-            log.info(tag,'pubkeys[0]: ',pubkeys[0])
-            if(!TEST_AMOUNT) throw Error('caip: '+caip+ ' Missing Setting for TEST_AMOUNT')
+            assert(pubkeys[0], `${tag} Public key not found for blockchain ${blockchain}`);
+            log.info(tag, 'Public Key: ', pubkeys[0]);
+
+            if (!TEST_AMOUNT) throw new Error(`caip: ${caip} Missing Setting for TEST_AMOUNT`);
+
             const sendPayload = {
                 caip,
-                to:FAUCET_ADDRESS,
-                amount:TEST_AMOUNT,
-                feeLevel: 5
-                //Options
+                to: FAUCET_ADDRESS,
+                amount: TEST_AMOUNT,
+                feeLevel: 5 // Options
+            };
+            log.info(tag, 'Send Payload: ', sendPayload);
+
+            // Execute the transaction
+            let result = await app.transfer(sendPayload, true);
+            assert(result.txid, `${tag} Transaction failed`);
+            log.info(tag, 'Transaction Result: ', result.txid);
+
+            // Follow transaction
+            let followTx = await app.followTransaction(caip, result.txid);
+            log.info(tag, 'Follow Transaction: ', followTx);
+
+            // Fetch new balance
+            await app.getBalance(app.blockchains[i]);
+            let balancesAfter = app.balances.filter((e: any) => e.caip === caip);
+            let balanceAfter = balancesAfter[0];
+            assert(balanceAfter, `${tag} Balance not found after transaction`);
+            log.info(tag, 'Balance after: ', balanceAfter);
+
+            let balanceDiff = balanceBefore - balanceAfter.balance;
+            if(balanceDiff === 0) throw new Error(`${tag} Balance did not change after transaction`);
+            let fee = balanceDiff - TEST_AMOUNT;
+
+            // Log differences and fee
+            log.info(tag, `Balance Before: ${balanceBefore}`);
+            log.info(tag, `Balance After: ${balanceAfter.balance}`);
+            log.info(tag, `Amount Sent: ${TEST_AMOUNT}`);
+            log.info(tag, `Fee Calculated: ${fee}`);
+
+            if (fee > TEST_AMOUNT) {
+                throw new Error(`${tag} Fee (${fee}) exceeds TEST_AMOUNT (${TEST_AMOUNT})`);
             }
-            log.info(tag,'sendPayload: ',sendPayload)
-            let result = await app.transfer(sendPayload, true)
-            // log.info(tag,'result: ',result)
-            assert(result.txid)
-            log.info(tag,'result: ', result.txid)
-
-            result.events.on('message', async (tx: any) => {
-                log.info('message', tx)
-                //error
-                //review tx
-
-                //signed
-
-                //broadcast
-
-                //txid
-
-                //confirmed
-            })
-
-
-            result.events.on('tx', async (tx: any) => {
-                log.info('tx', tx)
-                //error
-                //review tx
-
-                //signed
-
-                //broadcast
-
-                //txid
-
-                //confirmed
-            })
-
-            // let txid = 'f8d8bc960f06a7936bcd739a2044ddc1693f2597c255122bdae3f49d487adb4d'
-            // let result = {
-            //     txid
-            // }
-
-            let followTx = await app.followTransaction(caip, result.txid)
-            log.info(tag,'followTx: ',followTx)
-
-            //result
-
-
         }
 
         log.info("************************* TEST PASS *************************")

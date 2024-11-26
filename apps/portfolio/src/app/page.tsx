@@ -12,26 +12,23 @@ export default function Home() {
   const onStartApp = useOnStartApp();
   const [currentNav, setCurrentNav] = useState<'portfolio' | 'wallet' | 'swap'>('portfolio');
 
+  // Define an async function inside useEffect
+  const initializeApp = async () => {
+    onStartApp();
+    const searchParams = useSearchParams();
+    // Parse query parameters and apply logic
+    const type = searchParams.get('type'); // e.g., 'tx' or 'swap'
+    // Update navigation state and call async functions based on 'type'
+    if (type === 'swap') {
+      setCurrentNav('swap');
+    } else if (type === 'wallet') {
+      setCurrentNav('wallet');
+    } else {
+      setCurrentNav('portfolio'); // Default
+    }
+  };
 
   useEffect(() => {
-    // Define an async function inside useEffect
-    const initializeApp = async () => {
-      onStartApp();
-      const searchParams = useSearchParams();
-      // Parse query parameters and apply logic
-      const type = searchParams.get('type'); // e.g., 'tx' or 'swap'
-      // Update navigation state and call async functions based on 'type'
-      if (type === 'swap') {
-        setCurrentNav('swap');
-      } else if (type === 'wallet') {
-        setCurrentNav('wallet');
-      } else {
-        setCurrentNav('portfolio'); // Default
-      }
-
-      // Additional logic based on caip/networkId can be handled here
-    };
-
     // Invoke the async function
     initializeApp().catch((error) => console.error('Error during initialization:', error));
   }, []);

@@ -91,18 +91,19 @@ export async function createUnsignedUxtoTx(
     const path = DerivationPath[chain].replace('/0/0', `/1/${changeAddressIndex}`);
     //console.log(tag, 'path:', path);
 
-    const customAddressInfo = {
-      coin: ChainToKeepKeyName[chain],
-      script_type: isSegwit ? 'p2wpkh' : 'p2sh',
-      address_n: bip32ToAddressNList(path),
-    };
-    //console.log(tag, 'keepKeySdk:', keepKeySdk);
-    const address = await keepKeySdk.address.utxoGetAddress(customAddressInfo);
+    // const customAddressInfo = {
+    //   coin: ChainToKeepKeyName[chain],
+    //   script_type: isSegwit ? 'p2wpkh' : 'p2sh',
+    //   address_n: bip32ToAddressNList(path),
+    // };
+    // //console.log(tag, 'keepKeySdk:', keepKeySdk);
+    // const address = await keepKeySdk.address.utxoGetAddress(customAddressInfo);
     //console.log(tag, 'address:', address);
 
     const changeAddress = {
-      address: address,
+      // address: address,
       path: path,
+      isChange: true,
       index: changeAddressIndex,
       addressNList: bip32ToAddressNList(path),
     };
@@ -221,7 +222,7 @@ export async function createUnsignedUxtoTx(
     );
 
     let unsignedTx = { inputs: preparedInputs, outputs: preparedOutputs, memo };
-    //console.log(tag, 'unsignedTx:', unsignedTx);
+    console.log(tag, 'unsignedTx:', unsignedTx);
 
     return unsignedTx;
   } catch (error) {

@@ -111,7 +111,7 @@ export class SDK {
   public keepKeySdk: any;
   private getGasAssets: () => Promise<any>;
   private transactions: any;
-  private transfer: (newPaths) => Promise<any>;
+  private transfer: (sendPayload:any) => Promise<any>;
   private clearCache: () => Promise<boolean>;
   private sync: () => Promise<void>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
@@ -578,7 +578,7 @@ export class SDK {
 
             if (response && response.data) {
               let txInfo = response.data.data;
-              console.log(tag, 'txInfo: ', txInfo);
+              // console.log(tag, 'txInfo: ', txInfo);
               console.log(tag, 'confirmations: ', txInfo.confirmations);
 
               // Transaction detected
@@ -610,6 +610,14 @@ export class SDK {
                 }
               } else {
                 console.log(tag, 'Transaction detected but not yet confirmed.');
+
+                if (detectedTime) {
+                  const elapsedTime = Date.now() - detectedTime;
+                  console.log(
+                    tag,
+                    `Transaction has been unconfirmed for: ${formatTime(elapsedTime)}`,
+                  );
+                }
               }
             } else {
               console.log(tag, 'Transaction not detected yet.');
@@ -621,6 +629,61 @@ export class SDK {
           // Wait before the next check
           await new Promise((resolve) => setTimeout(resolve, 8000));
         }
+
+        // while (!isConfirmed) {
+        //   try {
+        //     console.log(tag, 'txid: ', txid);
+        //     let response = await this.pioneer.LookupTx({
+        //       networkId: caipToNetworkId(caip),
+        //       txid,
+        //     });
+        //     console.log(tag, 'response: ', response);
+        //
+        //     if (response && response.data) {
+        //       let txInfo = response.data.data;
+        //       // console.log(tag, 'txInfo: ', txInfo);
+        //       console.log(tag, 'confirmations: ', txInfo.confirmations);
+        //
+        //       // Transaction detected
+        //       if (txInfo.txid && !detectedTime) {
+        //         detectedTime = Date.now();
+        //         console.log(
+        //           tag,
+        //           `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
+        //         );
+        //       }
+        //
+        //       // Check if the transaction meets the confirmation threshold
+        //       if (txInfo.confirmations >= requiredConfirmations) {
+        //         isConfirmed = true;
+        //         confirmTime = Date.now();
+        //         console.log(tag, 'Transaction confirmed on network:', caip);
+        //         console.log(
+        //           tag,
+        //           `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
+        //         );
+        //
+        //         if (detectedTime !== null) {
+        //           console.log(
+        //             tag,
+        //             `Time from detection to confirmation: ${formatTime(
+        //               confirmTime - detectedTime,
+        //             )}`,
+        //           );
+        //         }
+        //       } else {
+        //         console.log(tag, 'Transaction detected but not yet confirmed.');
+        //       }
+        //     } else {
+        //       console.log(tag, 'Transaction not detected yet.');
+        //     }
+        //   } catch (e) {
+        //     console.error(tag, e);
+        //   }
+        //
+        //   // Wait before the next check
+        //   await new Promise((resolve) => setTimeout(resolve, 8000));
+        // }
 
         // Return the tracked times in a structured object
         return {
@@ -640,79 +703,7 @@ export class SDK {
         throw new Error('Failed to follow transaction');
       }
     };
-
-    // this.followTransaction = async function (caip: string, txid: string) {
-    //   let tag = ' | followTransaction | ';
-    //   try {
-    //     // Lookup transaction
-    //     let isConfirmed = false;
-    //     let broadcastTime = Date.now();
-    //     let detectedTime = null;
-    //
-    //     while (!isConfirmed) {
-    //       try {
-    //         console.log(tag, 'txid: ', txid);
-    //         let response = await this.pioneer.LookupTx({
-    //           networkId: caipToNetworkId(caip),
-    //           txid,
-    //         });
-    //         console.log(tag, 'response: ', response);
-    //         // Ensure the response data exists
-    //         if (response && response.data) {
-    //           let txInfo = response.data;
-    //           txInfo = txInfo.data;
-    //           console.log(tag, 'txInfo: ', txInfo);
-    //           console.log(tag, 'confirmations: ', txInfo.confirmations);
-    //           // Check if transaction was detected
-    //           if (txInfo.txid && !detectedTime) {
-    //             detectedTime = Date.now();
-    //             //console.log(tag, 'Transaction detected! Waiting for confirmation.');
-    //             console.log(
-    //               tag,
-    //               `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
-    //             );
-    //           }
-    //
-    //           // Check for confirmation
-    //           if (txInfo.confirmations > 0) {
-    //             console.log(tag,'isConfirmed!')
-    //             isConfirmed = true;
-    //             let confirmTime = Date.now();
-    //             //console.log(tag, 'Transaction confirmed on network:', caip);
-    //             console.log(
-    //               tag,
-    //               `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
-    //             );
-    //
-    //             if (detectedTime !== null) {
-    //               console.log(
-    //                 tag,
-    //                 `Time from detection to confirmation: ${formatTime(
-    //                   confirmTime - detectedTime,
-    //                 )}`,
-    //               );
-    //             }
-    //           } else {
-    //             // Transaction is detected but not yet confirmed
-    //             console.log(tag, 'Transaction detected but not yet confirmed.');
-    //           }
-    //         } else {
-    //           // Transaction not detected yet
-    //           console.log(tag, 'Transaction not detected yet.');
-    //         }
-    //       } catch (e) {
-    //         // Handle specific error cases if needed
-    //         console.error(tag, e);
-    //       }
-    //
-    //       // Wait before the next check
-    //       await new Promise((resolve) => setTimeout(resolve, 8000));
-    //     }
-    //   } catch (e) {
-    //     console.error(tag, e);
-    //   }
-    // };
-    this.transfer = async function (sendPayload, waitOnConfirm = false) {
+    this.transfer = async function (sendPayload) {
       let tag = `${TAG} | transfer | `;
       try {
         if (!sendPayload) throw Error('sendPayload required!');

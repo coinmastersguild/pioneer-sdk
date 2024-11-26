@@ -69,12 +69,20 @@ export async function createUnsignedTendermintTx(
     switch (networkId) {
       case 'cosmos:thorchain-mainnet-v1':
         amount = amount * 1000000; // Convert to RUNE
-        asset = 'urune';
+        asset = 'rune';
         return to
           ? thorchainTransferTemplate({
               account_number,
               chain_id: 'thorchain-mainnet-v1',
-              fee: { gas: '500000000', amount: [] },
+              fee: {
+                gas: '500000000',
+                amount: [
+                  {
+                    amount: '0',
+                    denom: 'rune',
+                  },
+                ],
+              },
               from_address: fromAddress,
               to_address: to,
               asset,
