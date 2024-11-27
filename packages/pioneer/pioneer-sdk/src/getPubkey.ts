@@ -81,7 +81,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     pubkey.master = address;
     pubkey.address = address;
     if (['xpub', 'ypub', 'zpub'].includes(path.type)) {
-      //console.log(tag, 'Getting xpub for path:', path.addressNList);
+      console.log(tag, 'Getting xpub for path:', path);
 
       const pathQuery = {
         symbol: 'BTC',
@@ -92,7 +92,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       };
       const responsePubkey = await sdk.system.info.getPublicKey(pathQuery);
 
-      if (path.script_type === 'p2sh') {
+      if (path.script_type === 'p2wpkh') {
         responsePubkey.xpub = xpubConvert(responsePubkey.xpub, 'zpub');
       } else if (path.script_type === 'p2sh-p2wpkh') {
         responsePubkey.xpub = xpubConvert(responsePubkey.xpub, 'ypub');

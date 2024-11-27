@@ -49,17 +49,16 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        // let spec = 'https://pioneers.dev/spec/swagger.json'
-        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        let spec = 'https://pioneers.dev/spec/swagger.json'
+        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
-            // 'DOGE',
+            'DOGE',
             // 'DASH',
-
             // 'LTC', //BROKE "Missing inputs
             // 'MATIC',
-            'THOR',
+            // 'THOR',
             // 'GAIA',
             // 'OSMO',
             // 'BASE',
@@ -259,21 +258,44 @@ const test_service = async function (this: any) {
 
             if (!TEST_AMOUNT) throw new Error(`caip: ${caip} Missing Setting for TEST_AMOUNT`);
 
+            // const sendPayload = {
+            //     caip,
+            //     isMax: true,
+            //     to: FAUCET_ADDRESS,
+            //     amount: balance,
+            //     feeLevel: 5 // Options
+            // };
+
+            //max is balance
             const sendPayload = {
                 caip,
+                isMax: true,
                 to: FAUCET_ADDRESS,
-                amount: TEST_AMOUNT,
+                amount: balance,
                 feeLevel: 5 // Options
             };
             log.info(tag, 'Send Payload: ', sendPayload);
 
+            //Test as portfolio
             // Execute the transaction
-            let result = await app.transfer(sendPayload, true);
-            assert(result.txid, `${tag} Transaction failed`);
-            log.info(tag, 'Transaction Result: ', result.txid);
+            // let result = await app.transfer(sendPayload, true);
+            // assert(result.txid, `${tag} Transaction failed`);
+            // log.info(tag, 'Transaction Result: ', result.txid);
+
+            //test as BEX (multi-set)
+            let unsignedTx = await app.buildTx(sendPayload);
+            log.info(tag, 'unsignedTx: ', unsignedTx);
+
+            //sign
+            let signedTx = await app.signTx({ caip, unsignedTx });
+            log.info(tag, 'signedTx: ', signedTx);
+
+            //broadcast
+            let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
+            log.info(tag, 'broadcast: ', broadcast);
 
             // Follow transaction
-            let followTx = await app.followTransaction(caip, result.txid);
+            let followTx = await app.followTransaction(caip, broadcast);
             log.info(tag, 'Follow Transaction: ', followTx);
 
             // Fetch new balance

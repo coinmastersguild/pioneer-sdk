@@ -111,7 +111,7 @@ export class SDK {
   public keepKeySdk: any;
   private getGasAssets: () => Promise<any>;
   private transactions: any;
-  private transfer: (sendPayload:any) => Promise<any>;
+  private transfer: (sendPayload: any) => Promise<any>;
   private clearCache: () => Promise<boolean>;
   private sync: () => Promise<void>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
@@ -129,6 +129,10 @@ export class SDK {
     timeToDetect: string | null;
     timeToConfirm: string | null;
   }>;
+  private broadcastTx: (caip: string, signedTx: any) => Promise<any>;
+  private signTx: (unsignedTx: any) => Promise<any>;
+  private buildTx: (sendPayload: any) => Promise<any>;
+  private estimateMax: (sendPayload: any) => Promise<void>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -253,7 +257,7 @@ export class SDK {
             //console.log(tag, 'pubkey: ', pubkey);
             if (!pubkey) {
               //console.log(tag, 'NO PUBKEY FOUND IN CACHE!');
-              const pubkey = await getPubkey(networkId, path, this.keepKeySdk, this.context);
+              const pubkey = await getPubkey(this.blockchains[i], path, this.keepKeySdk, this.context);
               if (!pubkey) throw Error('Unable to get pubkey for network+ ' + networkId);
               this.keepKeySdk.storage.createPubkey(pubkey);
               this.pubkeys.push(pubkey);
@@ -263,17 +267,27 @@ export class SDK {
           }
         }
 
-        //console.log(tag, 'pubkeys (Checkpoint3)');
+        // await this.getBalances();
+
+        //TODO target old stale balances & missing
+        console.log(tag, 'pubkeys (Checkpoint3)');
+
         // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
-          //console.log(tag, 'networkId: ', networkId);
+          if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
+          console.log(tag, 'networkId: ', networkId);
           let balancesForChain = this.balances.filter((balance) => balance.networkId === networkId);
-          //console.log(tag, 'balancesForChain: ', balancesForChain.length);
-          if (balancesForChain.length === 0) {
-            //console.log(tag, 'No balance found for network ' + networkId);
-            let resultBalance = await this.getBalance(networkId);
-            //console.log(tag, 'resultBalance: ', resultBalance);
+          console.log(tag, 'balancesForChain: ', balancesForChain.length);
+
+          //pubkey count
+          let pubkeyCount = this.pubkeys.filter((pubkey) => pubkey.networks.includes(networkId));
+          console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount.length);
+
+          if (balancesForChain.length < pubkeyCount.length || balancesForChain.length === 0) {
+            console.log(tag, 'No balance found for network ' + networkId);
+            let resultBalance = await this.getBalance(this.blockchains[i]);
+            console.log(tag, 'resultBalance: ', resultBalance.length);
           } else {
             //console.log(tag, ' **** CACHE **** Cache valid for balance: ', networkId);
           }
@@ -327,18 +341,12 @@ export class SDK {
     this.clearCache = async function () {
       let tag = `${TAG} | clearCache | `;
       try {
-        //
         const responseClearPubkeys = await this.keepKeySdk.storage.clearCollection({
           name: 'pubkeys',
         });
-        //console.log(tag, 'Pubkeys cleared:', responseClearPubkeys.message);
-
-        // Clear the balances collection
         const responseClearBalances = await this.keepKeySdk.storage.clearCollection({
           name: 'balances',
         });
-        //console.log(tag, 'Balances cleared:', responseClearBalances.message);
-
         return true;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -384,6 +392,79 @@ export class SDK {
       } catch (e) {
         console.error(tag, 'Error loading balance cache:', e);
         throw e;
+      }
+    };
+    this.estimateMax = async function (sendPayload: any) {
+      try {
+        sendPayload.isMax = true;
+        let unsignedTx = await this.buildTx(sendPayload);
+        console.log('unsignedTx: ', unsignedTx);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    this.buildTx = async function (sendPayload: any) {
+      let tag = TAG + ' | buildTx | ';
+      try {
+        const transactionDependencies = {
+          context: this.context,
+          assetContext: this.assetContext,
+          balances: this.balances,
+          pioneer: this.pioneer,
+          pubkeys: this.pubkeys,
+          nodes: this.nodes,
+          keepKeySdk: this.keepKeySdk,
+        };
+        let txManager = new TransactionManager(transactionDependencies, this.events);
+        let unsignedTx = await txManager.transfer(sendPayload);
+        console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    this.signTx = async function (unsignedTx: any) {
+      let tag = TAG + ' | signTx | ';
+      try {
+        const transactionDependencies = {
+          context: this.context,
+          assetContext: this.assetContext,
+          balances: this.balances,
+          pioneer: this.pioneer,
+          pubkeys: this.pubkeys,
+          nodes: this.nodes,
+          keepKeySdk: this.keepKeySdk,
+        };
+        let txManager = new TransactionManager(transactionDependencies, this.events);
+        let signedTx = await txManager.sign(unsignedTx);
+        console.log(tag, 'signedTx: ', signedTx);
+        return signedTx;
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    this.broadcastTx = async function (caip: string, signedTx: any) {
+      let tag = TAG + ' | broadcastTx | ';
+      try {
+        const transactionDependencies = {
+          context: this.context,
+          assetContext: this.assetContext,
+          balances: this.balances,
+          pioneer: this.pioneer,
+          pubkeys: this.pubkeys,
+          nodes: this.nodes,
+          keepKeySdk: this.keepKeySdk,
+        };
+        let txManager = new TransactionManager(transactionDependencies, this.events);
+        let payload = {
+          networkId: caipToNetworkId(caip),
+          serialized: signedTx,
+        };
+        let txid = await txManager.broadcast(payload);
+        console.log(tag, 'txid: ', txid);
+        return txid;
+      } catch (e) {
+        console.error(e);
       }
     };
     this.swap = async function (swapPayload) {
@@ -456,29 +537,6 @@ export class SDK {
         } catch (e) {
           console.error(tag, 'Failed to get quote: ', e);
         }
-
-        /*
-            [
-              {
-                integration: 'thorchain',
-                quote: {
-                  amountOut: '3.64486133',
-                  txs: [Array],
-                  meta: [Object],
-                  steps: 1,
-                  complete: true,
-                  source: 'thorchain',
-                  id: 'c45e9e65-f50a-4d32-9a6a-ada6d808671f',
-                  sellAsset: 'bip122:00000000001a91e3dace36e2be3bf030/slip44:3',
-                  sellAmount: '50.000000',
-                  buyAsset: 'cosmos:thorchain-mainnet-v1/slip44:931',
-                  buyAmount: '3.64486133',
-                  sellAssetValueUsd: 19.415,
-                  buyAssetValueUsd: 19.317765049
-                }
-              }
-            ]
-         */
         let selected = result[0];
         let invocationId = selected.quote.id;
         console.log('invocationId: ', invocationId);
@@ -490,22 +548,6 @@ export class SDK {
         for (let i = 0; i < txs.length; i++) {
           let tx = txs[i];
           console.log(tag, 'tx: ', tx);
-
-          /*
-           {
-              type: 'transfer',
-              chain: 'bip122:00000000001a91e3dace36e2be3bf030',
-              txParams: {
-                senderAddress: 'DHxdwdZDchQMGP5B5HVmS1gEXEoKHQTS54',
-                recipientAddress: 'DAByNTDSNnrnKeG8qJLHZbyE8tBWK5SRU8',
-                amount: '30',
-                token: 'DOGE',
-                memo: '=:THOR.RUNE:thor1g9el7lzjwh9yun2c4jjzhy09j98vkhfxfhgnzx'
-              }
-            }
-
-           */
-
           const transactionDependencies = {
             context: this.context,
             assetContext: this.assetContext,
@@ -548,7 +590,44 @@ export class SDK {
         throw e;
       }
     };
-    //TODO get events hook
+    this.transfer = async function (sendPayload) {
+      let tag = `${TAG} | transfer | `;
+      try {
+        if (!sendPayload) throw Error('sendPayload required!');
+        if (!sendPayload.caip) throw Error('caip required!');
+        if (!sendPayload.to) throw Error('to required!');
+        let { caip } = sendPayload;
+
+        const transactionDependencies = {
+          context: this.context,
+          assetContext: this.assetContext,
+          balances: this.balances,
+          pioneer: this.pioneer,
+          pubkeys: this.pubkeys,
+          nodes: this.nodes,
+          keepKeySdk: this.keepKeySdk,
+        };
+        let txManager = new TransactionManager(transactionDependencies, this.events);
+        let unsignedTx = await txManager.transfer(sendPayload);
+        console.log(tag, 'unsignedTx: ', unsignedTx);
+
+        // Sign the transaction
+        let signedTx = await txManager.sign({ caip, unsignedTx });
+        console.log(tag, 'signedTx: ', signedTx);
+        if (!signedTx) throw Error('Failed to sign transaction!');
+        // Broadcast the transaction
+        let payload = {
+          networkId: caipToNetworkId(caip),
+          serialized: signedTx,
+        };
+        let txid = await txManager.broadcast(payload);
+        console.log(tag, 'txid: ', txid);
+        return { txid, events: this.events };
+      } catch (e) {
+        console.error(tag, 'An error occurred during the transfer process:', e.message || e);
+        throw e;
+      }
+    };
     this.followTransaction = async function (caip: string, txid: string) {
       let tag = ' | followTransaction | ';
       try {
@@ -630,61 +709,6 @@ export class SDK {
           await new Promise((resolve) => setTimeout(resolve, 8000));
         }
 
-        // while (!isConfirmed) {
-        //   try {
-        //     console.log(tag, 'txid: ', txid);
-        //     let response = await this.pioneer.LookupTx({
-        //       networkId: caipToNetworkId(caip),
-        //       txid,
-        //     });
-        //     console.log(tag, 'response: ', response);
-        //
-        //     if (response && response.data) {
-        //       let txInfo = response.data.data;
-        //       // console.log(tag, 'txInfo: ', txInfo);
-        //       console.log(tag, 'confirmations: ', txInfo.confirmations);
-        //
-        //       // Transaction detected
-        //       if (txInfo.txid && !detectedTime) {
-        //         detectedTime = Date.now();
-        //         console.log(
-        //           tag,
-        //           `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
-        //         );
-        //       }
-        //
-        //       // Check if the transaction meets the confirmation threshold
-        //       if (txInfo.confirmations >= requiredConfirmations) {
-        //         isConfirmed = true;
-        //         confirmTime = Date.now();
-        //         console.log(tag, 'Transaction confirmed on network:', caip);
-        //         console.log(
-        //           tag,
-        //           `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
-        //         );
-        //
-        //         if (detectedTime !== null) {
-        //           console.log(
-        //             tag,
-        //             `Time from detection to confirmation: ${formatTime(
-        //               confirmTime - detectedTime,
-        //             )}`,
-        //           );
-        //         }
-        //       } else {
-        //         console.log(tag, 'Transaction detected but not yet confirmed.');
-        //       }
-        //     } else {
-        //       console.log(tag, 'Transaction not detected yet.');
-        //     }
-        //   } catch (e) {
-        //     console.error(tag, e);
-        //   }
-        //
-        //   // Wait before the next check
-        //   await new Promise((resolve) => setTimeout(resolve, 8000));
-        // }
-
         // Return the tracked times in a structured object
         return {
           caip,
@@ -701,44 +725,6 @@ export class SDK {
       } catch (e) {
         console.error(tag, e);
         throw new Error('Failed to follow transaction');
-      }
-    };
-    this.transfer = async function (sendPayload) {
-      let tag = `${TAG} | transfer | `;
-      try {
-        if (!sendPayload) throw Error('sendPayload required!');
-        if (!sendPayload.caip) throw Error('caip required!');
-        if (!sendPayload.to) throw Error('to required!');
-        let { caip } = sendPayload;
-
-        const transactionDependencies = {
-          context: this.context,
-          assetContext: this.assetContext,
-          balances: this.balances,
-          pioneer: this.pioneer,
-          pubkeys: this.pubkeys,
-          nodes: this.nodes,
-          keepKeySdk: this.keepKeySdk,
-        };
-        let txManager = new TransactionManager(transactionDependencies, this.events);
-        let unsignedTx = await txManager.transfer(sendPayload);
-        console.log(tag, 'unsignedTx: ', unsignedTx);
-
-        // Sign the transaction
-        let signedTx = await txManager.sign({ caip, unsignedTx });
-        console.log(tag, 'signedTx: ', signedTx);
-        if (!signedTx) throw Error('Failed to sign transaction!');
-        // Broadcast the transaction
-        let payload = {
-          networkId: caipToNetworkId(caip),
-          serialized: signedTx,
-        };
-        let txid = await txManager.broadcast(payload);
-        console.log(tag, 'txid: ', txid);
-        return { txid, events: this.events };
-      } catch (e) {
-        console.error(tag, 'An error occurred during the transfer process:', e.message || e);
-        throw e;
       }
     };
     this.setBlockchains = async function (blockchains: any) {
@@ -911,7 +897,7 @@ export class SDK {
     this.getBalance = async function (networkId: string) {
       const tag = `${TAG} | getBalance | `;
       try {
-        //console.log(tag, 'networkId: ', networkId);
+        console.log(tag, 'networkId: ', networkId);
         //Step 1 get Native/Gas Asset balance
         let caipNative = await networkIdToCaip(networkId);
         //pubkeys related to this networkId
@@ -946,14 +932,18 @@ export class SDK {
               balances[i].identifier = balances[i].caip + ':' + this.context;
               balances[i].balance = balances[i].balance?.toString() || '0';
               balances[i].valueUsd = balances[i].valueUsd?.toString() || '0';
+
+              this.keepKeySdk.storage.createBalance(balances[i]);
+              this.balances.push(balances[i]);
+
               //if caip already in balances?
-              let exists = this.balances.some((b: any) => b.caip === balances[i].caip);
-              if (!exists) {
-                //save
-                if (!balances[i].icon) balances[i].icon = 'https://pioneers.dev/coins/etherum.png';
-                this.keepKeySdk.storage.createBalance(balances[i]);
-                this.balances.push(balances[i]);
-              }
+              // let exists = this.balances.some((b: any) => b.caip === balances[i].caip);
+              // if (!exists) {
+              //   //save
+              //   if (!balances[i].icon) balances[i].icon = 'https://pioneers.dev/coins/etherum.png';
+              //   this.keepKeySdk.storage.createBalance(balances[i]);
+              //   this.balances.push(balances[i]);
+              // }
             }
           } catch (e) {
             console.error('Failed to get balance!');
@@ -993,26 +983,11 @@ export class SDK {
         throw e;
       }
     };
-    /*
-        Charts
-
-        * get enabled charts
-        * get avaailable charts by networkId
-        * add chart
-        * remove chart
-        * update chart
-
-    */
     this.getCharts = async function () {
       const tag = `${TAG} | getCharts | `;
       try {
         //console.log(tag, 'get charts');
         let balances = await getCharts(this.blockchains, this.pioneer, this.pubkeys, this.context);
-        // //console.log(tag, 'balances: ', balances);
-        // //console.log(tag, 'balances1: ', balances[0]);
-        // //console.log(tag, 'balances2: ', balances[1]);
-        // //console.log(tag, 'balances3: ', balances[2]);
-        // //console.log(tag, 'balances4: ', balances.length);
         // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
@@ -1028,15 +1003,6 @@ export class SDK {
             this.keepKeySdk.storage.createBalance(balance);
             this.balances.push(balance);
           }
-
-          // if (existingBalance) {
-          //   //console.log(tag, 'Duplicate CAIP found:', {
-          //     existingBalance,
-          //     duplicateBalance: balance,
-          //   });
-          // } else {
-          //
-          // }
         }
         //add balances to this.balances
         return this.balances;

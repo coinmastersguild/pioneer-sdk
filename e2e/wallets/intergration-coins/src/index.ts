@@ -35,8 +35,8 @@ import {
     // @ts-ignore
 } from '@pioneer-platform/pioneer-coins';
 //let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
-let spec = 'https://pioneers.dev/spec/swagger.json'
-// let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+// let spec = 'https://pioneers.dev/spec/swagger.json'
+let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 // const DB = require('@coinmasters/pioneer-db-sql');
 console.log("spec: ",spec)
 
@@ -77,13 +77,13 @@ const test_service = async function (this: any) {
 
         let AllChainsSupported = [
             'ETH',
-            'ARB',
+            'ARB',  //BROKE
             'DOGE',
-            'OP',  //Fast
-            // 'MATIC', //SLOW charting
-            'AVAX', //fast
-            'BASE', //fast
-            'BSC', //fast
+            'OP',    //Fast
+            'MATIC', //SLOW charting
+            'AVAX',  //fast
+            'BASE',  //fast
+            'BSC',   //fast
             'BTC',
             'BCH',
             'GAIA',
@@ -177,7 +177,7 @@ const test_service = async function (this: any) {
             let path = paths[i]
             assert(path.networks)
         }
-
+        log.info(tag,'paths: ',paths)
 
 
         let config:any = {
@@ -202,10 +202,12 @@ const test_service = async function (this: any) {
         let resultInit = await app.init({ } , {})
         log.info(tag,' ****** Init Complete ******')
 
+        //clear cache
+
         // log.info(tag,"resultInit: ",resultInit)
         console.timeEnd('start2init');
         let assets = app.assetsMap
-        // log.info(tag,"assets: START: ",assets)
+        log.info(tag,"assets: START: ",assets)
         assert(assets)
 
         // //iterate over each asset
@@ -217,6 +219,55 @@ const test_service = async function (this: any) {
             assert(asset.caip)
         }
         log.info(tag,' ****** Validated Assets for caips ******')
+
+
+        let pubkeys
+        if(app.pubkeys.length === 0){
+            log.info(tag,'cache is empty refreshing... ')
+            pubkeys = await app.getPubkeys()
+        } else {
+            pubkeys = app.pubkeys
+            log.info(tag,'cache found! ', pubkeys.length)
+        }
+
+
+        log.info(tag,"pubkeys: ",pubkeys.length)
+        assert(pubkeys)
+        assert(pubkeys[0])
+        for(let i = 0; i < pubkeys.length; i++){
+            let pubkey = pubkeys[i]
+            log.debug(tag,"pubkey: ",pubkey)
+            assert(pubkey.pubkey)
+            assert(pubkey.type)
+            assert(pubkey.path)
+            assert(pubkey.networks)
+            assert(pubkey.networks[0])
+        }
+        assert(app.paths)
+        for(let i = 0; i < app.paths.length; i++){
+            let path = app.paths[i]
+            // log.info(tag,' path: ',path)
+            let pubkey = app.pubkeys.find((pubkey:any) => pubkey.path === addressNListToBIP32(path.addressNList))
+            assert(pubkey)
+        }
+        log.info(tag,' ****** Validate Path exists for every path * PASS * ******')
+
+        // //validate pubkeys
+        for(let i = 0; i < app.pubkeys.length; i++){
+            let pubkey = app.pubkeys[i]
+            log.debug(tag,"pubkey: ",pubkey)
+            assert(pubkey)
+            assert(pubkey.pubkey)
+            log.info(tag,'pubkey: ',pubkey)
+            assert(pubkey.type)
+        }
+        log.info(tag,' ****** Validate Pubkeys Properties exist * PASS * ******')
+
+        console.timeEnd('start2Pubkeys');
+        log.info(tag,'app.pubkeys.length: ',app.pubkeys.length)
+        log.info(tag,'app.paths.length: ',app.paths.length)
+        // if(app.pubkeys.length !== app.paths.length) throw Error('Missing pubkeys! failed to sync')
+
 
         tag = tag + " | checkpoint1 | "
 
@@ -249,59 +300,12 @@ const test_service = async function (this: any) {
 
             //should be a balance for every gas asset
             const balanceNative = app.balances.find((balance:any) => balance.caip === caip);
+            if(!balanceNative) console.error('Missing Balance for CAIP: ',caip)
             assert(balanceNative)
             log.debug(tag,"balanceNative: ",balanceNative)
         }
         log.info(tag,' ****** Validated Assets for each chain exist ******')
 
-        let pubkeys
-        if(app.pubkeys.length === 0){
-            log.info(tag,'cache is empty refreshing... ')
-            pubkeys = await app.getPubkeys()
-        } else {
-            pubkeys = app.pubkeys
-            log.info(tag,'cache found! ', pubkeys.length)
-        }
-
-
-        log.info(tag,"pubkeys: ",pubkeys.length)
-        assert(pubkeys)
-        assert(pubkeys[0])
-        for(let i = 0; i < pubkeys.length; i++){
-            let pubkey = pubkeys[i]
-            log.debug(tag,"pubkey: ",pubkey)
-            assert(pubkey.pubkey)
-            assert(pubkey.type)
-            assert(pubkey.path)
-            assert(pubkey.networks)
-            assert(pubkey.networks[0])
-        }
-
-
-        assert(app.paths)
-        for(let i = 0; i < app.paths.length; i++){
-            let path = app.paths[i]
-            // log.info(tag,' path: ',path)
-            let pubkey = app.pubkeys.find((pubkey:any) => pubkey.path === addressNListToBIP32(path.addressNList))
-            assert(pubkey)
-        }
-        log.info(tag,' ****** Validate Path exists for every path * PASS * ******')
-
-        // //validate pubkeys
-        for(let i = 0; i < app.pubkeys.length; i++){
-            let pubkey = app.pubkeys[i]
-            log.debug(tag,"pubkey: ",pubkey)
-            assert(pubkey)
-            assert(pubkey.pubkey)
-            log.info(tag,'pubkey.pubkey: ',pubkey.pubkey)
-            assert(pubkey.type)
-        }
-        log.info(tag,' ****** Validate Pubkeys Properties exist * PASS * ******')
-
-        console.timeEnd('start2Pubkeys');
-        log.info(tag,'app.pubkeys.length: ',app.pubkeys.length)
-        log.info(tag,'app.paths.length: ',app.paths.length)
-        // if(app.pubkeys.length !== app.paths.length) throw Error('Missing pubkeys! failed to sync')
 
         tag = tag + " | checkpoint3 | "
         let balances
