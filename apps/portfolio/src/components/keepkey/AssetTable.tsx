@@ -101,6 +101,8 @@ const AssetTable = ({ usePioneer, onSelect }: any) => {
                                     <Table.ColumnHeader>Asset</Table.ColumnHeader>
                                     <Table.ColumnHeader>Symbol</Table.ColumnHeader>
                                     <Table.ColumnHeader>CAIP</Table.ColumnHeader>
+                                    <Table.ColumnHeader>pubkey</Table.ColumnHeader>
+                                    <Table.ColumnHeader>identifier</Table.ColumnHeader>
                                     <Table.ColumnHeader>Balance</Table.ColumnHeader>
                                     <Table.ColumnHeader>Value (USD)</Table.ColumnHeader>
                                 </Table.Row>
@@ -122,6 +124,12 @@ const AssetTable = ({ usePioneer, onSelect }: any) => {
                                             </Table.Cell>
                                             <Table.Cell>
                                                 <Text fontSize="sm">{balance.caip}</Text>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Text fontSize="sm">{balance.pubkey}</Text>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Text fontSize="sm">{balance.identifier}</Text>
                                             </Table.Cell>
                                             <Table.Cell>
                                                 <Text fontSize="sm">{balance.balance}</Text>

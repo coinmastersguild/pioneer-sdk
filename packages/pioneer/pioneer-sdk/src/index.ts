@@ -934,20 +934,14 @@ export class SDK {
               balances[i].context = this.context;
               balances[i].contextType = 'KEEPKEY';
               balances[i].ticker = balances[i].symbol;
-              balances[i].identifier = balances[i].caip + ':' + this.context;
+              balances[i].identifier = balances[i].caip + ':' + balances[i].pubkey;
               balances[i].balance = balances[i].balance?.toString() || '0';
               balances[i].valueUsd = balances[i].valueUsd?.toString() || '0';
 
               this.keepKeySdk.storage.createBalance(balances[i]);
-              this.balances.push(balances[i]);
 
               //if caip already in balances?
-              let exists = this.balances.some(
-                (b: any) =>
-                  b.caip === balances[i].caip &&
-                  b.pubkey === balances[i].pubkey &&
-                  b.context === balances[i].context,
-              );
+              let exists = this.balances.some((b: any) => b.identifier === balances[i].identifier);
               console.log(tag, 'exists: ', exists);
               if (!exists) {
                 //save
@@ -1076,7 +1070,8 @@ export class SDK {
           } else {
             if (!balance.icon) balance.icon = 'https://pioneers.dev/coins/ethereum.png';
             this.keepKeySdk.storage.createBalance(balance);
-            this.balances.push(balance);
+            let exists = this.balances.some((b: any) => b.identifier === balance.identifier);
+            if (!exists) this.balances.push(balance);
           }
         }
         //add balances to this.balances
@@ -1120,7 +1115,6 @@ export class SDK {
           // Create a placeholder asset if it's not found in Pioneer or locally
           assetInfo = {
             chain: asset.chain || asset.name || 'Unknown Chain',
-            identifier: asset.identifier || asset.name || 'UNKNOWN.ASSET',
             decimals: asset.decimals || 18,
             type: asset.caip.includes('eip155') ? 'evm' : asset.type || 'unknown',
             networkId: asset.caip.split('/')[0],
@@ -1217,7 +1211,6 @@ export class SDK {
           // Create a placeholder asset if it's not found in Pioneer or locally
           assetInfo = {
             chain: asset.chain || asset.name || 'Unknown Chain',
-            identifier: asset.identifier || asset.name || 'UNKNOWN.ASSET',
             decimals: asset.decimals || 18,
             type: asset.caip.includes('eip155') ? 'evm' : asset.type || 'unknown',
             networkId: asset.caip.split('/')[0],
