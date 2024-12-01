@@ -74,11 +74,14 @@ export async function createUnsignedEvmTx(
     const assetType = classifyCaipEvm(caip);
     let unsignedTx;
 
-    const txAmount = toHex(BigInt(Math.floor(amount * 1e18)));
+    let amountGwei = BigInt(Math.floor(amount * 1e18));
+    const txAmount = toHex(amountGwei);
+    console.log(tag, 'txAmount:', txAmount);
 
     //TODO estimate GAS
 
     //TODO allow custom GAS
+
     if (memo === ' ') memo = '';
     // Build transaction object based on asset type
     switch (assetType) {

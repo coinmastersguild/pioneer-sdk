@@ -35,6 +35,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const [showSteps, setShowSteps] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [txHash, setTxHash] = useState('');
+    const [isMax, setIsMax] = useState(false); // New state for Send Max
 
     const validateAddress = (address: string) => {
         // TODO: Replace with actual validation logic (e.g., regex for blockchain address)
@@ -72,6 +73,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 to: recipient,
                 amount: inputAmount,
                 feeLevel: 5,
+                isMax, // Pass sendMax to the transfer payload
             };
 
             // Simulate building transaction
@@ -110,6 +112,23 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             setRecipientError('');
         } else {
             setRecipientError('Invalid address format.');
+        }
+    };
+
+    const handleSendMax = () => {
+        let tag = ' | handleSendMax | ';
+        try {
+            const balance = app.assetContext?.balances[0].balance ?? '0';
+            setInputAmount(balance);
+            setIsMax(true);
+            console.log(tag, 'Max balance loaded: ', balance);
+        } catch (error) {
+            console.error(tag, error);
+            toaster.create({
+                title: 'Error',
+                description: 'Unable to load the maximum balance.',
+                duration: 5000,
+            });
         }
     };
 
@@ -174,10 +193,15 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 color="white"
                 _placeholder={{ color: 'gray.500' }}
               />
-              <Text fontSize="sm" color="gray.400" mt={1}>
-                  Available Balance: {app.assetContext?.balances[0].balance ?? '0'}{' '}
-                  {app.assetContext?.symbol}
-              </Text>
+              <Flex justifyContent="space-between" mt={1}>
+                  <Text fontSize="sm" color="gray.400">
+                      Available Balance: {app.assetContext?.balances[0].balance ?? '0'}{' '}
+                      {app.assetContext?.symbol}
+                  </Text>
+                  <Button size="sm" colorScheme="teal" onClick={handleSendMax}>
+                      Send Max
+                  </Button>
+              </Flex>
           </Box>
 
           <Button

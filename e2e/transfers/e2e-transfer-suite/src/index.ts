@@ -49,8 +49,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        let spec = 'https://pioneers.dev/spec/swagger.json'
-        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        // let spec = 'https://pioneers.dev/spec/swagger.json'
+        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
@@ -60,9 +60,9 @@ const test_service = async function (this: any) {
             // 'MATIC',
             // 'THOR',
             // 'GAIA',
-            'OSMO',
+            // 'OSMO',
             // 'BASE',
-            // 'OP',
+            'OP',
             // 'ARB',
             // 'AVAX',
             // 'BSC',
@@ -123,6 +123,7 @@ const test_service = async function (this: any) {
             'eip155:1/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // ETH
             'eip155:8453/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // ETH
             'eip155:137/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // MATIC (using same address as ETH)
+            'eip155:10/slip44:60': '0x658DE0443259a1027caA976ef9a42E6982037A03', // OP (using same address as ETH)
             'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144': 'rGdMfVVZwUbqAxs5zucKHUpFgFTcPPj5Cn', // XRP
             'zcash:main': 't1arQZhpGdBVRhTybXpeoDFgyNJXFEWDTaP', // ZEC
         };
@@ -141,6 +142,7 @@ const test_service = async function (this: any) {
             'eip155:1/slip44:60': 0.0005, // ETH (depending on network conditions)
             'eip155:8453/slip44:60': 0.0005, // ETH (depending on network conditions)
             'eip155:137/slip44:60': 0.01, // MATIC (Polygon typical min tx)
+            'eip155:10/slip44:60': 0.001, // MATIC (Polygon typical min tx)
             'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144': .01, // XRP (reserve requirement of 10-20 XRP)
             'zcash:main': 0.0001, // ZEC
         };
@@ -295,6 +297,9 @@ const test_service = async function (this: any) {
             //broadcast
             let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
             log.info(tag, 'broadcast: ', broadcast);
+
+            //OSMOSIS
+            // let broadcast = '6FD1554D654B5F58D6D35CE1F9EE0EA0FCCEB5A20EA5E6B80CAA58F7302F22E5'
 
             // Follow transaction
             let followTx = await app.followTransaction(caip, broadcast);

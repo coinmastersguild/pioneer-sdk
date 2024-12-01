@@ -616,6 +616,7 @@ export class SDK {
         if (!sendPayload) throw Error('sendPayload required!');
         if (!sendPayload.caip) throw Error('caip required!');
         if (!sendPayload.to) throw Error('to required!');
+        if (!sendPayload.isMax) sendPayload.isMax = false;
         let { caip } = sendPayload;
 
         const transactionDependencies = {
@@ -626,8 +627,10 @@ export class SDK {
           pubkeys: this.pubkeys,
           nodes: this.nodes,
           keepKeySdk: this.keepKeySdk,
+          isMax: sendPayload.isMax,
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
+        console.log(tag, 'sendPayload: ', sendPayload);
         let unsignedTx = await txManager.transfer(sendPayload);
         console.log(tag, 'unsignedTx: ', unsignedTx);
 
