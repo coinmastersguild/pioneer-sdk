@@ -54,13 +54,13 @@ const test_service = async function (this: any) {
 
 
         let chains = [
-            'DOGE',
+            // 'DOGE',
             // 'DASH',
             // 'LTC', //BROKE "Missing inputs
             // 'MATIC',
             // 'THOR',
             // 'GAIA',
-            // 'OSMO',
+            'OSMO',
             // 'BASE',
             // 'OP',
             // 'ARB',
@@ -266,12 +266,14 @@ const test_service = async function (this: any) {
             //     feeLevel: 5 // Options
             // };
 
+            log.info(tag, 'Send balance: ', balance);
+
             //max is balance
             const sendPayload = {
                 caip,
                 isMax: true,
                 to: FAUCET_ADDRESS,
-                amount: balance,
+                amount: balance.balance,
                 feeLevel: 5 // Options
             };
             log.info(tag, 'Send Payload: ', sendPayload);

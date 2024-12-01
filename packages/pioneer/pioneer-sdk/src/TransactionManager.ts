@@ -50,7 +50,7 @@ export class TransactionManager {
     throw new Error(`Unsupported CAIP: ${caip}`);
   }
 
-  async transfer({ caip, to, amount, memo }: any): Promise<any> {
+  async transfer({ caip, to, amount, memo, isMax = false }: any): Promise<any> {
     let tag = TAG + ' | transfer | ';
     try {
       if (!this.pioneer) throw Error('Failed to init! pioneer');
@@ -72,6 +72,7 @@ export class TransactionManager {
             this.pubkeys,
             this.pioneer,
             this.keepKeySdk,
+            isMax,
           );
           break;
         }
@@ -87,6 +88,7 @@ export class TransactionManager {
             this.pubkeys,
             this.pioneer,
             this.keepKeySdk,
+            isMax,
           );
           break;
         }
@@ -100,6 +102,7 @@ export class TransactionManager {
             this.pubkeys,
             this.pioneer,
             this.keepKeySdk,
+            isMax,
           );
           break;
         }
@@ -113,6 +116,7 @@ export class TransactionManager {
             this.pubkeys,
             this.pioneer,
             this.keepKeySdk,
+            isMax,
           );
           break;
         }
@@ -175,21 +179,22 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:osmosis-1/slip44:118': {
+              console.log(tag, 'Osmosis transaction');
               if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
-                console.log(tag, 'transfer:');
+                console.log(tag, 'osmosis transfer:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.osmosis.osmosisSignAmino(unsignedTx);
                 console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
-                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                  `Unsupported Osmosis message type: ${unsignedTx.signDoc.msgs[0].type}`,
                 );
               }
               break;
             }
             case 'cosmos:thorchain-mainnet-v1/slip44:931': {
-              console.log(tag,'Thorchain transaction')
+              console.log(tag, 'Thorchain transaction');
               //transfer
               if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
                 console.log(tag, 'transfer:');

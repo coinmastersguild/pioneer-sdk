@@ -16,6 +16,7 @@ export async function createUnsignedTendermintTx(
   pubkeys: any[],
   pioneer: any,
   keepKeySdk: any,
+  isMax: boolean,
 ): Promise<any> {
   const tag = TAG + ' | createUnsignedTendermintTx | ';
 
@@ -46,6 +47,7 @@ export async function createUnsignedTendermintTx(
       default:
         throw new Error(`Unhandled networkId: ${networkId}`);
     }
+
     console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
 
     const fromAddress = relevantPubkeys[0].address;
@@ -55,7 +57,6 @@ export async function createUnsignedTendermintTx(
 
     let account_number, sequence;
     if (networkId === 'cosmos:cosmoshub-4' || networkId === 'cosmos:osmosis-1') {
-      console.log(tag, 'accountInfo: ', accountInfo);
       account_number = accountInfo.account.account_number || '0';
       sequence = accountInfo.account.sequence || '0';
     } else if (
@@ -66,9 +67,22 @@ export async function createUnsignedTendermintTx(
       sequence = accountInfo.result.value.sequence || '0';
     }
 
+    const fees = {
+      'cosmos:thorchain-mainnet-v1': 0.02,
+      'cosmos:mayachain-mainnet-v1': 0.2,
+      'cosmos:cosmoshub-4': 0.005,
+      'cosmos:osmosis-1': 0.035,
+    };
+
+    if (isMax) {
+      const fee = fees[networkId] * 1e6; // Convert fee to smallest unit
+      amount = Math.max(0, amount * 1e6 - fee); // Adjust amount for fees if isMax
+    } else {
+      amount = amount * 1e6; // Convert amount to smallest unit
+    }
+
     switch (networkId) {
       case 'cosmos:thorchain-mainnet-v1':
-        amount = amount * 1000000; // Convert to RUNE
         asset = 'rune';
         return to
           ? thorchainTransferTemplate({
@@ -100,8 +114,8 @@ export async function createUnsignedTendermintTx(
               memo,
               sequence,
             });
+
       case 'cosmos:mayachain-mainnet-v1': {
-        amount = amount * 1000000; // Convert to RUNE
         asset = 'cacao';
         return to
           ? mayachainTransferTemplate({
@@ -142,6 +156,7 @@ export async function createUnsignedTendermintTx(
               sequence,
             });
       }
+
       case 'cosmos:cosmoshub-4':
         return cosmosTransferTemplate({
           account_number,
@@ -150,20 +165,24 @@ export async function createUnsignedTendermintTx(
           from_address: fromAddress,
           to_address: to,
           asset: 'uatom',
-          amount: (amount * 10000).toString(),
+          amount: amount.toString(),
           memo,
           sequence,
         });
 
       case 'cosmos:osmosis-1':
+        const DEFAULT_OSMO_FEE_MAINNET = {
+          amount: [{ denom: 'uosmo', amount: '3500' }],
+          gas: '500000',
+        };
         return osmosisTransferTemplate({
           account_number,
           chain_id: 'osmosis-1',
-          fee: { gas: '200000', amount: [] },
+          fee: DEFAULT_OSMO_FEE_MAINNET,
           from_address: fromAddress,
           to_address: to,
           asset: 'uosmo',
-          amount: (amount * 10000).toString(),
+          amount: amount.toString(),
           memo,
           sequence,
         });

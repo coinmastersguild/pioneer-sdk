@@ -113,7 +113,7 @@ export class SDK {
   private transactions: any;
   private transfer: (sendPayload: any) => Promise<any>;
   private clearCache: () => Promise<boolean>;
-  private sync: () => Promise<void>;
+  private sync: () => Promise<boolean>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
   private followTransaction: (
     caip: string,
@@ -194,11 +194,16 @@ export class SDK {
         this.keepKeySdk = keepKeySdk;
         this.context = 'keepkey:' + features.label + '.json';
         this.events.emit('SET_STATUS', 'init');
+
+        await this.getGasAssets();
+
         let pubkeysCache = await this.keepKeySdk.storage.getPubkeys();
         await this.loadPubkeyCache(pubkeysCache);
         let balanceCache = await this.keepKeySdk.storage.getBalances();
+        console.log(tag, 'balanceCache: ', balanceCache);
+        console.log(tag, 'balanceCache: ', balanceCache.length);
         await this.loadBalanceCache(balanceCache);
-        await this.getGasAssets();
+
         await this.sync();
         return this.pioneer;
       } catch (e) {
@@ -265,9 +270,13 @@ export class SDK {
               );
               if (!pubkey) throw Error('Unable to get pubkey for network+ ' + networkId);
               this.keepKeySdk.storage.createPubkey(pubkey);
-              this.pubkeys.push(pubkey);
+              //if doesnt exist, add
+              let exists = this.pubkeys.filter((e: any) => e.networks.includes(networkId));
+              if (!exists || exists.length === 0) {
+                this.pubkeys.push(pubkey);
+              }
             } else {
-              //console.log(tag, ' **** CACHE **** Cache valid for pubkey: ', pubkey);
+              console.log(tag, ' **** CACHE **** Cache valid for pubkey: ', pubkey);
             }
           }
         }
@@ -280,25 +289,31 @@ export class SDK {
         // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
-          if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
+          // if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
           console.log(tag, 'networkId: ', networkId);
           let balancesForChain = this.balances.filter((balance) => balance.networkId === networkId);
           console.log(tag, 'balancesForChain: ', balancesForChain.length);
 
           //pubkey count
-          let pubkeyCount = this.pubkeys.filter((pubkey) => pubkey.networks.includes(networkId));
+          let processedNetworkId = networkId.indexOf('eip155:') >= 0 ? 'eip155:*' : networkId;
+
+          let pubkeyCount = this.pubkeys.filter((pubkey) =>
+            pubkey.networks.includes(processedNetworkId),
+          );
           console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount.length);
+          console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount);
 
           if (balancesForChain.length < pubkeyCount.length || balancesForChain.length === 0) {
             console.log(tag, 'No balance found for network ' + networkId);
             let resultBalance = await this.getBalance(this.blockchains[i]);
             console.log(tag, 'resultBalance: ', resultBalance.length);
           } else {
-            //console.log(tag, ' **** CACHE **** Cache valid for balance: ', networkId);
+            console.log(tag, ' **** CACHE **** Cache valid for balance: ', networkId);
           }
         }
 
         //console.log(tag, 'balances (Checkpoint4)');
+        return true;
       } catch (e) {
         console.error(tag, 'Error in sync:', e);
         throw e;
@@ -903,59 +918,79 @@ export class SDK {
       const tag = `${TAG} | getBalance | `;
       try {
         console.log(tag, 'networkId: ', networkId);
-        //Step 1 get Native/Gas Asset balance
-        let caipNative = await networkIdToCaip(networkId);
-        //pubkeys related to this networkId
+
+        // Step 1: Get Native/Gas Asset balance
+        const caipNative = await networkIdToCaip(networkId);
+
+        // Adjust networkId for wildcard matching if necessary
         if (networkId.includes('eip155:')) {
           networkId = 'eip155:*';
         }
-        //console.log(tag, 'this.pubkeys: ', this.pubkeys);
-        let pubkeys = this.pubkeys.filter((pubkey: any) => pubkey.networks.includes(networkId));
-        if (!pubkeys || pubkeys.length === 0)
-          throw Error('missing pubkeys for networkId: ' + networkId);
-        let asset = this.assetsMap.get(caipNative);
 
-        //console.log(tag, 'asset: ', asset);
+        const pubkeys = this.pubkeys.filter((pubkey: any) => pubkey.networks.includes(networkId));
 
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
-        for (let i = 0; i < pubkeys.length; i++) {
-          try {
-            console.log(tag, 'pubkey: ', pubkeys[i]);
-            console.log(tag, 'asset: ', asset);
-            let balancesData = await this.pioneer.Navigate({ asset, pubkey: pubkeys[i] });
-            let balances = balancesData.data;
-            console.log(tag, 'Navigate balances response: ', balances);
-            for (let i = 0; i < balances.length; i++) {
-              balances[i].chain = balances[i].networkId;
-              balances[i].pubkey = pubkeys[i].pubkey || pubkeys[i].address || pubkeys[i].master;
-              if (!balances[i].pubkey)
-                throw Error('missing pubkey for balance: ' + JSON.stringify(balances[i]));
-              balances[i].type = 'gas';
-              balances[i].context = this.context;
-              balances[i].contextType = 'KEEPKEY';
-              balances[i].ticker = balances[i].symbol;
-              balances[i].identifier = balances[i].caip + ':' + balances[i].pubkey;
-              balances[i].balance = balances[i].balance?.toString() || '0';
-              balances[i].valueUsd = balances[i].valueUsd?.toString() || '0';
-
-              this.keepKeySdk.storage.createBalance(balances[i]);
-
-              //if caip already in balances?
-              let exists = this.balances.some((b: any) => b.identifier === balances[i].identifier);
-              console.log(tag, 'exists: ', exists);
-              if (!exists) {
-                //save
-                if (!balances[i].icon) balances[i].icon = 'https://pioneers.dev/coins/etherum.png';
-                this.keepKeySdk.storage.createBalance(balances[i]);
-                this.balances.push(balances[i]);
-              }
-            }
-          } catch (e) {
-            console.error('Failed to get balance!');
-            console.error(tag, '**** asset: ', asset);
-            console.error(tag, '**** pubkey: ', pubkeys[i]);
-          }
+        if (!pubkeys || pubkeys.length === 0) {
+          throw new Error('missing pubkeys for networkId: ' + networkId);
         }
+
+        const asset = this.assetsMap.get(caipNative);
+
+        if (!asset) {
+          throw new Error('Asset not found for caipNative: ' + caipNative);
+        }
+
+        // Perform Navigate calls in parallel
+        const balanceResults = await Promise.all(
+          pubkeys.map(async (pubkey: any) => {
+            try {
+              console.log(tag, 'pubkey: ', pubkey);
+              console.log(tag, 'asset: ', asset);
+
+              const balancesData = await this.pioneer.Navigate({ asset, pubkey });
+              const balances = balancesData.data;
+
+              console.log(tag, 'Navigate balances response: ', balances);
+
+              balances.forEach((balance: any) => {
+                balance.chain = balance.networkId;
+                balance.pubkey = pubkey.pubkey || pubkey.address || pubkey.master;
+
+                if (!balance.pubkey) {
+                  throw new Error('missing pubkey for balance: ' + JSON.stringify(balance));
+                }
+
+                balance.type = 'gas';
+                balance.context = this.context;
+                balance.contextType = 'KEEPKEY';
+                balance.ticker = balance.symbol;
+                balance.identifier = `${balance.caip}:${balance.pubkey}`;
+                balance.balance = balance.balance?.toString() || '0';
+                balance.valueUsd = balance.valueUsd?.toString() || '0';
+
+                // Save balance to storage
+                this.keepKeySdk.storage.createBalance(balance);
+
+                // Add to balances if not already present
+                const exists = this.balances.some((b: any) => b.identifier === balance.identifier);
+                console.log(tag, 'exists: ', exists);
+
+                if (!exists) {
+                  balance.icon = balance.icon || 'https://pioneers.dev/coins/etherum.png';
+                  this.keepKeySdk.storage.createBalance(balance);
+                  this.balances.push(balance);
+                }
+              });
+
+              return balances;
+            } catch (e) {
+              console.error(tag, 'Failed to process balance for pubkey:', pubkey, e);
+              return []; // Return an empty array for failed pubkeys
+            }
+          }),
+        );
+
+        // Flatten all results and ensure balances are up-to-date
+        this.balances = this.balances.concat(balanceResults.flat());
 
         return this.balances;
       } catch (e) {
@@ -963,70 +998,6 @@ export class SDK {
         throw e;
       }
     };
-    // this.getBalance = async function (networkId: string) {
-    //   const tag = `${TAG} | getBalance | `;
-    //   try {
-    //     console.log(tag, 'networkId: ', networkId);
-    //     //Step 1 get Native/Gas Asset balance
-    //     let caipNative = await networkIdToCaip(networkId);
-    //     //pubkeys related to this networkId
-    //     if (networkId.includes('eip155:')) {
-    //       networkId = 'eip155:*';
-    //     }
-    //     //console.log(tag, 'this.pubkeys: ', this.pubkeys);
-    //     let pubkeys = this.pubkeys.filter((pubkey: any) => pubkey.networks.includes(networkId));
-    //     if (!pubkeys || pubkeys.length === 0)
-    //       throw Error('missing pubkeys for networkId: ' + networkId);
-    //     let asset = this.assetsMap.get(caipNative);
-    //
-    //     //console.log(tag, 'asset: ', asset);
-    //
-    //     // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    //     for (let i = 0; i < pubkeys.length; i++) {
-    //       try {
-    //         console.log(tag, 'pubkey: ', pubkeys[i]);
-    //         console.log(tag, 'asset: ', asset);
-    //         let balancesData = await this.pioneer.Navigate({ asset, pubkey: pubkeys[i] });
-    //         let balances = balancesData.data;
-    //         console.log(tag, 'Navigate balances response: ', balances);
-    //         for (let i = 0; i < balances.length; i++) {
-    //           balances[i].chain = balances[i].networkId;
-    //           balances[i].pubkey = pubkeys[i].pubkey || pubkeys[i].address || pubkeys[i].master;
-    //           if (!balances[i].pubkey)
-    //             throw Error('missing pubkey for balance: ' + JSON.stringify(balances[i]));
-    //           balances[i].type = 'gas';
-    //           balances[i].context = this.context;
-    //           balances[i].contextType = 'KEEPKEY';
-    //           balances[i].ticker = balances[i].symbol;
-    //           balances[i].identifier = balances[i].caip + ':' + this.context;
-    //           balances[i].balance = balances[i].balance?.toString() || '0';
-    //           balances[i].valueUsd = balances[i].valueUsd?.toString() || '0';
-    //
-    //           this.keepKeySdk.storage.createBalance(balances[i]);
-    //           this.balances.push(balances[i]);
-    //
-    //           //if caip already in balances?
-    //           // let exists = this.balances.some((b: any) => b.caip === balances[i].caip);
-    //           // if (!exists) {
-    //           //   //save
-    //           //   if (!balances[i].icon) balances[i].icon = 'https://pioneers.dev/coins/etherum.png';
-    //           //   this.keepKeySdk.storage.createBalance(balances[i]);
-    //           //   this.balances.push(balances[i]);
-    //           // }
-    //         }
-    //       } catch (e) {
-    //         console.error('Failed to get balance!');
-    //         console.error(tag, '**** asset: ', asset);
-    //         console.error(tag, '**** pubkey: ', pubkeys[i]);
-    //       }
-    //     }
-    //
-    //     return this.balances;
-    //   } catch (e) {
-    //     console.error(tag, 'Error: ', e);
-    //     throw e;
-    //   }
-    // };
     this.getBalances = async function () {
       const tag = `${TAG} | getBalances | `;
       try {

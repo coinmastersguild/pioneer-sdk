@@ -36,6 +36,7 @@ export async function createUnsignedEvmTx(
   pubkeys: any,
   pioneer: any,
   keepKeySdk: any,
+  isMax: boolean,
 ): Promise<any> {
   let tag = TAG + ' | createUnsignedEvmTx | ';
 

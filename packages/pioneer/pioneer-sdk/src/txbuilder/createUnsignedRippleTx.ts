@@ -16,6 +16,7 @@ export async function createUnsignedRippleTx(
   pubkeys: any,
   pioneer: any,
   keepKeySdk: any,
+  isMax: boolean,
 ): Promise<any> {
   let tag = TAG + ' | createUnsignedRippleTx | ';
 

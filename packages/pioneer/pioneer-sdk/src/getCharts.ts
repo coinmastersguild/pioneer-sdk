@@ -102,14 +102,16 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
             balance.balance = balance.balance.toString();
             balance.valueUsd = balance.valueUsd.toString();
             // Check if a balance with the same caip already exists
-            const existingBalance = balances.find((b) => b.caip === balance.caip);
+            const existingBalance = balances.find(
+              (b: any) => b.caip + ':' + b.pubkey === balance.caip + ':' + balance.pubkey,
+            );
             if (balance.display)
               balance.icon = ['multi', balance.icon, balance.display.toString()].toString();
             if (existingBalance) {
-              console.error(tag, 'Duplicate CAIP found:', {
-                existingBalance,
-                duplicateBalance: balance,
-              });
+              // console.error(tag, 'Duplicate CAIP found:', {
+              //   existingBalance,
+              //   duplicateBalance: balance,
+              // });
             } else {
               balances.push(balance);
             }
