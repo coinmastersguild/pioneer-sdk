@@ -22,7 +22,13 @@ export async function createUnsignedUxtoTx(
     const networkId = caipToNetworkId(caip);
     const relevantPubkeys = pubkeys.filter((e) => e.networks.includes(networkId));
 
-    const isSegwit = networkId === 'bip122:000000000019d6689c085ae165831e93';
+    const segwitNetworks = [
+      'bip122:000000000019d6689c085ae165831e93', // Bitcoin Mainnet
+      // 'bip122:12a765e31ffd4059bada1e25190f6e98', // LTC
+    ];
+
+    // Check if the current networkId is in the SegWit networks array
+    const isSegwit = segwitNetworks.includes(networkId);
 
     let chain = NetworkIdToChain[networkId];
 
@@ -124,6 +130,7 @@ export async function createUnsignedUxtoTx(
       )
       .map(({ value, index, hash, txHex, path }) => ({
         addressNList: bip32ToAddressNList(path),
+        //TODO this is PER INPUT not per asset, we need to detect what pubkeys are segwit what are not
         scriptType: isSegwit ? 'p2wpkh' : 'p2sh',
         amount: value.toString(),
         vout: index,

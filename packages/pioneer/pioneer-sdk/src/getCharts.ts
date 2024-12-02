@@ -95,7 +95,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
         for (const balance of portfolio.balances) {
           if (balance.caip && balance.networkId && blockchains.includes(balance.networkId)) {
             balance.context = context;
-            balance.identifier = context + ':' + balance.caip;
+            balance.identifier = balance.caip + ':' + address;
             balance.contextType = 'keepkey';
             balance.pubkey = address;
             balance.chain = balance.networkId;

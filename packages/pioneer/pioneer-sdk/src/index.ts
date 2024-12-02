@@ -218,7 +218,7 @@ export class SDK {
         //TODO
         //get caips of all assets in balances
         //update market info on all assets
-        return true
+        return true;
       } catch (e) {
         console.error(tag, 'e: ', e);
         throw e;
@@ -389,39 +389,29 @@ export class SDK {
     this.loadBalanceCache = async function (balances) {
       const tag = `${TAG} | loadBalanceCache | `;
       try {
-        if (!balances || !Array.isArray(balances)) {
+        if (!Array.isArray(balances)) {
           throw new Error('Invalid balances input, expected an array.');
         }
 
-        // Use a Map with a composite key of caip and context
-        const balanceMap = new Map();
-
-        // Add existing balances to the Map
-        for (const existingBalance of this.balances) {
-          const key = `${existingBalance.caip}-${existingBalance.context}`;
-          balanceMap.set(key, existingBalance);
-        }
-
-        // Filter the balances by enabled blockchains
+        // Filter balances by enabled blockchains
         const enabledNetworkIds = new Set(this.blockchains);
-        const filteredBalances = balances.filter((balance) => {
+        const filteredBalances = balances.filter((balance: any) => {
           const networkId = balance.networkId || caipToNetworkId(balance.caip);
           return enabledNetworkIds.has(networkId);
         });
 
-        // Add new balances from the cache, avoiding duplicates
-        for (const newBalance of filteredBalances) {
-          const key = `${newBalance.caip}-${newBalance.context}`;
-          if (!balanceMap.has(key)) {
-            balanceMap.set(key, newBalance);
-          } else {
-            //console.log(tag, `Duplicate balance found for key: ${key}, skipping.`);
+        // Deduplicate by `identifier` field
+        const uniqueBalances = new Map();
+        for (const balance of [...this.balances, ...filteredBalances]) {
+          if (!uniqueBalances.has(balance.identifier)) {
+            uniqueBalances.set(balance.identifier, balance);
           }
         }
 
-        // Update this.balances with the unique values
-        this.balances = Array.from(balanceMap.values());
-        //console.log(tag, `Total balances after loading cache: ${this.balances.length}`);
+        // Update this.balances with unique values
+        this.balances = Array.from(uniqueBalances.values());
+
+        console.log(tag, `Total balances after loading cache: ${this.balances.length}`);
       } catch (e) {
         console.error(tag, 'Error loading balance cache:', e);
         throw e;
@@ -1005,8 +995,15 @@ export class SDK {
           }),
         );
 
-        // Flatten all results and ensure balances are up-to-date
-        this.balances = this.balances.concat(balanceResults.flat());
+        // Flatten results and ensure balances are unique
+        const newBalances = balanceResults.flat();
+        const uniqueBalances = new Map(
+          [...this.balances, ...newBalances].map((balance) => [balance.identifier, balance]),
+        );
+
+        // Update this.balances with unique balances
+        this.balances = Array.from(uniqueBalances.values());
+        console.log(tag, `Total balances after updating: ${this.balances.length}`);
 
         return this.balances;
       } catch (e) {
@@ -1042,29 +1039,46 @@ export class SDK {
     this.getCharts = async function () {
       const tag = `${TAG} | getCharts | `;
       try {
-        //console.log(tag, 'get charts');
-        let balances = await getCharts(this.blockchains, this.pioneer, this.pubkeys, this.context);
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
-        for (let i = 0; i < balances.length; i++) {
-          let balance = balances[i];
-          const existingBalance = balances.find((b) => b.caip === balance.caip);
-          //console.log(tag, 'existingBalance:', existingBalance);
-          //console.log(tag, 'balance:', balance);
-          balance.type = 'balance';
+        console.log(tag, 'Fetching charts');
+
+        // Fetch balances from the `getCharts` function
+        const newBalances = await getCharts(
+          this.blockchains,
+          this.pioneer,
+          this.pubkeys,
+          this.context,
+        );
+
+        // Deduplicate balances using a Map with `identifier` as the key
+        const uniqueBalances = new Map(
+          [...this.balances, ...newBalances].map((balance: any) => [
+            balance.identifier,
+            {
+              ...balance,
+              type: balance.type || 'balance',
+              icon: balance.icon || 'https://pioneers.dev/coins/ethereum.png',
+            },
+          ]),
+        );
+
+        // Filter out invalid balances (missing identifier or chain)
+        this.balances = Array.from(uniqueBalances.values()).filter((balance) => {
           if (!balance.identifier || !balance.chain) {
             console.error(tag, 'Invalid balance:', balance);
-            continue;
-          } else {
-            if (!balance.icon) balance.icon = 'https://pioneers.dev/coins/ethereum.png';
-            this.keepKeySdk.storage.createBalance(balance);
-            let exists = this.balances.some((b: any) => b.identifier === balance.identifier);
-            if (!exists) this.balances.push(balance);
+            return false; // Exclude invalid balances
           }
+          return true; // Include valid balances
+        });
+
+        // Save all valid balances to the storage
+        for (const balance of this.balances) {
+          this.keepKeySdk.storage.createBalance(balance);
         }
-        //add balances to this.balances
+
+        console.log(tag, `Total unique balances after charts update: ${this.balances.length}`);
         return this.balances;
       } catch (e) {
-        console.error(tag, 'e:', e);
+        console.error(tag, 'Error in getCharts:', e);
         throw e;
       }
     };
@@ -1160,12 +1174,16 @@ export class SDK {
         // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
-          priceUsd = assetInfo.priceUsd;
-          balanceTotal = balanceTotal + balance.balance;
+          if (balance.priceUsd && parseFloat(balance.priceUsd) > 0) {
+            console.log(tag, 'detected priceUsd from assetInfo');
+            console.log(tag, 'balance.priceUsd:', balance.priceUsd);
+            priceUsd = balance.priceUsd;
+          }
+          balanceTotal = balanceTotal + parseFloat(balance.balance);
         }
-        assetInfo.valueUsd = balanceTotal * priceUsd;
+        assetInfo.valueUsd = (balanceTotal * priceUsd).toString();
         assetInfo.priceUsd = priceUsd;
-        assetInfo.balance = balanceTotal;
+        assetInfo.balance = balanceTotal.toString();
 
         // try {
         //   // Get marketInfo for asset, optional: can skip if market info is not needed
@@ -1256,6 +1274,22 @@ export class SDK {
         //find related nodes
         let balances = this.balances.filter((b: any) => b.caip === assetInfo.caip);
         assetInfo.balances = balances;
+
+        let priceUsd;
+        let balanceTotal = 0;
+        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+        for (let i = 0; i < balances.length; i++) {
+          let balance = balances[i];
+          if (balance.priceUsd && parseFloat(balance.priceUsd) > 0) {
+            console.log(tag, 'detected priceUsd from assetInfo');
+            console.log(tag, 'balance.priceUsd:', balance.priceUsd);
+            priceUsd = balance.priceUsd;
+          }
+          balanceTotal = balanceTotal + parseFloat(balance.balance);
+        }
+        assetInfo.valueUsd = (balanceTotal * priceUsd).toString();
+        assetInfo.priceUsd = priceUsd;
+        assetInfo.balance = balanceTotal.toString();
 
         console.log(tag, 'CHECKPOINT 1');
         //get marketInfo for asset

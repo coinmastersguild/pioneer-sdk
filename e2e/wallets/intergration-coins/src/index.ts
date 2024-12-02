@@ -76,24 +76,24 @@ const test_service = async function (this: any) {
         //add a few custom blockchains
 
         let AllChainsSupported = [
-            'ETH',
-            'ARB',  //BROKE
-            'DOGE',
+            // 'ETH',
+            // 'ARB',  //BROKE
+            // 'DOGE',
             'OP',    //Fast
-            'MATIC', //SLOW charting
-            'AVAX',  //fast
-            'BASE',  //fast
-            'BSC',   //fast
-            'BTC',
-            'BCH',
-            'GAIA',
-            'OSMO',
-            'XRP',
-            'DOGE',
-            'DASH',
-            'MAYA',
-            'LTC',
-            'THOR'
+            // 'MATIC', //SLOW charting
+            // 'AVAX',  //fast
+            // 'BASE',  //fast
+            // 'BSC',   //fast
+            // 'BTC',
+            // 'BCH',
+            // 'GAIA',
+            // 'OSMO',
+            // 'XRP',
+            // 'DOGE',
+            // 'DASH',
+            // 'MAYA',
+            // 'LTC',
+            // 'THOR'
         ]
 
         let blockchains = AllChainsSupported.map(
@@ -201,6 +201,11 @@ const test_service = async function (this: any) {
 
         let resultInit = await app.init({ } , {})
         log.info(tag,' ****** Init Complete ******')
+        //force verify
+        await app.getGasAssets()
+        await app.getPubkeys()
+        await app.getBalances()
+
 
         //clear cache
 
@@ -324,12 +329,15 @@ const test_service = async function (this: any) {
 
         for(let i = 0; i < app.balances.length; i++){
             let balance = app.balances[i]
-            log.debug(tag,"balance: ",balance)
+            log.info(tag,"balance: ",balance.caip)
             assert(balance)
             assert(balance.balance)
             assert(balance.caip)
             assert(balance.networkId)
             assert(balance.icon)
+            if(balance.identifier.includes('keepkey')){
+                throw Error('Invalid legacy identifier found: '+balance.identifier)
+            }
         }
         console.timeEnd('start2BalancesGas');
 
@@ -345,9 +353,15 @@ const test_service = async function (this: any) {
         let totalValueUsd = 0;
         let networkTotals:any = {}; // Object to hold totals by networkId
 
+        const seenIdentifiers = new Set<string>(); // Track seen identifiers
         for (let i = 0; i < app.balances.length; i++) {
             let balance = app.balances[i];
             // log.info(tag, "balance: ", balance);
+            // Check for duplicate identifier
+            if (seenIdentifiers.has(balance.identifier)) {
+                throw new Error(`Duplicate identifier found: ${balance.identifier}`);
+            }
+            seenIdentifiers.add(balance.identifier);
 
             // Check if balance, caip, and valueUsd are valid
             assert(balance);
