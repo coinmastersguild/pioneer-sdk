@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/pioneer-react",
-  "version": "0.8.13",
+  "version": "0.8.14",
   "author": "swapkit-oss-team",
   "description": "Pioneer-sdk react provider",
   "devDependencies": {

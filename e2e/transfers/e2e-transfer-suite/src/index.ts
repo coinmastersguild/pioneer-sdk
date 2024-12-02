@@ -49,8 +49,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        // let spec = 'https://pioneers.dev/spec/swagger.json'
-        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        let spec = 'https://pioneers.dev/spec/swagger.json'
+        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
@@ -248,7 +248,6 @@ const test_service = async function (this: any) {
             assert(balance, `${tag} Balance not found for ${caip}`);
             log.info(tag, 'Balance before: ', balance);
             let balanceBefore = balance.balance;
-
             if (balanceBefore < TEST_AMOUNT) throw new Error('YOU ARE BROKE!!!!!');
 
             let blockchain = app.blockchains[i];
@@ -258,7 +257,38 @@ const test_service = async function (this: any) {
             assert(pubkeys[0], `${tag} Public key not found for blockchain ${blockchain}`);
             log.info(tag, 'Public Key: ', pubkeys[0]);
 
-            if (!TEST_AMOUNT) throw new Error(`caip: ${caip} Missing Setting for TEST_AMOUNT`);
+            //setAssetContext
+            await app.setAssetContext({caip});
+            log.info(tag,'Asset Context: ', app.assetContext);
+            log.info(tag,'Asset Context pubkeys: ', app.assetContext.pubkeys.length);
+            log.info(tag,'Asset Context balances: ', app.assetContext.balances.length);
+            // Test: Ensure no two balances have the same `identifier`
+            const balanceIdentifiers = app.assetContext.balances.map((balance:any) => balance.identifier);
+            const uniqueBalanceIdentifiers = new Set(balanceIdentifiers);
+            assert.strictEqual(
+              balanceIdentifiers.length,
+              uniqueBalanceIdentifiers.size,
+              'Duplicate balance identifiers found'
+            );
+
+            // Test: Ensure no two pubkeys are identical
+            const pubkeysContext = app.assetContext.pubkeys.map((pubkeyObj:any) => pubkeyObj.pubkey);
+            const uniquePubkeys = new Set(pubkeysContext);
+            assert.strictEqual(
+              pubkeys.length,
+              uniquePubkeys.size,
+              'Duplicate pubkeys found'
+            );
+
+            let assetContext = app.assetContext
+            assert(assetContext)
+            assert(assetContext.balance)
+            assert(assetContext.pubkey)
+            assert(assetContext.caip)
+            assert(assetContext.priceUsd)
+            assert(assetContext.valueUsd)
+            log.info(tag,'assetContext.priceUsd: ', assetContext.priceUsd);
+            log.info(tag,'assetContext.valueUsd: ', assetContext.valueUsd);
 
             // const sendPayload = {
             //     caip,
@@ -289,6 +319,8 @@ const test_service = async function (this: any) {
             //test as BEX (multi-set)
             let unsignedTx = await app.buildTx(sendPayload);
             log.info(tag, 'unsignedTx: ', unsignedTx);
+
+            //estimate fee in USD
 
             //sign
             let signedTx = await app.signTx({ caip, unsignedTx });

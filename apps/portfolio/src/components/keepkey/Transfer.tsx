@@ -79,8 +79,20 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             // Simulate building transaction
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
+            //Build transaction before sending
             const result = await app.transfer(sendPayload, true);
             console.log(tag, 'result: ', result);
+
+            //test as BEX (multi-set)
+            // let unsignedTx = await app.buildTx(sendPayload);
+
+            //review edit and approve
+            //separate UX for tendermint utxo and evm and other
+            //sign
+            // let signedTx = await app.signTx({ caip, unsignedTx });
+            //
+            // //broadcast
+            // let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
 
             confetti();
             setTxHash(result.txHash || result.txid);

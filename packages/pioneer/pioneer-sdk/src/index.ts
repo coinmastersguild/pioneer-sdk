@@ -133,6 +133,7 @@ export class SDK {
   private signTx: (unsignedTx: any) => Promise<any>;
   private buildTx: (sendPayload: any) => Promise<any>;
   private estimateMax: (sendPayload: any) => Promise<void>;
+  private syncMarket: () => Promise<boolean>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -206,6 +207,18 @@ export class SDK {
 
         await this.sync();
         return this.pioneer;
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        throw e;
+      }
+    };
+    this.syncMarket = async function () {
+      const tag = `${TAG} | syncMarket | `;
+      try {
+        //TODO
+        //get caips of all assets in balances
+        //update market info on all assets
+        return true
       } catch (e) {
         console.error(tag, 'e: ', e);
         throw e;
@@ -1141,6 +1154,18 @@ export class SDK {
         // Find related balances
         let balances = this.balances.filter((b: any) => b.caip === assetInfo.caip);
         assetInfo.balances = balances;
+
+        let priceUsd;
+        let balanceTotal = 0;
+        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+        for (let i = 0; i < balances.length; i++) {
+          let balance = balances[i];
+          priceUsd = assetInfo.priceUsd;
+          balanceTotal = balanceTotal + balance.balance;
+        }
+        assetInfo.valueUsd = balanceTotal * priceUsd;
+        assetInfo.priceUsd = priceUsd;
+        assetInfo.balance = balanceTotal;
 
         // try {
         //   // Get marketInfo for asset, optional: can skip if market info is not needed
