@@ -27,6 +27,14 @@ const extractChainIdFromNetworkId = (networkId: string): string => {
   return parseInt(id).toString();
 };
 
+// Helper function to encode ERC20 transfer function call
+const encodeERC20Transfer = (to: string, amountHex: string): string => {
+  const functionSignature = 'a9059cbb'; // Keccak-256 hash of "transfer(address,uint256)" function
+  const paddedTo = to.slice(2).padStart(64, '0'); // Remove "0x" and pad to 32 bytes
+  const paddedAmount = amountHex.slice(2).padStart(64, '0'); // Remove "0x" and pad to 32 bytes
+  return `0x${functionSignature}${paddedTo}${paddedAmount}`;
+};
+
 // Create an unsigned EVM transaction
 export async function createUnsignedEvmTx(
   caip: string,
@@ -38,60 +46,84 @@ export async function createUnsignedEvmTx(
   keepKeySdk: any,
   isMax: boolean,
 ): Promise<any> {
-  let tag = TAG + ' | createUnsignedEvmTx | ';
+  const tag = TAG + ' | createUnsignedEvmTx | ';
 
   try {
-    if (!pioneer) throw new Error('Failed to initialize pioneer');
-
-    //console.log(tag, 'Creating EVM transaction');
+    if (!pioneer) throw new Error('Failed to initialize Pioneer');
 
     // Determine networkId from CAIP
     const networkId = caipToNetworkId(caip);
-    //console.log(tag, 'networkId:', networkId);
-
     // Extract chainId from networkId
     const chainId = extractChainIdFromNetworkId(networkId);
-    //console.log(tag, 'chainId:', chainId);
 
     // Find relevant public keys for the network
-    let blockchain;
-    if (networkId.indexOf('eip155') > -1) blockchain = 'eip155:*';
+    const blockchain = networkId.includes('eip155') ? 'eip155:*' : '';
     const relevantPubkeys = pubkeys.filter((e) => e.networks.includes(blockchain));
     const address = relevantPubkeys[0]?.address;
     if (!address) throw new Error('No address found for the specified network');
 
-    // Fetch transaction details from pioneer
+    // Fetch transaction details from Pioneer
     let gasPrice = await pioneer.GetGasPriceByNetwork({ networkId });
-    gasPrice = gasPrice.data;
-    console.log(tag, 'gasPrice: ', gasPrice);
+    gasPrice = BigInt(gasPrice.data);
+    console.log(tag, 'gasPrice:', gasPrice.toString());
     if (!gasPrice) throw new Error('Failed to fetch gas price');
+
     let nonce = await pioneer.GetNonceByNetwork({ networkId, address });
     nonce = nonce.data;
-    if (!nonce) throw new Error('Failed to fetch nonce');
-    console.log(tag, 'nonce: ', nonce);
+    if (nonce === undefined || nonce === null) throw new Error('Failed to fetch nonce');
+    console.log(tag, 'nonce:', nonce);
+
+    // Fetch wallet balance native gas asset
+    let balance = await pioneer.GetBalanceAddressByNetwork({ networkId, address });
+    balance = BigInt(balance.data * 1e18); // Convert to wei
+    console.log(tag, 'balance:', balance.toString());
+    if (balance <= 0n) throw new Error('Wallet balance is zero');
 
     // Classify asset type by CAIP
     const assetType = classifyCaipEvm(caip);
     let unsignedTx;
 
-    let amountGwei = BigInt(Math.floor(amount * 1e18));
-    const txAmount = toHex(amountGwei);
-    console.log(tag, 'txAmount:', txAmount);
-
-    //TODO estimate GAS
-
-    //TODO allow custom GAS
-
     if (memo === ' ') memo = '';
+
     // Build transaction object based on asset type
     switch (assetType) {
       case 'gas': {
-        // Standard EVM transfer transaction (e.g., ETH)
+        // Standard gas limit for ETH transfer
+        let gasLimit = BigInt(80000);
+
+        // Add gas cost for memo (if applicable)
+        if (memo && memo !== '') {
+          const memoBytes = utf8ToHex(memo).length / 2 - 1; // Subtract "0x" prefix length
+          gasLimit += BigInt(memoBytes) * 68n; // 68 gas units per non-zero byte
+          console.log(tag, 'Adjusted gasLimit for memo:', gasLimit.toString());
+        }
+
+        const gasFee = gasPrice * gasLimit;
+        console.log(tag, 'gasFee:', gasFee.toString());
+
+        let amountWei: bigint;
+        if (isMax) {
+          // Calculate maximum transferable amount
+          if (balance <= gasFee) {
+            throw new Error('Insufficient funds to cover gas fees');
+          }
+          amountWei = balance - gasFee;
+        } else {
+          amountWei = BigInt(Math.round(amount * 1e18)); // Use Math.round for proper conversion
+          if (amountWei + gasFee > balance) {
+            throw new Error('Insufficient funds for the transaction amount and gas fees');
+          }
+        }
+
+        const txAmount = toHex(amountWei);
+        console.log(tag, 'txAmount:', txAmount);
+        console.log(tag, 'nonce:', nonce);
+        console.log(tag, 'gasLimit:', gasLimit);
+        console.log(tag, 'gasPrice:', gasPrice);
         unsignedTx = {
-          chainId, // Set the extracted chainId
+          chainId,
           nonce: toHex(nonce),
-          gas: toHex(61000), // Standard gas limit for ETH transfer
-          gasLimit: toHex(61000), // Standard gas limit for ETH transfer
+          gasLimit: toHex(gasLimit),
           gasPrice: toHex(gasPrice),
           to,
           value: txAmount,
@@ -101,13 +133,37 @@ export async function createUnsignedEvmTx(
       }
 
       case 'erc20': {
-        // ERC20 token transfer
-        const data = encodeERC20Transfer(to, txAmount); // Use helper function to encode transfer data
+        // Adjusted gas limit for ERC20 transfer
+        const gasLimit = BigInt(80000);
+        const gasFee = gasPrice * gasLimit;
+        console.log(tag, 'gasFee:', gasFee.toString());
+
+        // For ERC20 tokens, balance check should be on the token balance, but gas fees are paid in ETH
+        // Assuming pioneer can provide token balance if needed
+
+        let amountWei: bigint;
+        if (isMax) {
+          // For ERC20 tokens, you need to fetch the token balance
+          let tokenBalance = await pioneer.GetTokenBalance({ networkId, address, caip });
+          tokenBalance = BigInt(tokenBalance.data);
+          console.log(tag, 'tokenBalance:', tokenBalance.toString());
+          amountWei = tokenBalance;
+        } else {
+          amountWei = BigInt(Math.round(amount * 1e18)); // Use Math.round for proper conversion
+        }
+        const txAmount = toHex(amountWei);
+        console.log(tag, 'txAmount:', txAmount);
+
+        // Ensure there is enough ETH to cover gas fees
+        if (balance < gasFee) {
+          throw new Error('Insufficient ETH balance to cover gas fees for ERC20 transfer');
+        }
+
+        const data = encodeERC20Transfer(to, txAmount);
         unsignedTx = {
-          chainId, // Set the extracted chainId
+          chainId,
           nonce: toHex(nonce),
-          gas: toHex(80000), // Adjusted gas limit for ERC20 transfer
-          gasLimit: toHex(80000), // Adjusted gas limit for ERC20 transfer
+          gasLimit: toHex(gasLimit),
           gasPrice: toHex(gasPrice),
           to: caip, // Token contract address
           value: '0x0',
@@ -125,21 +181,13 @@ export async function createUnsignedEvmTx(
       }
     }
 
-    //TODO allow custom paths
+    // Allow custom paths if needed; using default for now
     unsignedTx.addressNList = [2147483692, 2147483708, 2147483648, 0, 0];
 
     console.log(tag, 'Unsigned Transaction:', unsignedTx);
     return unsignedTx;
   } catch (error) {
-    console.error(tag, 'Error:', error);
+    console.error(tag, 'Error:', error.message);
     throw error;
   }
 }
-
-// Helper function to encode ERC20 transfer function call
-const encodeERC20Transfer = (to: string, amountHex: string): string => {
-  const functionSignature = 'a9059cbb'; // Keccak-256 hash of "transfer(address,uint256)" function
-  const paddedTo = to.slice(2).padStart(64, '0'); // Remove "0x" and pad to 32 bytes
-  const paddedAmount = amountHex.slice(2).padStart(64, '0'); // Remove "0x" and pad to 32 bytes
-  return `0x${functionSignature}${paddedTo}${paddedAmount}`;
-};
