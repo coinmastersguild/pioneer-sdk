@@ -1,5 +1,4 @@
 import {
-    Badge,
     Box,
     Button,
     Flex,
@@ -22,7 +21,13 @@ import {
     StepsRoot,
 } from '@/components/ui/steps';
 
-import { TxReview } from '@/components/tx'; // Import the new component
+import { TxReview } from '@/components/tx';
+import { TxStatus } from '@/components/txStatus'; // Import the TxStatus component
+
+// Assume these utilities exist
+// import { caipToNetworkId } from '@/utils/caipToNetworkId';
+// import { log } from '@/utils/log';
+// import assert from 'assert';
 
 export function Transfer({ usePioneer }: any): JSX.Element {
     const { state } = usePioneer();
@@ -37,11 +42,15 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const [txHash, setTxHash] = useState('');
     const [isMax, setIsMax] = useState(false);
     const [unsignedTx, setUnsignedTx] = useState<any>(null);
+    const [signedTx, setSignedTx] = useState<any>(null);
+    const [broadcastResult, setBroadcastResult] = useState<any>(null);
 
     const validateAddress = (address: string) => {
-        // TODO: Implement actual validation logic
         return true;
     };
+
+    const caip = app.assetContext?.caip;
+    const explorerTxLink = app.assetContext?.explorerTxLink;
 
     const handleSend = useCallback(async () => {
         let tag = ' | handleSend | ';
@@ -62,10 +71,13 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
             setIsSubmitting(true);
 
-            // Show a spinner while building the transaction
-            // Steps will be shown *after* building is complete
-            setShowSteps(false);
+            // Clear previous states
             setUnsignedTx(null);
+            setSignedTx(null);
+            setBroadcastResult(null);
+            setTxHash('');
+            setShowSteps(false);
+            setCurrentStep(0);
 
             const sendPayload = {
                 caip: app.assetContext?.caip,
@@ -75,17 +87,24 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 isMax,
             };
 
-            // Simulate building transaction with a delay to show the spinner
+            // Simulate delay to show spinner
             await new Promise((resolve) => setTimeout(resolve, 2000));
 
             let unsignedTxResult = await app.buildTx(sendPayload);
             console.log(tag, 'unsignedTx: ', unsignedTxResult);
 
-            // Once unsignedTx is ready, show steps and start at step 0 (Review)
-            setUnsignedTx(unsignedTxResult);
+            let transactionState:any = {
+                method:'transfer',
+                caip,
+                params:sendPayload,
+                unsignedTx:unsignedTxResult,
+                signedTx:null,
+                state:'unsigned',
+                context:app.assetContext,
+            }
+            setUnsignedTx(transactionState);
             setShowSteps(true);
-            setCurrentStep(0);
-            setTxHash('');
+            setCurrentStep(0); // Step 0 = Review Unsigned Tx
 
         } catch (error) {
             toaster.create({
@@ -126,6 +145,53 @@ export function Transfer({ usePioneer }: any): JSX.Element {
         }
     };
 
+    // Handle Approve Transaction (sign)
+    const handleApproveTx = useCallback(async () => {
+        let tag = ' | handleApproveTx | ';
+        try {
+            if (!unsignedTx) return;
+            //sign
+            let signedTxResult = await app.signTx({ caip, unsignedTx:unsignedTx.unsignedTx });
+            console.log(tag, 'signedTx: ', signedTxResult);
+            setSignedTx(signedTxResult);
+
+            // Move to step 1 = Sign completed, move to step 2 (Broadcast)
+            setCurrentStep(1);
+        } catch (error) {
+            toaster.create({
+                title: 'Signing Failed',
+                description: 'An error occurred during the transaction signing.',
+                duration: 5000,
+            });
+        }
+    }, [app, unsignedTx, caip]);
+
+    // Handle Broadcast Transaction
+    const handleBroadcastTx = useCallback(async () => {
+        let tag = ' | handleBroadcastTx | ';
+        try {
+            if (!signedTx) return;
+            //broadcast
+            let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
+            console.log(tag, 'broadcast: ', broadcast);
+
+            // Assume broadcast returns a txHash
+            const finalTxHash = broadcast.txHash || broadcast.txid;
+            setTxHash(finalTxHash);
+            setBroadcastResult(broadcast);
+
+            // Move to step 2 completed, now step 3 = TxStatus
+            setCurrentStep(2);
+
+        } catch (error) {
+            toaster.create({
+                title: 'Broadcast Failed',
+                description: 'An error occurred during the broadcast.',
+                duration: 5000,
+            });
+        }
+    }, [app, signedTx, caip]);
+
     return (
       <VStack
         p={8}
@@ -147,6 +213,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                   <Link
                     href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
                     color="teal.400"
+                    isExternal
                   >
                       View on Explorer
                   </Link>
@@ -209,7 +276,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
               Build Transaction
           </Button>
 
-          {/* Show a spinner if we are building (isSubmitting) and no unsignedTx yet */}
           {isSubmitting && !unsignedTx && (
             <Center mt={8}>
                 <VStack>
@@ -219,8 +285,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             </Center>
           )}
 
-          {/* After building is done, show steps */}
-          {showSteps && unsignedTx && (
+          {showSteps && (
             <StepsRoot count={3} mt={4}>
                 <StepsList mb={4}>
                     <StepsItem index={0} title="Review Unsigned Tx" />
@@ -228,29 +293,35 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     <StepsItem index={2} title="Broadcast Transaction" />
                 </StepsList>
 
-                {/* Step 1: Review */}
+                {/* Step 0: Review Unsigned Tx */}
                 <StepsContent index={0}>
-                    <TxReview unsignedTx={unsignedTx} isBuilding={false} />
+                    {unsignedTx && !signedTx && (
+                      <VStack spacing={4}>
+                          <TxReview unsignedTx={unsignedTx} isBuilding={false} />
+                          <Button colorScheme="green" onClick={handleApproveTx}>
+                              Approve Transaction (Sign)
+                          </Button>
+                      </VStack>
+                    )}
                 </StepsContent>
 
-                {/* Step 2: Sign (placeholder - add your sign logic) */}
+                {/* Step 1: Sign Transaction (once signedTx is ready, show it and Broadcast button) */}
                 <StepsContent index={1}>
-                    <Text fontSize="lg" color="gray.300">
-                        Please sign the transaction on your device.
-                    </Text>
-                    <Center mt={4}>
-                        <Avatar size="2xl" src="https://pioneers.dev/coins/keepkey.png" />
-                    </Center>
+                    {signedTx && !broadcastResult && (
+                      <VStack spacing={4}>
+                          <TxReview unsignedTx={signedTx} isBuilding={false} />
+                          <Button colorScheme="blue" onClick={handleBroadcastTx}>
+                              Broadcast Transaction
+                          </Button>
+                      </VStack>
+                    )}
                 </StepsContent>
 
-                {/* Step 3: Broadcast (placeholder - add your broadcast logic) */}
+                {/* Step 2: Broadcast Transaction (once broadcastResult is ready, show TxStatus) */}
                 <StepsContent index={2}>
-                    <Text fontSize="lg" color="gray.300">
-                        Broadcasting your transaction...
-                    </Text>
-                    <Center mt={4}>
-                        <Spinner size="xl" />
-                    </Center>
+                    {broadcastResult && (
+                      <TxStatus broadcastResult={broadcastResult} explorerTxLink={explorerTxLink} txHash={txHash} />
+                    )}
                 </StepsContent>
 
                 <StepsCompletedContent>
@@ -267,8 +338,9 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     Transaction ID:
                 </Text>
                 <Link
-                  href={`${app.assetContext?.explorerTxLink}${txHash}`}
+                  href={`${explorerTxLink}${txHash}`}
                   color="teal.500"
+                  isExternal
                 >
                     {txHash}
                 </Link>

@@ -7,6 +7,9 @@ type TxProps = {
 };
 
 export function TxReview({ unsignedTx, isBuilding }: TxProps): JSX.Element {
+
+  //classify
+
   return (
     <VStack p={4} bg="gray.800" borderRadius="md" spacing={4} alignItems="center">
       <Heading size="md" color="teal.300">
@@ -19,8 +22,11 @@ export function TxReview({ unsignedTx, isBuilding }: TxProps): JSX.Element {
         </>
       ) : unsignedTx ? (
         <Box p={4} bg="gray.900" w="100%" borderRadius="md" overflow="auto">
+          method: {unsignedTx.method}
+          <br/>
+          caip: {unsignedTx.caip}
           <Text color="gray.100" fontSize="sm" whiteSpace="pre-wrap">
-            {JSON.stringify(unsignedTx, null, 2)}
+            {JSON.stringify(unsignedTx.unsignedTx, null, 2)}
           </Text>
         </Box>
       ) : (
