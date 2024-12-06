@@ -26,7 +26,7 @@ export function TxReview({ unsignedTx, isBuilding }: TxProps): JSX.Element {
           <br/>
           caip: {unsignedTx.caip}
           <Text color="gray.100" fontSize="sm" whiteSpace="pre-wrap">
-            {JSON.stringify(unsignedTx.unsignedTx, null, 2)}
+            {JSON.stringify(unsignedTx, null, 2)}
           </Text>
         </Box>
       ) : (

@@ -8,7 +8,8 @@ import {
     VStack,
     Link,
     Center,
-    Spinner
+    Spinner,
+    Image
 } from '@chakra-ui/react';
 import React, { useState, useCallback } from 'react';
 import { toaster } from '@/components/ui/toaster';
@@ -22,12 +23,7 @@ import {
 } from '@/components/ui/steps';
 
 import { TxReview } from '@/components/tx';
-import { TxStatus } from '@/components/txStatus'; // Import the TxStatus component
-
-// Assume these utilities exist
-// import { caipToNetworkId } from '@/utils/caipToNetworkId';
-// import { log } from '@/utils/log';
-// import assert from 'assert';
+import { TxStatus } from '@/components/txStatus';
 
 export function Transfer({ usePioneer }: any): JSX.Element {
     const { state } = usePioneer();
@@ -46,6 +42,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const [broadcastResult, setBroadcastResult] = useState<any>(null);
 
     const validateAddress = (address: string) => {
+        // Implement address validation if needed
         return true;
     };
 
@@ -93,15 +90,15 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             let unsignedTxResult = await app.buildTx(sendPayload);
             console.log(tag, 'unsignedTx: ', unsignedTxResult);
 
-            let transactionState:any = {
-                method:'transfer',
+            let transactionState: any = {
+                method: 'transfer',
                 caip,
-                params:sendPayload,
-                unsignedTx:unsignedTxResult,
-                signedTx:null,
-                state:'unsigned',
-                context:app.assetContext,
-            }
+                params: sendPayload,
+                unsignedTx: unsignedTxResult, // raw unsigned tx is here
+                signedTx: null,
+                state: 'unsigned',
+                context: app.assetContext,
+            };
             setUnsignedTx(transactionState);
             setShowSteps(true);
             setCurrentStep(0); // Step 0 = Review Unsigned Tx
@@ -150,13 +147,16 @@ export function Transfer({ usePioneer }: any): JSX.Element {
         let tag = ' | handleApproveTx | ';
         try {
             if (!unsignedTx) return;
-            //sign
-            let signedTxResult = await app.signTx({ caip, unsignedTx:unsignedTx.unsignedTx });
+            // Move to step 1: Confirm on Device
+            setCurrentStep(1);
+
+            // Sign asynchronously
+            let signedTxResult = await app.signTx({ caip, unsignedTx: unsignedTx.unsignedTx });
             console.log(tag, 'signedTx: ', signedTxResult);
             setSignedTx(signedTxResult);
 
-            // Move to step 1 = Sign completed, move to step 2 (Broadcast)
-            setCurrentStep(1);
+            // Once we have signedTx, move to step 2: Show SignedTx and Broadcast button
+            setCurrentStep(2);
         } catch (error) {
             toaster.create({
                 title: 'Signing Failed',
@@ -171,8 +171,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
         let tag = ' | handleBroadcastTx | ';
         try {
             if (!signedTx) return;
-            //broadcast
-            let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
+            let broadcast = await app.broadcastTx(caip, signedTx);
             console.log(tag, 'broadcast: ', broadcast);
 
             // Assume broadcast returns a txHash
@@ -180,8 +179,8 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             setTxHash(finalTxHash);
             setBroadcastResult(broadcast);
 
-            // Move to step 2 completed, now step 3 = TxStatus
-            setCurrentStep(2);
+            // Hide steps and show TxStatus
+            setShowSteps(false);
 
         } catch (error) {
             toaster.create({
@@ -193,103 +192,101 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     }, [app, signedTx, caip]);
 
     return (
-      <VStack
-        p={8}
-        bg="gray.900"
-        mx="auto"
-        mt={10}
-        textAlign="center"
-      >
-          <Heading as="h2" size="lg" color="teal.300">
-              Send Crypto
-          </Heading>
+      <VStack p={8} bg="gray.900" mx="auto" mt={10} textAlign="center">
+          {!showSteps && !broadcastResult && (
+            <>
+                <Heading as="h2" size="lg" color="teal.300">
+                    Send Crypto
+                </Heading>
 
-          <Flex align="center" gap={4}>
-              <Avatar size="lg" src={app.assetContext?.icon} />
-              <VStack align="start">
-                  <Text fontSize="lg" fontWeight="bold" color="white">
-                      {app.assetContext?.name} ({app.assetContext?.symbol})
-                  </Text>
-                  <Link
-                    href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
-                    color="teal.400"
-                    isExternal
-                  >
-                      View on Explorer
-                  </Link>
-                  <Text color="gray.400" fontSize="sm">
-                      Asset ID: {app.assetContext?.assetId}
-                  </Text>
-                  <Text color="gray.400" fontSize="sm">
-                      Network: {app.assetContext?.networkName}
-                  </Text>
-              </VStack>
-          </Flex>
+                <Flex align="center" gap={4}>
+                    <Avatar size="lg" src={app.assetContext?.icon} />
+                    <VStack align="start">
+                        <Text fontSize="lg" fontWeight="bold" color="white">
+                            {app.assetContext?.name} ({app.assetContext?.symbol})
+                        </Text>
+                        <Link
+                          href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
+                          color="teal.400"
+                          isExternal
+                        >
+                            View on Explorer
+                        </Link>
+                        <Text color="gray.400" fontSize="sm">
+                            Asset ID: {app.assetContext?.assetId}
+                        </Text>
+                        <Text color="gray.400" fontSize="sm">
+                            Network: {app.assetContext?.networkName}
+                        </Text>
+                    </VStack>
+                </Flex>
 
-          <Box>
-              <Input
-                placeholder="Recipient Address"
-                value={recipient}
-                onChange={handleRecipientChange}
-                size="md"
-                bg="gray.800"
-                color="white"
-                _placeholder={{ color: 'gray.500' }}
-              />
-              {recipientError && (
-                <Text color="red.400" fontSize="xs" mt={1}>
-                    {recipientError}
-                </Text>
-              )}
-          </Box>
+                <Box>
+                    <Input
+                      placeholder="Recipient Address"
+                      value={recipient}
+                      onChange={handleRecipientChange}
+                      size="md"
+                      bg="gray.800"
+                      color="white"
+                      _placeholder={{ color: 'gray.500' }}
+                    />
+                    {recipientError && (
+                      <Text color="red.400" fontSize="xs" mt={1}>
+                          {recipientError}
+                      </Text>
+                    )}
+                </Box>
 
-          <Box>
-              <Input
-                placeholder="Amount"
-                value={inputAmount}
-                onChange={(e) => setInputAmount(e.target.value)}
-                type="number"
-                size="md"
-                bg="gray.800"
-                color="white"
-                _placeholder={{ color: 'gray.500' }}
-              />
-              <Flex justifyContent="space-between" mt={1}>
-                  <Text fontSize="sm" color="gray.400">
-                      Available Balance: {app.assetContext?.balances[0].balance ?? '0'}{' '}
-                      {app.assetContext?.symbol}
-                  </Text>
-                  <Button size="sm" colorScheme="teal" onClick={handleSendMax}>
-                      Send Max
-                  </Button>
-              </Flex>
-          </Box>
+                <Box>
+                    <Input
+                      placeholder="Amount"
+                      value={inputAmount}
+                      onChange={(e) => setInputAmount(e.target.value)}
+                      type="number"
+                      size="md"
+                      bg="gray.800"
+                      color="white"
+                      _placeholder={{ color: 'gray.500' }}
+                    />
+                    <Flex justifyContent="space-between" mt={1}>
+                        <Text fontSize="sm" color="gray.400">
+                            Available Balance: {app.assetContext?.balances[0].balance ?? '0'}{' '}
+                            {app.assetContext?.symbol}
+                        </Text>
+                        <Button size="sm" colorScheme="teal" onClick={handleSendMax}>
+                            Send Max
+                        </Button>
+                    </Flex>
+                </Box>
 
-          <Button
-            colorScheme="teal"
-            onClick={handleSend}
-            size="lg"
-            shadow="md"
-            _hover={{ bg: 'teal.600' }}
-            isLoading={isSubmitting}
-          >
-              Build Transaction
-          </Button>
+                <Button
+                  colorScheme="teal"
+                  onClick={handleSend}
+                  size="lg"
+                  shadow="md"
+                  _hover={{ bg: 'teal.600' }}
+                  isLoading={isSubmitting}
+                >
+                    Build Transaction
+                </Button>
 
-          {isSubmitting && !unsignedTx && (
-            <Center mt={8}>
-                <VStack>
-                    <Text fontSize="lg" color="gray.300">Building your transaction...</Text>
-                    <Spinner size="xl" />
-                </VStack>
-            </Center>
+                {isSubmitting && !unsignedTx && (
+                  <Center mt={8}>
+                      <VStack>
+                          <Text fontSize="lg" color="gray.300">Building your transaction...</Text>
+                          <Spinner size="xl" />
+                      </VStack>
+                  </Center>
+                )}
+            </>
           )}
 
           {showSteps && (
-            <StepsRoot count={3} mt={4}>
+            <StepsRoot count={3} index={currentStep} mt={4}>
                 <StepsList mb={4}>
                     <StepsItem index={0} title="Review Unsigned Tx" />
-                    <StepsItem index={1} title="Sign Transaction" />
+                    <StepsItem index={1} title="Confirm on Device" />
                     <StepsItem index={2} title="Broadcast Transaction" />
                 </StepsList>
 
@@ -297,7 +294,8 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 <StepsContent index={0}>
                     {unsignedTx && !signedTx && (
                       <VStack spacing={4}>
-                          <TxReview unsignedTx={unsignedTx} isBuilding={false} />
+                          {/* Pass the raw unsignedTx data directly */}
+                          <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />
                           <Button colorScheme="green" onClick={handleApproveTx}>
                               Approve Transaction (Sign)
                           </Button>
@@ -305,22 +303,30 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     )}
                 </StepsContent>
 
-                {/* Step 1: Sign Transaction (once signedTx is ready, show it and Broadcast button) */}
+                {/* Step 1: Confirm on Device */}
                 <StepsContent index={1}>
+                    {!signedTx && (
+                      <VStack spacing={4}>
+                          <Image
+                            src="https://via.placeholder.com/150"
+                            alt="Confirm on Device"
+                            borderRadius="md"
+                          />
+                          <Text color="gray.300">Confirm transaction on your device...</Text>
+                      </VStack>
+                    )}
+                </StepsContent>
+
+                {/* Step 2: SignedTx ready, show and Broadcast button */}
+                <StepsContent index={2}>
                     {signedTx && !broadcastResult && (
                       <VStack spacing={4}>
+                          {/* Pass the signedTx as unsignedTx prop to display in TxReview */}
                           <TxReview unsignedTx={signedTx} isBuilding={false} />
                           <Button colorScheme="blue" onClick={handleBroadcastTx}>
                               Broadcast Transaction
                           </Button>
                       </VStack>
-                    )}
-                </StepsContent>
-
-                {/* Step 2: Broadcast Transaction (once broadcastResult is ready, show TxStatus) */}
-                <StepsContent index={2}>
-                    {broadcastResult && (
-                      <TxStatus broadcastResult={broadcastResult} explorerTxLink={explorerTxLink} txHash={txHash} />
                     )}
                 </StepsContent>
 
@@ -332,7 +338,11 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             </StepsRoot>
           )}
 
-          {txHash && (
+          {!showSteps && broadcastResult && (
+            <TxStatus broadcastResult={broadcastResult} explorerTxLink={explorerTxLink} txHash={txHash} />
+          )}
+
+          {txHash && !showSteps && (
             <Box mt={4}>
                 <Text fontSize="md" color="gray.300">
                     Transaction ID:
