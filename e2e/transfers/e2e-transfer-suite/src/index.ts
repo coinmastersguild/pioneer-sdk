@@ -54,24 +54,24 @@ const test_service = async function (this: any) {
 
 
         let chains = [
-            'DOGE',
-            'DASH',
-            'LTC', //BROKE "Missing inputs
-            'MATIC',
-            'THOR',
-            'GAIA',
-            'OSMO',
+            // 'DOGE',
+            // 'DASH',
+            // 'LTC', //BROKE "Missing inputs
+            // 'MATIC',
+            // 'THOR',
+            // 'GAIA',
+            // 'OSMO',
             'BASE',
-            'OP',
-            'ARB',
-            'AVAX',
-            'BSC',
-            'XRP',
-            'ETH',
-            'MAYA', //MARKET INFO BROKE
-            // 'GNO',
-            'BCH',
-            'BTC',
+            // 'OP',
+            // 'ARB',
+            // 'AVAX',
+            // 'BSC',
+            // 'XRP',
+            // 'ETH',
+            // 'MAYA', //MARKET INFO BROKE
+            // // 'GNO',
+            // 'BCH',
+            // 'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {

@@ -287,7 +287,11 @@ export class TransactionManager {
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
       console.log(tag, 'result:', result);
-      return result.txid;
+      if (result.error) {
+        return result;
+      } else {
+        return result.txid;
+      }
     } catch (e: any) {
       console.error(tag, e);
       throw e;

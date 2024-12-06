@@ -7,15 +7,13 @@ import {
     Input,
     Text,
     VStack,
-    Spinner,
     Link,
     Center,
+    Spinner
 } from '@chakra-ui/react';
 import React, { useState, useCallback } from 'react';
-//@ts-ignore
-import confetti from 'canvas-confetti';
 import { toaster } from '@/components/ui/toaster';
-import { Avatar } from '@/components/ui/avatar'; // Preserved original Avatar import
+import { Avatar } from '@/components/ui/avatar';
 import {
     StepsCompletedContent,
     StepsContent,
@@ -23,6 +21,8 @@ import {
     StepsList,
     StepsRoot,
 } from '@/components/ui/steps';
+
+import { TxReview } from '@/components/tx'; // Import the new component
 
 export function Transfer({ usePioneer }: any): JSX.Element {
     const { state } = usePioneer();
@@ -35,10 +35,11 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const [showSteps, setShowSteps] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [txHash, setTxHash] = useState('');
-    const [isMax, setIsMax] = useState(false); // New state for Send Max
+    const [isMax, setIsMax] = useState(false);
+    const [unsignedTx, setUnsignedTx] = useState<any>(null);
 
     const validateAddress = (address: string) => {
-        // TODO: Replace with actual validation logic (e.g., regex for blockchain address)
+        // TODO: Implement actual validation logic
         return true;
     };
 
@@ -60,62 +61,43 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             }
 
             setIsSubmitting(true);
-            setShowSteps(true);
-            setCurrentStep(0); // Start with approving on device
 
-            // Simulate user approving on device
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            setCurrentStep(1); // Move to building transaction
+            // Show a spinner while building the transaction
+            // Steps will be shown *after* building is complete
+            setShowSteps(false);
+            setUnsignedTx(null);
 
             const sendPayload = {
                 caip: app.assetContext?.caip,
                 to: recipient,
                 amount: inputAmount,
                 feeLevel: 5,
-                isMax, // Pass sendMax to the transfer payload
+                isMax,
             };
 
-            // Simulate building transaction
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Simulate building transaction with a delay to show the spinner
+            await new Promise((resolve) => setTimeout(resolve, 2000));
 
-            //Build transaction before sending
-            const result = await app.transfer(sendPayload, true);
-            console.log(tag, 'result: ', result);
+            let unsignedTxResult = await app.buildTx(sendPayload);
+            console.log(tag, 'unsignedTx: ', unsignedTxResult);
 
-            //test as BEX (multi-set)
-            // let unsignedTx = await app.buildTx(sendPayload);
+            // Once unsignedTx is ready, show steps and start at step 0 (Review)
+            setUnsignedTx(unsignedTxResult);
+            setShowSteps(true);
+            setCurrentStep(0);
+            setTxHash('');
 
-            //review edit and approve
-            //separate UX for tendermint utxo and evm and other
-            //sign
-            // let signedTx = await app.signTx({ caip, unsignedTx });
-            //
-            // //broadcast
-            // let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
-
-            confetti();
-            setTxHash(result.txHash || result.txid);
-            toaster.create({
-                title: 'Transaction Successful',
-                description: `Transaction ID: ${result.txHash || result.txid}`,
-                duration: 5000,
-            });
-
-            setInputAmount('');
-            setRecipient('');
-            setCurrentStep(2); // Move to confirmation
         } catch (error) {
             toaster.create({
                 title: 'Transaction Failed',
                 description: 'An error occurred during the transaction.',
                 duration: 5000,
             });
-            setShowSteps(false); // Hide steps on failure
+            setShowSteps(false);
         } finally {
             setIsSubmitting(false);
         }
-    }, [app, inputAmount, recipient]);
+    }, [app, inputAmount, recipient, isMax]);
 
     const handleRecipientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -222,49 +204,53 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             size="lg"
             shadow="md"
             _hover={{ bg: 'teal.600' }}
+            isLoading={isSubmitting}
           >
-              Send
+              Build Transaction
           </Button>
 
-          {showSteps && (
+          {/* Show a spinner if we are building (isSubmitting) and no unsignedTx yet */}
+          {isSubmitting && !unsignedTx && (
+            <Center mt={8}>
+                <VStack>
+                    <Text fontSize="lg" color="gray.300">Building your transaction...</Text>
+                    <Spinner size="xl" />
+                </VStack>
+            </Center>
+          )}
+
+          {/* After building is done, show steps */}
+          {showSteps && unsignedTx && (
             <StepsRoot count={3} mt={4}>
                 <StepsList mb={4}>
-                    <StepsItem index={0} title="Approve on Device" />
-                    <StepsItem index={1} title="Building Transaction" />
-                    <StepsItem index={2} title="Confirmation" />
+                    <StepsItem index={0} title="Review Unsigned Tx" />
+                    <StepsItem index={1} title="Sign Transaction" />
+                    <StepsItem index={2} title="Broadcast Transaction" />
                 </StepsList>
 
+                {/* Step 1: Review */}
                 <StepsContent index={0}>
-                    <Text fontSize="lg" textAlign="center" color="gray.300">
-                        Please approve the transaction on your device.
+                    <TxReview unsignedTx={unsignedTx} isBuilding={false} />
+                </StepsContent>
+
+                {/* Step 2: Sign (placeholder - add your sign logic) */}
+                <StepsContent index={1}>
+                    <Text fontSize="lg" color="gray.300">
+                        Please sign the transaction on your device.
                     </Text>
                     <Center mt={4}>
                         <Avatar size="2xl" src="https://pioneers.dev/coins/keepkey.png" />
                     </Center>
                 </StepsContent>
 
-                <StepsContent index={1}>
+                {/* Step 3: Broadcast (placeholder - add your broadcast logic) */}
+                <StepsContent index={2}>
                     <Text fontSize="lg" color="gray.300">
-                        Building your transaction...
+                        Broadcasting your transaction...
                     </Text>
                     <Center mt={4}>
                         <Spinner size="xl" />
                     </Center>
-                </StepsContent>
-
-                <StepsContent index={2}>
-                    <Text fontSize="lg" textAlign="center" color="green.500">
-                        Transaction Successful!
-                    </Text>
-                    <Box mt={4} textAlign="center">
-                        <Text fontWeight="bold">Transaction ID:</Text>
-                        <Link
-                          href={`${app.assetContext?.explorerTxLink}${txHash}`}
-                          color="teal.500"
-                        >
-                            {txHash}
-                        </Link>
-                    </Box>
                 </StepsContent>
 
                 <StepsCompletedContent>
