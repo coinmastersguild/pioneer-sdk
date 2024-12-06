@@ -319,15 +319,20 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
                 {/* Step 2: SignedTx ready, show and Broadcast button */}
                 <StepsContent index={2}>
-                    {signedTx && !broadcastResult && (
-                      <VStack spacing={4}>
-                          {/* Pass the signedTx as unsignedTx prop to display in TxReview */}
-                          <TxReview unsignedTx={signedTx} isBuilding={false} />
-                          <Button colorScheme="blue" onClick={handleBroadcastTx}>
-                              Broadcast Transaction
-                          </Button>
-                      </VStack>
-                    )}
+                    {signedTx}
+                    <Button colorScheme="blue" onClick={handleBroadcastTx}>
+                        Broadcast Transaction
+                    </Button>
+
+                    {/*{signedTx && !broadcastResult && (*/}
+                    {/*  <VStack spacing={4}>*/}
+                    {/*      /!* Pass the signedTx as unsignedTx prop to display in TxReview *!/*/}
+                    {/*      {signedTx}*/}
+                    {/*      <Button colorScheme="blue" onClick={handleBroadcastTx}>*/}
+                    {/*          Broadcast Transaction*/}
+                    {/*      </Button>*/}
+                    {/*  </VStack>*/}
+                    {/*)}*/}
                 </StepsContent>
 
                 <StepsCompletedContent>
