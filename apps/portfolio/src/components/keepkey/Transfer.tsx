@@ -21,7 +21,6 @@ import {
     StepsList,
     StepsRoot,
 } from '@/components/ui/steps';
-
 import { TxReview } from '@/components/tx';
 import { TxStatus } from '@/components/txStatus';
 
@@ -50,59 +49,56 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const explorerTxLink = app.assetContext?.explorerTxLink;
 
     const handleSend = useCallback(async () => {
-        let tag = ' | handleSend | ';
+        if (!inputAmount || !recipient) {
+            toaster.create({
+                title: 'Error',
+                description: 'Both amount and recipient address are required.',
+                duration: 5000,
+            });
+            return;
+        }
+
+        if (!validateAddress(recipient)) {
+            setRecipientError('Invalid address format.');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        // Clear previous states
+        setUnsignedTx(null);
+        setSignedTx(null);
+        setBroadcastResult(null);
+        setTxHash('');
+        setShowSteps(false);
+        setCurrentStep(0);
+
+        const sendPayload = {
+            caip: app.assetContext?.caip,
+            to: recipient,
+            amount: inputAmount,
+            feeLevel: 5,
+            isMax,
+        };
+
+        // Simulate delay to show spinner
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
         try {
-            if (!inputAmount || !recipient) {
-                toaster.create({
-                    title: 'Error',
-                    description: 'Both amount and recipient address are required.',
-                    duration: 5000,
-                });
-                return;
-            }
-
-            if (!validateAddress(recipient)) {
-                setRecipientError('Invalid address format.');
-                return;
-            }
-
-            setIsSubmitting(true);
-
-            // Clear previous states
-            setUnsignedTx(null);
-            setSignedTx(null);
-            setBroadcastResult(null);
-            setTxHash('');
-            setShowSteps(false);
-            setCurrentStep(0);
-
-            const sendPayload = {
-                caip: app.assetContext?.caip,
-                to: recipient,
-                amount: inputAmount,
-                feeLevel: 5,
-                isMax,
-            };
-
-            // Simulate delay to show spinner
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
             let unsignedTxResult = await app.buildTx(sendPayload);
-            console.log(tag, 'unsignedTx: ', unsignedTxResult);
 
             let transactionState: any = {
                 method: 'transfer',
                 caip,
                 params: sendPayload,
-                unsignedTx: unsignedTxResult, // raw unsigned tx is here
+                unsignedTx: unsignedTxResult,
                 signedTx: null,
                 state: 'unsigned',
                 context: app.assetContext,
             };
             setUnsignedTx(transactionState);
             setShowSteps(true);
-            setCurrentStep(0); // Step 0 = Review Unsigned Tx
-
+            setCurrentStep(0);
         } catch (error) {
             toaster.create({
                 title: 'Transaction Failed',
@@ -126,14 +122,11 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     };
 
     const handleSendMax = () => {
-        let tag = ' | handleSendMax | ';
         try {
             const balance = app.assetContext?.balances[0].balance ?? '0';
             setInputAmount(balance);
             setIsMax(true);
-            console.log(tag, 'Max balance loaded: ', balance);
         } catch (error) {
-            console.error(tag, error);
             toaster.create({
                 title: 'Error',
                 description: 'Unable to load the maximum balance.',
@@ -142,20 +135,13 @@ export function Transfer({ usePioneer }: any): JSX.Element {
         }
     };
 
-    // Handle Approve Transaction (sign)
     const handleApproveTx = useCallback(async () => {
-        let tag = ' | handleApproveTx | ';
+        if (!unsignedTx) return;
+        setCurrentStep(1);
+
         try {
-            if (!unsignedTx) return;
-            // Move to step 1: Confirm on Device
-            setCurrentStep(1);
-
-            // Sign asynchronously
             let signedTxResult = await app.signTx({ caip, unsignedTx: unsignedTx.unsignedTx });
-            console.log(tag, 'signedTx: ', signedTxResult);
             setSignedTx(signedTxResult);
-
-            // Once we have signedTx, move to step 2: Show SignedTx and Broadcast button
             setCurrentStep(2);
         } catch (error) {
             toaster.create({
@@ -166,22 +152,14 @@ export function Transfer({ usePioneer }: any): JSX.Element {
         }
     }, [app, unsignedTx, caip]);
 
-    // Handle Broadcast Transaction
     const handleBroadcastTx = useCallback(async () => {
-        let tag = ' | handleBroadcastTx | ';
+        if (!signedTx) return;
         try {
-            if (!signedTx) return;
             let broadcast = await app.broadcastTx(caip, signedTx);
-            console.log(tag, 'broadcast: ', broadcast);
-
-            // Assume broadcast returns a txHash
             const finalTxHash = broadcast.txHash || broadcast.txid;
             setTxHash(finalTxHash);
             setBroadcastResult(broadcast);
-
-            // Hide steps and show TxStatus
             setShowSteps(false);
-
         } catch (error) {
             toaster.create({
                 title: 'Broadcast Failed',
@@ -290,11 +268,9 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     <StepsItem index={2} title="Broadcast Transaction" />
                 </StepsList>
 
-                {/* Step 0: Review Unsigned Tx */}
                 <StepsContent index={0}>
                     {unsignedTx && !signedTx && (
                       <VStack spacing={4}>
-                          {/* Pass the raw unsignedTx data directly */}
                           <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />
                           <Button colorScheme="green" onClick={handleApproveTx}>
                               Approve Transaction (Sign)
@@ -303,7 +279,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     )}
                 </StepsContent>
 
-                {/* Step 1: Confirm on Device */}
                 <StepsContent index={1}>
                     {!signedTx && (
                       <VStack spacing={4}>
@@ -317,22 +292,14 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     )}
                 </StepsContent>
 
-                {/* Step 2: SignedTx ready, show and Broadcast button */}
                 <StepsContent index={2}>
-                    {signedTx}
-                    <Button colorScheme="blue" onClick={handleBroadcastTx}>
-                        Broadcast Transaction
-                    </Button>
-
-                    {/*{signedTx && !broadcastResult && (*/}
-                    {/*  <VStack spacing={4}>*/}
-                    {/*      /!* Pass the signedTx as unsignedTx prop to display in TxReview *!/*/}
-                    {/*      {signedTx}*/}
-                    {/*      <Button colorScheme="blue" onClick={handleBroadcastTx}>*/}
-                    {/*          Broadcast Transaction*/}
-                    {/*      </Button>*/}
-                    {/*  </VStack>*/}
-                    {/*)}*/}
+                    {signedTx && (
+                      <VStack spacing={4}>
+                          <Button colorScheme="blue" onClick={handleBroadcastTx}>
+                              Broadcast Transaction
+                          </Button>
+                      </VStack>
+                    )}
                 </StepsContent>
 
                 <StepsCompletedContent>
