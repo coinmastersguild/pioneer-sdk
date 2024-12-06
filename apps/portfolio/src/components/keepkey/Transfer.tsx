@@ -186,7 +186,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                         <Link
                           href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
                           color="teal.400"
-                          isExternal
                         >
                             View on Explorer
                         </Link>
@@ -244,7 +243,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                   size="lg"
                   shadow="md"
                   _hover={{ bg: 'teal.600' }}
-                  isLoading={isSubmitting}
                 >
                     Build Transaction
                 </Button>
@@ -261,7 +259,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
           )}
 
           {showSteps && (
-            <StepsRoot count={3} index={currentStep} mt={4}>
+            <StepsRoot count={3} mt={4}>
                 <StepsList mb={4}>
                     <StepsItem index={0} title="Review Unsigned Tx" />
                     <StepsItem index={1} title="Confirm on Device" />
@@ -270,7 +268,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
                 <StepsContent index={0}>
                     {unsignedTx && !signedTx && (
-                      <VStack spacing={4}>
+                      <VStack>
                           <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />
                           <Button colorScheme="green" onClick={handleApproveTx}>
                               Approve Transaction (Sign)
@@ -281,7 +279,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
                 <StepsContent index={1}>
                     {!signedTx && (
-                      <VStack spacing={4}>
+                      <VStack>
                           <Image
                             src="https://via.placeholder.com/150"
                             alt="Confirm on Device"
@@ -294,7 +292,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
                 <StepsContent index={2}>
                     {signedTx && (
-                      <VStack spacing={4}>
+                      <VStack>
                           <Button colorScheme="blue" onClick={handleBroadcastTx}>
                               Broadcast Transaction
                           </Button>
@@ -322,7 +320,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                 <Link
                   href={`${explorerTxLink}${txHash}`}
                   color="teal.500"
-                  isExternal
                 >
                     {txHash}
                 </Link>

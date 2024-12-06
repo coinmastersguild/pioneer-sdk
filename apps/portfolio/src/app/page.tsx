@@ -30,6 +30,7 @@ export default function Home() {
       }
     } catch (e) {
       console.error('Initialization error:', e);
+      //@ts-ignore
       setIsError(e.message || 'An unexpected error occurred');
     }
   };

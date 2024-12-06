@@ -9,7 +9,7 @@ type TxStatusProps = {
 
 export function TxStatus({ broadcastResult, explorerTxLink, txHash }: TxStatusProps) {
   return (
-    <VStack p={4} bg="gray.800" borderRadius="md" spacing={4} alignItems="center">
+    <VStack p={4} bg="gray.800" borderRadius="md"  alignItems="center">
       <Heading size="md" color="teal.300">
         Transaction Status
       </Heading>
@@ -17,7 +17,7 @@ export function TxStatus({ broadcastResult, explorerTxLink, txHash }: TxStatusPr
         <>
           <Text color="green.300">Broadcast Successful!</Text>
           {txHash && explorerTxLink && (
-            <Link href={`${explorerTxLink}${txHash}`} color="teal.400" isExternal>
+            <Link href={`${explorerTxLink}${txHash}`} color="teal.400">
               View on Explorer
             </Link>
           )}

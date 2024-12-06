@@ -55,7 +55,7 @@ const Launch: React.FC<ConnectProps> = ({ setIsConnecting }) => {
         <Text fontSize="lg" mb={4}>
           Plug in your KeepKey to get started...
         </Text>
-        <Stack direction="column" spacing={4} mb={4}>
+        <Stack direction="column" mb={4}>
           <Button colorScheme="blue" onClick={launchKeepKey}>
             Launch KeepKey Desktop
           </Button>
@@ -68,7 +68,7 @@ const Launch: React.FC<ConnectProps> = ({ setIsConnecting }) => {
         </Stack>
         <Text fontSize="sm" mt={4}>
           Dont have a KeepKey?{' '}
-          <Button variant="link" color="teal.500" onClick={openKeepKeyLink}>
+          <Button color="teal.500" onClick={openKeepKeyLink}>
             Buy a KeepKey
           </Button>
         </Text>
@@ -86,7 +86,7 @@ const Launch: React.FC<ConnectProps> = ({ setIsConnecting }) => {
           alignItems="center"
           bg="rgba(255, 255, 255, 0.8)"
           zIndex={1}>
-          <Spinner size="xl" thickness="4px" color="teal.500" />
+          <Spinner size="xl" color="teal.500" />
         </Box>
       )}
     </Box>

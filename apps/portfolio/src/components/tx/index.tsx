@@ -11,7 +11,7 @@ export function TxReview({ unsignedTx, isBuilding }: TxProps): JSX.Element {
   //classify
 
   return (
-    <VStack p={4} bg="gray.800" borderRadius="md" spacing={4} alignItems="center">
+    <VStack p={4} bg="gray.800" borderRadius="md" alignItems="center">
       <Heading size="md" color="teal.300">
         Review Your Unsigned Transaction
       </Heading>
