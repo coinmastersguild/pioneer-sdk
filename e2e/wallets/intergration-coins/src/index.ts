@@ -76,24 +76,24 @@ const test_service = async function (this: any) {
         //add a few custom blockchains
 
         let AllChainsSupported = [
-            // 'ETH',
-            // 'ARB',  //BROKE
-            // 'DOGE',
+            'ETH',
+            'ARB',  //BROKE
+            'DOGE',
             'OP',    //Fast
-            // 'MATIC', //SLOW charting
-            // 'AVAX',  //fast
-            // 'BASE',  //fast
-            // 'BSC',   //fast
-            // 'BTC',
-            // 'BCH',
-            // 'GAIA',
-            // 'OSMO',
-            // 'XRP',
-            // 'DOGE',
-            // 'DASH',
-            // 'MAYA',
-            // 'LTC',
-            // 'THOR'
+            'MATIC', //SLOW charting
+            'AVAX',  //fast
+            'BASE',  //fast
+            'BSC',   //fast
+            'BTC',
+            'BCH',
+            'GAIA',
+            'OSMO',
+            'XRP',
+            'DOGE',
+            'DASH',
+            'MAYA',
+            'LTC',
+            'THOR'
         ]
 
         let blockchains = AllChainsSupported.map(
@@ -177,7 +177,7 @@ const test_service = async function (this: any) {
             let path = paths[i]
             assert(path.networks)
         }
-        log.info(tag,'paths: ',paths)
+        log.info(tag,'paths: ',paths.length)
 
 
         let config:any = {
@@ -202,9 +202,9 @@ const test_service = async function (this: any) {
         let resultInit = await app.init({ } , {})
         log.info(tag,' ****** Init Complete ******')
         //force verify
-        await app.getGasAssets()
-        await app.getPubkeys()
-        await app.getBalances()
+        // await app.getGasAssets()
+        // await app.getPubkeys()
+        // await app.getBalances()
 
 
         //clear cache
@@ -212,7 +212,7 @@ const test_service = async function (this: any) {
         // log.info(tag,"resultInit: ",resultInit)
         console.timeEnd('start2init');
         let assets = app.assetsMap
-        log.info(tag,"assets: START: ",assets)
+        // log.info(tag,"assets: START: ",assets)
         assert(assets)
 
         // //iterate over each asset
@@ -263,7 +263,7 @@ const test_service = async function (this: any) {
             log.debug(tag,"pubkey: ",pubkey)
             assert(pubkey)
             assert(pubkey.pubkey)
-            log.info(tag,'pubkey: ',pubkey)
+            // log.info(tag,'pubkey: ',pubkey)
             assert(pubkey.type)
         }
         log.info(tag,' ****** Validate Pubkeys Properties exist * PASS * ******')
@@ -305,7 +305,7 @@ const test_service = async function (this: any) {
 
             //should be a balance for every gas asset
             const balanceNative = app.balances.find((balance:any) => balance.caip === caip);
-            if(!balanceNative) console.error('Missing Balance for CAIP: ',caip)
+            if(!balanceNative) log.error(tag,'Missing Balance for CAIP: ',caip)
             assert(balanceNative)
             log.debug(tag,"balanceNative: ",balanceNative)
         }

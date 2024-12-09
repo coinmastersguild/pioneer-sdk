@@ -203,6 +203,8 @@ export class SDK {
           return [];
         });
         await this.loadPubkeyCache(pubkeysCache);
+
+        //No more balance cache!
         let balanceCache = await this.keepKeySdk.storage.getBalances().catch((error) => {
           //console.error('Error fetching balanceCache:', error);
           return [];
@@ -220,7 +222,7 @@ export class SDK {
       const tag = `${TAG} | syncMarket | `;
       try {
         // Extract all CAIP identifiers from balances
-        let allCaips = this.balances.map(b => b.caip);
+        let allCaips = this.balances.map((b) => b.caip);
 
         // Fetch market prices for all CAIPs
         let allPrices = await this.pioneer.GetMarketInfo(allCaips);
@@ -245,7 +247,7 @@ export class SDK {
       try {
         //console.log(tag, 'Syncing Wallet (Checkpoint1)');
         //at least 1 path per chain
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
@@ -257,7 +259,7 @@ export class SDK {
             if (!paths || paths.length === 0) throw Error('Unable to find paths for: ' + networkId);
             //add to paths
             this.paths = this.paths.concat(paths);
-            // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
             for (let j = 0; j < paths.length; j++) {
               let path = paths[j];
               //console.log(tag, 'Adding path to cache: ', path);
@@ -269,7 +271,7 @@ export class SDK {
         }
 
         //console.log(tag, 'Paths (Checkpoint2)');
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           //console.log(tag, `Processing blockchain: ${networkId}`);
@@ -281,7 +283,7 @@ export class SDK {
           //console.log(tag, 'pathsForChain: ', pathsForChain.length);
           if (!pathsForChain || pathsForChain.length === 0)
             throw Error('No paths found for blockchain: ' + networkId);
-          // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
           for (let j = 0; j < pathsForChain.length; j++) {
             const path = pathsForChain[j];
             //console.log(tag, `Processing path: ${JSON.stringify(path)}`);
@@ -319,31 +321,32 @@ export class SDK {
         //TODO target old stale balances & missing
         console.log(tag, 'pubkeys (Checkpoint3)');
 
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
-        for (let i = 0; i < this.blockchains.length; i++) {
-          let networkId = this.blockchains[i];
-          // if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-          console.log(tag, 'networkId: ', networkId);
-          let balancesForChain = this.balances.filter((balance) => balance.networkId === networkId);
-          console.log(tag, 'balancesForChain: ', balancesForChain.length);
+        await this.getBalances();
 
-          //pubkey count
-          let processedNetworkId = networkId.indexOf('eip155:') >= 0 ? 'eip155:*' : networkId;
-
-          let pubkeyCount = this.pubkeys.filter((pubkey) =>
-            pubkey.networks.includes(processedNetworkId),
-          );
-          console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount.length);
-          console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount);
-
-          if (balancesForChain.length < pubkeyCount.length || balancesForChain.length === 0) {
-            console.log(tag, 'No balance found for network ' + networkId);
-            let resultBalance = await this.getBalance(this.blockchains[i]);
-            console.log(tag, 'resultBalance: ', resultBalance.length);
-          } else {
-            console.log(tag, ' **** CACHE **** Cache valid for balance: ', networkId);
-          }
-        }
+        // for (let i = 0; i < this.blockchains.length; i++) {
+        //   let networkId = this.blockchains[i];
+        //   // if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
+        //   console.log(tag, 'networkId: ', networkId);
+        //   let balancesForChain = this.balances.filter((balance) => balance.networkId === networkId);
+        //   console.log(tag, 'balancesForChain: ', balancesForChain.length);
+        //
+        //   //pubkey count
+        //   let processedNetworkId = networkId.indexOf('eip155:') >= 0 ? 'eip155:*' : networkId;
+        //
+        //   let pubkeyCount = this.pubkeys.filter((pubkey) =>
+        //     pubkey.networks.includes(processedNetworkId),
+        //   );
+        //   console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount.length);
+        //   console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount);
+        //
+        //   if (balancesForChain.length < pubkeyCount.length || balancesForChain.length === 0) {
+        //     console.log(tag, 'No balance found for network ' + networkId);
+        //     let resultBalance = await this.getBalance(this.blockchains[i]);
+        //     console.log(tag, 'resultBalance: ', resultBalance.length);
+        //   } else {
+        //     console.log(tag, ' **** CACHE **** Cache valid for balance: ', networkId);
+        //   }
+        // }
 
         //console.log(tag, 'balances (Checkpoint4)');
         return true;
@@ -589,7 +592,6 @@ export class SDK {
         console.log('txs: ', selected.quote.txs);
         let txs = selected.quote.txs;
         if (!txs) throw Error('invalid quote!');
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < txs.length; i++) {
           let tx = txs[i];
           console.log(tag, 'tx: ', tx);
@@ -863,7 +865,6 @@ export class SDK {
       const tag = `${TAG} | getGasAssets | `;
       try {
         //get configured blockchains
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           //console.log(tag, 'networkId: ', networkId);
@@ -1039,21 +1040,50 @@ export class SDK {
     this.getBalances = async function () {
       const tag = `${TAG} | getBalances | `;
       try {
-        // Create an array of promises for fetching balances
-        const balancePromises = this.blockchains.map(async (blockchain: any) => {
-          try {
-            //console.log(tag, 'blockchain: ', blockchain);
-            let resultBalance = await this.getBalance(blockchain);
+        let assetQuery = [];
+        //get gas assets
+        for (let i = 0; i < this.blockchains.length; i++) {
+          const blockchain = this.blockchains[i];
+          const caipNative = await networkIdToCaip(blockchain);
+          //get pubkeys for network
+          const isEip155 = blockchain.includes('eip155');
 
-            if (resultBalance) return resultBalance;
-          } catch (e) {
-            console.error(tag, 'e: ', e);
+          const pubkeys = this.pubkeys.filter((pubkey) =>
+            pubkey.networks.some((network) => {
+              if (isEip155) {
+                return network.startsWith('eip155:');
+              }
+              return network === blockchain;
+            }),
+          );
+
+          for (let j = 0; j < pubkeys.length; j++) {
+            const pubkey = pubkeys[j];
+            assetQuery.push({ caip: caipNative, pubkey: pubkey.pubkey });
           }
+        }
 
-          return null;
+        console.log(tag, 'assetQuery: ', assetQuery.length);
+        console.time('GetPortfolioBalances Response Time');
+        let marketInfo = await this.pioneer.GetPortfolioBalances(assetQuery);
+        console.timeEnd('GetPortfolioBalances Response Time');
+        console.log('returned balances: ', marketInfo.data);
+        this.balances = marketInfo.data;
+
+        //Enrich balances with additional data
+        this.balances.forEach((balance: any) => {
+          const assetInfo = this.assetsMap.get(balance.caip);
+          if (!assetInfo) return; // Skip if no asset info found
+
+          Object.assign(balance, assetInfo, {
+            networkId: caipToNetworkId(balance.caip),
+            icon: assetInfo.icon || 'https://pioneers.dev/coins/etherum.png',
+            identifier: `${balance.caip}:${balance.pubkey}`
+          });
         });
 
-        (await Promise.all(balancePromises)).filter(Boolean);
+        this.balances = marketInfo.data;
+
         this.events.emit('SET_BALANCES', this.balances);
         return this.balances;
       } catch (e) {
@@ -1088,7 +1118,7 @@ export class SDK {
 
         // Filter out invalid balances (missing identifier or chain)
         this.balances = Array.from(uniqueBalances.values()).filter((balance) => {
-          if (!balance.identifier || !balance.chain) {
+          if (!balance.identifier) {
             console.error(tag, 'Invalid balance:', balance);
             return false; // Exclude invalid balances
           }
@@ -1198,7 +1228,7 @@ export class SDK {
 
         let priceUsd;
         let balanceTotal = 0;
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
           if (balance.priceUsd && parseFloat(balance.priceUsd) > 0) {
@@ -1304,7 +1334,7 @@ export class SDK {
 
         let priceUsd;
         let balanceTotal = 0;
-        // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
           if (balance.priceUsd && parseFloat(balance.priceUsd) > 0) {
