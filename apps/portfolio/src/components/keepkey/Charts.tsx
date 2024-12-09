@@ -10,15 +10,14 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 export function Charts({ usePioneer, onSelect }: any) {
     const { state } = usePioneer();
     const { app } = state;
-    const balances = app.balances || [];
     const [showAll, setShowAll] = useState(false);
     const [activeSegment, setActiveSegment] = useState(null);
     const [totalValueUsd, setTotalValueUsd] = useState(0);
-    const [chartData, setChartData] = useState({
-        datasets: [],
-        labels: [],
-    });
+    const [chartData, setChartData] = useState({ datasets: [], labels: [] });
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [lastSync, setLastSync] = useState(Date.now()); // Track syncs to force re-renders
+
+    const balances = app?.balances || [];
 
     const centerTextPlugin = {
         id: 'centerTextPlugin',
@@ -114,7 +113,7 @@ export function Charts({ usePioneer, onSelect }: any) {
 
     useEffect(() => {
         updateChart();
-    }, [balances, showAll]);
+    }, [balances, showAll, lastSync]);
 
     const refreshApp = async () => {
         try {
@@ -132,6 +131,31 @@ export function Charts({ usePioneer, onSelect }: any) {
             setIsRefreshing(false);
         }
     };
+
+    // Set up interval to sync market data every 15 seconds
+    useEffect(() => {
+        if (!app) return;
+        const intervalId = setInterval(() => {
+            app.syncMarket()
+              .then(() => {
+                  console.log("syncMarket called from Charts");
+                  // Artificially adjust all balances by +0.01 for testing
+                  if (app.balances && Array.isArray(app.balances)) {
+                      app.balances = app.balances.map((balance: any) => {
+                          const oldVal = parseFloat(balance.valueUsd || 0);
+                          const newVal = oldVal + 0.01;
+                          return { ...balance, valueUsd: newVal.toString() };
+                      });
+                  }
+                  setLastSync(Date.now());
+              })
+              .catch((error: any) => {
+                  console.error("Error in syncMarket:", error);
+              });
+        }, 15000);
+
+        return () => clearInterval(intervalId);
+    }, [app]);
 
     return (
       <Flex direction="column" align="center" justify="center" onClick={refreshApp}>
@@ -171,7 +195,6 @@ export function Charts({ usePioneer, onSelect }: any) {
                                     css={{ "--spinner-track-color": "colors.gray.200" }}
                                   />
                               </div>
-
                             ) : (
                               <>
                                   <Text fontSize="3xl" fontWeight="bold" color="green.500">

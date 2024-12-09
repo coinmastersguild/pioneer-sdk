@@ -58,10 +58,10 @@ const test_service = async function (this: any) {
             // 'DASH',
             // 'LTC', //BROKE "Missing inputs
             // 'MATIC',
-            // 'THOR',
+            'THOR', //TXID BROKE
             // 'GAIA',
             // 'OSMO',
-            'BASE',
+            // 'BASE',
             // 'OP',
             // 'ARB',
             // 'AVAX',

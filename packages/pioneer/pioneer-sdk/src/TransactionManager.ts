@@ -197,14 +197,14 @@ export class TransactionManager {
               console.log(tag, 'Thorchain transaction');
               //transfer
               if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
-                console.log(tag, 'transfer:');
+                console.log(tag, 'MsgSend:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
                 console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgDeposit') {
-                console.log(tag, 'transfer:');
+                console.log(tag, 'MsgDeposit:');
                 console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);

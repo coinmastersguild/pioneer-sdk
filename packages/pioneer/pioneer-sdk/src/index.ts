@@ -198,11 +198,15 @@ export class SDK {
 
         await this.getGasAssets();
 
-        let pubkeysCache = await this.keepKeySdk.storage.getPubkeys();
+        let pubkeysCache = await this.keepKeySdk.storage.getPubkeys().catch((error) => {
+          //console.error('Error fetching pubkeysCache:', error);
+          return [];
+        });
         await this.loadPubkeyCache(pubkeysCache);
-        let balanceCache = await this.keepKeySdk.storage.getBalances();
-        console.log(tag, 'balanceCache: ', balanceCache);
-        console.log(tag, 'balanceCache: ', balanceCache.length);
+        let balanceCache = await this.keepKeySdk.storage.getBalances().catch((error) => {
+          //console.error('Error fetching balanceCache:', error);
+          return [];
+        });
         await this.loadBalanceCache(balanceCache);
 
         await this.sync();
@@ -215,12 +219,24 @@ export class SDK {
     this.syncMarket = async function () {
       const tag = `${TAG} | syncMarket | `;
       try {
-        //TODO
-        //get caips of all assets in balances
-        //update market info on all assets
+        // Extract all CAIP identifiers from balances
+        let allCaips = this.balances.map(b => b.caip);
+
+        // Fetch market prices for all CAIPs
+        let allPrices = await this.pioneer.GetMarketInfo(allCaips);
+
+        // Update each balance with the corresponding price and value
+        for (let i = 0; i < allPrices.length; i++) {
+          let balance = this.balances[i];
+          balance.price = allPrices[i];
+          balance.valueUsd = balance.price * balance.balance;
+        }
+
+        // Additional TODO items can be handled here
+
         return true;
       } catch (e) {
-        console.error(tag, 'e: ', e);
+        console.error(tag, 'e:', e);
         throw e;
       }
     };
@@ -245,7 +261,9 @@ export class SDK {
             for (let j = 0; j < paths.length; j++) {
               let path = paths[j];
               //console.log(tag, 'Adding path to cache: ', path);
-              this.keepKeySdk.storage.createPath(path);
+              await this.keepKeySdk.storage.createPath(path).catch((error) => {
+                console.error('Error creating path:', error);
+              });
             }
           }
         }
@@ -282,7 +300,9 @@ export class SDK {
                 this.context,
               );
               if (!pubkey) throw Error('Unable to get pubkey for network+ ' + networkId);
-              this.keepKeySdk.storage.createPubkey(pubkey);
+              await this.keepKeySdk.storage
+                .createPubkey(pubkey)
+                .catch((error) => console.error('Error creating pubkey:', error));
               //if doesnt exist, add
               let exists = this.pubkeys.filter((e: any) => e.networks.includes(networkId));
               if (!exists || exists.length === 0) {
@@ -374,12 +394,14 @@ export class SDK {
     this.clearCache = async function () {
       let tag = `${TAG} | clearCache | `;
       try {
-        const responseClearPubkeys = await this.keepKeySdk.storage.clearCollection({
-          name: 'pubkeys',
-        });
-        const responseClearBalances = await this.keepKeySdk.storage.clearCollection({
-          name: 'balances',
-        });
+        await this.keepKeySdk.storage
+          .clearCollection({ name: 'pubkeys' })
+          .catch((error) => console.error('Error clearing pubkeys:', error));
+
+        await this.keepKeySdk.storage
+          .clearCollection({ name: 'balances' })
+          .catch((error) => console.error('Error clearing balances:', error));
+
         return true;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -902,7 +924,9 @@ export class SDK {
             const path = pathsForChain[j];
             //console.log(tag, `Processing path: ${JSON.stringify(path)}`);
             const pubkey = await getPubkey(blockchain, path, this.keepKeySdk, this.context);
-            this.keepKeySdk.storage.createPubkey(pubkey);
+            await this.keepKeySdk.storage
+              .createPubkey(pubkey)
+              .catch((error) => console.error('Error creating pubkey:', error));
             pubkeys.push(pubkey);
           }
         }
@@ -974,7 +998,9 @@ export class SDK {
                 balance.valueUsd = balance.valueUsd?.toString() || '0';
 
                 // Save balance to storage
-                this.keepKeySdk.storage.createBalance(balance);
+                this.keepKeySdk.storage
+                  .createBalance(balance)
+                  .catch((error) => console.error('Error creating balance:', error));
 
                 // Add to balances if not already present
                 const exists = this.balances.some((b: any) => b.identifier === balance.identifier);
@@ -982,7 +1008,6 @@ export class SDK {
 
                 if (!exists) {
                   balance.icon = balance.icon || 'https://pioneers.dev/coins/etherum.png';
-                  this.keepKeySdk.storage.createBalance(balance);
                   this.balances.push(balance);
                 }
               });
@@ -1072,7 +1097,9 @@ export class SDK {
 
         // Save all valid balances to the storage
         for (const balance of this.balances) {
-          this.keepKeySdk.storage.createBalance(balance);
+          await this.keepKeySdk.storage
+            .createBalance(balance)
+            .catch((error) => console.error('Error creating balance:', error));
         }
 
         console.log(tag, `Total unique balances after charts update: ${this.balances.length}`);

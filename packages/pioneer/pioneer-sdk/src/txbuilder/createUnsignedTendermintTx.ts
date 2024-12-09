@@ -55,6 +55,9 @@ export async function createUnsignedTendermintTx(
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;
 
+    let balanceInfo = await pioneer.GetPubkeyBalance({ asset: chain, pubkey: fromAddress });
+    console.log(tag, `balanceInfo: `, balanceInfo);
+
     let account_number, sequence;
     if (networkId === 'cosmos:cosmoshub-4' || networkId === 'cosmos:osmosis-1') {
       account_number = accountInfo.account.account_number || '0';
@@ -74,20 +77,21 @@ export async function createUnsignedTendermintTx(
       'cosmos:osmosis-1': 0.035,
     };
 
-    if (isMax) {
-      const fee = fees[networkId] * 1e6; // Convert fee to smallest unit
-      amount = Math.max(0, amount * 1e6 - fee); // Adjust amount for fees if isMax
-    } else {
-      amount = amount * 1e6; // Convert amount to smallest unit
-    }
-
     switch (networkId) {
-      case 'cosmos:thorchain-mainnet-v1':
+      case 'cosmos:thorchain-mainnet-v1': {
+        if (isMax) {
+          console.log('isMax detected! Adjusting amount for fees...');
+          const fee = 2000000; // Convert fee to smallest unit
+          amount = Math.floor(Math.max(0, balanceInfo.data * 1e8 - fee)); // Adjust amount for fees if isMax
+        } else {
+          amount = Math.floor(amount * 1e8); // Convert amount to smallest unit
+        }
         asset = 'rune';
+        console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
         return to
           ? thorchainTransferTemplate({
               account_number,
-              chain_id: 'thorchain-mainnet-v1',
+              chain_id: 'thorchain-1',
               fee: {
                 gas: '500000000',
                 amount: [
@@ -106,7 +110,7 @@ export async function createUnsignedTendermintTx(
             })
           : thorchainDepositTemplate({
               account_number,
-              chain_id: 'thorchain-mainnet-v1',
+              chain_id: 'thorchain-1',
               fee: { gas: '500000000', amount: [] },
               from_address: fromAddress,
               asset,
@@ -114,8 +118,15 @@ export async function createUnsignedTendermintTx(
               memo,
               sequence,
             });
+      }
 
       case 'cosmos:mayachain-mainnet-v1': {
+        if (isMax) {
+          const fee = fees[networkId] * 1e6; // Convert fee to smallest unit
+          amount = Math.max(0, amount * 1e6 - fee); // Adjust amount for fees if isMax
+        } else {
+          amount = amount * 1e4; // Convert amount to smallest unit
+        }
         asset = 'cacao';
         return to
           ? mayachainTransferTemplate({
@@ -157,7 +168,13 @@ export async function createUnsignedTendermintTx(
             });
       }
 
-      case 'cosmos:cosmoshub-4':
+      case 'cosmos:cosmoshub-4': {
+        if (isMax) {
+          const fee = fees[networkId] * 1e6; // Convert fee to smallest unit
+          amount = Math.max(0, amount * 1e6 - fee); // Adjust amount for fees if isMax
+        } else {
+          amount = amount * 1e4; // Convert amount to smallest unit
+        }
         return cosmosTransferTemplate({
           account_number,
           chain_id: 'cosmoshub-4',
@@ -169,8 +186,15 @@ export async function createUnsignedTendermintTx(
           memo,
           sequence,
         });
+      }
 
-      case 'cosmos:osmosis-1':
+      case 'cosmos:osmosis-1': {
+        if (isMax) {
+          const fee = fees[networkId] * 1e6; // Convert fee to smallest unit
+          amount = Math.max(0, amount * 1e6 - fee); // Adjust amount for fees if isMax
+        } else {
+          amount = amount * 1e4; // Convert amount to smallest unit
+        }
         const DEFAULT_OSMO_FEE_MAINNET = {
           amount: [{ denom: 'uosmo', amount: '3500' }],
           gas: '500000',
@@ -186,9 +210,11 @@ export async function createUnsignedTendermintTx(
           memo,
           sequence,
         });
+      }
 
-      default:
+      default: {
         throw new Error(`Unsupported networkId: ${networkId}`);
+      }
     }
   } catch (error) {
     console.error(tag, 'Error:', error);
