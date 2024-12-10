@@ -53,6 +53,11 @@ export default function Wallet({ usePioneer }: any) {
 
     const isSidebarReady = app && Array.isArray(app.blockchains) && app.blockchains.length > 0;
 
+    // Sort balances by balance in descending order
+    const sortedBalances = asset?.balances
+      ? [...asset.balances].sort((a, b) => parseFloat(b.balance) - parseFloat(a.balance))
+      : [];
+
     return (
       <Flex height="100vh" bg="gray.900" color="white">
 
@@ -91,7 +96,7 @@ export default function Wallet({ usePioneer }: any) {
                     <Receive usePioneer={usePioneer} onClose={handleCloseTab} />
                   )}
 
-                  {/* If no active tab, show asset details or a placeholder */}
+                  {/* If no active tab, show asset details */}
                   {!activeTab && (
                     <Box width="full" maxWidth="900px">
                         {!asset ? (
@@ -132,12 +137,31 @@ export default function Wallet({ usePioneer }: any) {
                                               <Badge colorScheme="blue">Balance: {asset.balance}</Badge>
                                           </HStack>
                                           {asset.explorer && (
-                                            <Link href={asset.explorer} isExternal color="blue.200" fontSize="sm">
+                                            <Link
+                                              href={asset.explorer}
+                                              isExternal
+                                              color="blue.200"
+                                              fontSize="sm"
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                            >
                                                 View on Explorer <FiExternalLink style={{ display: 'inline-block', verticalAlign: 'middle' }} />
                                             </Link>
                                           )}
                                       </Box>
                                   </Flex>
+                              </Box>
+
+                              {/* CTAs (Receive / Send) Centered and Swapped */}
+                              <Box textAlign="center" my={8}>
+                                  <HStack spacing={4} justify="center">
+                                      <Button variant="surface" onClick={() => handleOpenDialog('receive')}>
+                                          <RiReceiptFill style={{ marginRight: '4px' }}/> Receive
+                                      </Button>
+                                      <Button colorPalette="green" variant="solid" onClick={() => handleOpenDialog('send')}>
+                                          <RiSendPlaneFill style={{ marginRight: '4px' }}/> Send
+                                      </Button>
+                                  </HStack>
                               </Box>
 
                               {/* Pubkeys / Addresses */}
@@ -158,7 +182,14 @@ export default function Wallet({ usePioneer }: any) {
                                             <Text fontSize="xs" color="gray.200">Address: {pk.address}</Text>
                                             <Text fontSize="xs" color="gray.200">Path: {pk.path}</Text>
                                             {asset.explorerAddressLink && pk.address && (
-                                              <Link href={`${asset.explorerAddressLink}${pk.address}`} isExternal color="blue.200" fontSize="xs">
+                                              <Link
+                                                href={`${asset.explorerAddressLink}${pk.address}`}
+                                                isExternal
+                                                color="blue.200"
+                                                fontSize="xs"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                              >
                                                   View Address <FiExternalLink style={{ display: 'inline-block', verticalAlign: 'middle' }} />
                                               </Link>
                                             )}
@@ -171,7 +202,7 @@ export default function Wallet({ usePioneer }: any) {
                               <Box>
                                   <Heading as="h3" size="sm" mb={2}>All Balances</Heading>
                                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-                                      {asset.balances && asset.balances.map((b: any, i: number) => (
+                                      {sortedBalances.map((b: any, i: number) => (
                                         <Box
                                           key={i}
                                           border="1px solid"
@@ -186,25 +217,20 @@ export default function Wallet({ usePioneer }: any) {
                                             </HStack>
                                             <Text fontSize="xs" color="gray.300">Balance: {b.balance} {b.symbol}</Text>
                                             {asset.explorerXpubLink && b.pubkey && (
-                                              <Link href={`${asset.explorerXpubLink}${b.pubkey}`} isExternal color="blue.200" fontSize="xs">
+                                              <Link
+                                                href={`${asset.explorerXpubLink}${b.pubkey}`}
+                                                isExternal
+                                                color="blue.200"
+                                                fontSize="xs"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                              >
                                                   View Xpub <FiExternalLink style={{ display: 'inline-block', verticalAlign: 'middle' }} />
                                               </Link>
                                             )}
                                         </Box>
                                       ))}
                                   </SimpleGrid>
-                              </Box>
-
-                              {/* Actions */}
-                              <Box>
-                                  <HStack spacing={4}>
-                                      <Button colorPalette="green" variant="solid" onClick={() => handleOpenDialog('send')}>
-                                          <RiSendPlaneFill style={{ marginRight: '4px' }}/> Send
-                                      </Button>
-                                      <Button variant="surface" onClick={() => handleOpenDialog('receive')}>
-                                          <RiReceiptFill style={{ marginRight: '4px' }}/> Receive
-                                      </Button>
-                                  </HStack>
                               </Box>
                           </Box>
                         )}
