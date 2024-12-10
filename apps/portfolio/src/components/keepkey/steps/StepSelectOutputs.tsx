@@ -18,29 +18,33 @@ export function StepSelectOutputs() {
     opReturnData, setOpReturnData,
     canShowAmount,
     inputAmount, setInputAmount,
-    handleSendMax,
-    validateAddress
   } = useTransferContext();
 
   const addBatchOutput = useCallback(() => {
-    setBatchOutputs(prev => [...prev, { recipient: '', amount: '' }]);
+    setBatchOutputs((prev) => [...prev, { recipient: "", amount: "" }]);
   }, [setBatchOutputs]);
 
-  const handleBatchRecipientChange = useCallback((index: number, value: string) => {
-    setBatchOutputs(prev => {
-      const newOutputs = [...prev];
-      newOutputs[index].recipient = value;
-      return newOutputs;
-    });
-  }, [setBatchOutputs]);
+  const handleBatchRecipientChange = useCallback(
+    (index: number, value: string) => {
+      setBatchOutputs((prev) => {
+        const newOutputs = [...prev];
+        newOutputs[index].recipient = value;
+        return newOutputs;
+      });
+    },
+    [setBatchOutputs]
+  );
 
-  const handleBatchAmountChange = useCallback((index: number, value: string) => {
-    setBatchOutputs(prev => {
-      const newOutputs = [...prev];
-      newOutputs[index].amount = value;
-      return newOutputs;
-    });
-  }, [setBatchOutputs]);
+  const handleBatchAmountChange = useCallback(
+    (index: number, value: string) => {
+      setBatchOutputs((prev) => {
+        const newOutputs = [...prev];
+        newOutputs[index].amount = value;
+        return newOutputs;
+      });
+    },
+    [setBatchOutputs]
+  );
 
   const renderBatchOutputs = () => (
     <VStack w="full" maxW="md" spacing={4} mt={4}>
@@ -53,7 +57,7 @@ export function StepSelectOutputs() {
             size="sm"
             bg="gray.800"
             color="white"
-            _placeholder={{ color: 'gray.500' }}
+            _placeholder={{ color: "gray.500" }}
           />
           <Input
             placeholder="Amount"
@@ -63,7 +67,7 @@ export function StepSelectOutputs() {
             size="sm"
             bg="gray.800"
             color="white"
-            _placeholder={{ color: 'gray.500' }}
+            _placeholder={{ color: "gray.500" }}
           />
         </Flex>
       ))}
@@ -72,6 +76,13 @@ export function StepSelectOutputs() {
       </Button>
     </VStack>
   );
+
+  // Available balance from app.assetContext
+  const availableBalance = app.assetContext?.balance || "0";
+
+  const handleSendMax = () => {
+    setInputAmount(availableBalance);
+  };
 
   return (
     <VStack spacing={4} align="start">
@@ -101,7 +112,7 @@ export function StepSelectOutputs() {
             size="md"
             bg="gray.800"
             color="white"
-            _placeholder={{ color: 'gray.500' }}
+            _placeholder={{ color: "gray.500" }}
           />
           {recipientError && (
             <Text color="red.400" fontSize="xs" mt={1}>
@@ -120,7 +131,7 @@ export function StepSelectOutputs() {
             size="md"
             bg="gray.800"
             color="white"
-            _placeholder={{ color: 'gray.500' }}
+            _placeholder={{ color: "gray.500" }}
             mt={4}
           />
         </Box>
@@ -138,18 +149,13 @@ export function StepSelectOutputs() {
             size="md"
             bg="gray.800"
             color="white"
-            _placeholder={{ color: 'gray.500' }}
+            _placeholder={{ color: "gray.500" }}
           />
           <Flex justifyContent="space-between" mt={1} align="center">
             <Text fontSize="sm" color="gray.400">
-              Available Balance: {app.assetContext?.balances[0].balance ?? '0'} {app.assetContext?.symbol}
+              Available Balance: {availableBalance} {app.assetContext?.symbol}
             </Text>
-            <Button
-              colorScheme="teal"
-              size="sm"
-              variant="solid"
-              onClick={handleSendMax}
-            >
+            <Button colorScheme="teal" size="sm" variant="solid" onClick={handleSendMax}>
               Send Max
             </Button>
           </Flex>
