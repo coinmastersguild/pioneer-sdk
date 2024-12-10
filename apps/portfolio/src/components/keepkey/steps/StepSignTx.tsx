@@ -15,7 +15,7 @@ export function StepSignTx() {
   return (
     <>
       {!signedTx && (
-        <VStack spacing={4}>
+        <VStack >
           <Image
             src="https://via.placeholder.com/150"
             alt="Confirm on Device"
@@ -29,7 +29,7 @@ export function StepSignTx() {
           <Button variant="outline" size="sm">Prev</Button>
         </StepsPrevTrigger>
         <StepsNextTrigger asChild>
-          <Button variant="outline" size="sm" onClick={broadcastTx} isDisabled={!signedTx}>
+          <Button variant="outline" size="sm" onClick={broadcastTx}>
             Next
           </Button>
         </StepsNextTrigger>

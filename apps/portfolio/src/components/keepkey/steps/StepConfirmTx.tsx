@@ -23,7 +23,7 @@ export function StepConfirmTx() {
           whiteSpace="normal"
           overflowWrap="break-word"
           wordBreak="break-all"
-          spacing={4}
+
           align="stretch"
         >
           <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />

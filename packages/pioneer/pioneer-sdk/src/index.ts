@@ -1083,13 +1083,6 @@ export class SDK {
           return true; // Include valid balances
         });
 
-        // Save all valid balances to the storage
-        for (const balance of this.balances) {
-          await this.keepKeySdk.storage
-            .createBalance(balance)
-            .catch((error) => console.error('Error creating balance:', error));
-        }
-
         console.log(tag, `Total unique balances after charts update: ${this.balances.length}`);
         return this.balances;
       } catch (e) {

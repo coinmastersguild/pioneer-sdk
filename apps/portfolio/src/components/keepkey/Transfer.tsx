@@ -84,7 +84,7 @@ interface TransferContextValue {
     setOpReturnEnabled: (v: boolean) => void;
 
     batchOutputs: BatchOutput[];
-    setBatchOutputs: (v: BatchOutput[]) => void;
+    setBatchOutputs: (v: any) => void;
 
     opReturnData: string;
     setOpReturnData: (v: string) => void;
@@ -310,7 +310,7 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
         }
     }, [batchEnabled, batchOutputs, recipient]);
 
-    const value: TransferContextValue = {
+    const value: any = {
         app, caip, explorerTxLink,
         isSubmitting, setIsSubmitting,
         inputAmount, setInputAmount,

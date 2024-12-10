@@ -49,8 +49,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        let spec = 'https://pioneers.dev/spec/swagger.json'
-        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        // let spec = 'https://pioneers.dev/spec/swagger.json'
+        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [

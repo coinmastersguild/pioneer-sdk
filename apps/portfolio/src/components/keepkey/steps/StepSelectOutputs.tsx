@@ -21,12 +21,12 @@ export function StepSelectOutputs() {
   } = useTransferContext();
 
   const addBatchOutput = useCallback(() => {
-    setBatchOutputs((prev) => [...prev, { recipient: "", amount: "" }]);
+    setBatchOutputs((prev:any) => [...prev, { recipient: "", amount: "" }]);
   }, [setBatchOutputs]);
 
   const handleBatchRecipientChange = useCallback(
     (index: number, value: string) => {
-      setBatchOutputs((prev) => {
+      setBatchOutputs((prev:any) => {
         const newOutputs = [...prev];
         newOutputs[index].recipient = value;
         return newOutputs;
@@ -37,7 +37,7 @@ export function StepSelectOutputs() {
 
   const handleBatchAmountChange = useCallback(
     (index: number, value: string) => {
-      setBatchOutputs((prev) => {
+      setBatchOutputs((prev:any) => {
         const newOutputs = [...prev];
         newOutputs[index].amount = value;
         return newOutputs;
@@ -47,8 +47,8 @@ export function StepSelectOutputs() {
   );
 
   const renderBatchOutputs = () => (
-    <VStack w="full" maxW="md" spacing={4} mt={4}>
-      {batchOutputs.map((output, index) => (
+    <VStack w="full" maxW="md"  mt={4}>
+      {batchOutputs.map((output:any, index:any) => (
         <Flex key={index} w="full" gap={2}>
           <Input
             placeholder="Recipient Address"
@@ -85,18 +85,18 @@ export function StepSelectOutputs() {
   };
 
   return (
-    <VStack spacing={4} align="start">
+    <VStack  align="start">
       <Flex gap={8} align="center" justify="center" mt={4}>
-        <Flex align="center" gap={2}>
-          <Switch isChecked={batchEnabled} onChange={(e) => setBatchEnabled(e.target.checked)}>
-            Batch Output
-          </Switch>
-        </Flex>
-        <Flex align="center" gap={2}>
-          <Switch isChecked={opReturnEnabled} onChange={(e) => setOpReturnEnabled(e.target.checked)}>
-            OP_RETURN
-          </Switch>
-        </Flex>
+      {/*  <Flex align="center" gap={2}>*/}
+      {/*    <Switch onChange={(e) => setBatchEnabled(e.target.checked)}>*/}
+      {/*      Batch Output*/}
+      {/*    </Switch>*/}
+      {/*  </Flex>*/}
+      {/*  <Flex align="center" gap={2}>*/}
+      {/*    <Switch onChange={(e) => setOpReturnEnabled(e.target.checked)}>*/}
+      {/*      OP_RETURN*/}
+      {/*    </Switch>*/}
+      {/*  </Flex>*/}
       </Flex>
 
       {batchEnabled ? (

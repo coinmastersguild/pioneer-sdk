@@ -106,6 +106,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       pubkey.path = addressNListToBIP32(path.addressNList);
     }
 
+    pubkey.scriptType = path.script_type;
     pubkey.note = path.note;
     pubkey.available_scripts_types = path.available_scripts_types;
     pubkey.context = context;

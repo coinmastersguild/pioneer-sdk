@@ -17,13 +17,13 @@ export function StepBroadcastTx() {
   return (
     <>
       {signedTx && !broadcastResult && (
-        <VStack spacing={4}>
+        <VStack >
           <Button colorScheme="green">Broadcast Transaction</Button>
         </VStack>
       )}
 
       {broadcastResult && (
-        <VStack spacing={4}>
+        <VStack >
           <Text color="gray.300">Transaction broadcasted successfully!</Text>
           {txHash && (
             <Box mt={4}>
@@ -33,7 +33,6 @@ export function StepBroadcastTx() {
               <Link
                 href={`${explorerTxLink}${txHash}`}
                 color="teal.500"
-                isExternal
               >
                 {txHash}
               </Link>

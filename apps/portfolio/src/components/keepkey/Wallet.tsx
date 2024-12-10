@@ -77,7 +77,6 @@ export default function Wallet({ usePioneer }: any) {
                   {activeTab && (
                     <IconButton
                       aria-label="Close dialog"
-                      icon={<RiCloseCircleLine />}
                       onClick={handleCloseTab}
                       variant="ghost"
                       color="white"
@@ -131,7 +130,7 @@ export default function Wallet({ usePioneer }: any) {
                                           <Text fontSize="sm" color="gray.300" mb={2}>
                                               {asset.caip}
                                           </Text>
-                                          <HStack spacing={4} mb={2}>
+                                          <HStack  mb={2}>
                                               <Badge colorScheme="green">USD Value: ${parseFloat(asset.valueUsd || 0).toLocaleString()}</Badge>
                                               <Badge colorScheme="orange">Price: ${parseFloat(asset.priceUsd || 0).toLocaleString()}</Badge>
                                               <Badge colorScheme="blue">Balance: {asset.balance}</Badge>
@@ -139,7 +138,7 @@ export default function Wallet({ usePioneer }: any) {
                                           {asset.explorer && (
                                             <Link
                                               href={asset.explorer}
-                                              isExternal
+
                                               color="blue.200"
                                               fontSize="sm"
                                               target="_blank"
@@ -154,7 +153,7 @@ export default function Wallet({ usePioneer }: any) {
 
                               {/* CTAs (Receive / Send) Centered and Swapped */}
                               <Box textAlign="center" my={8}>
-                                  <HStack spacing={4} justify="center">
+                                  <HStack  justify="center">
                                       <Button variant="surface" onClick={() => handleOpenDialog('receive')}>
                                           <RiReceiptFill style={{ marginRight: '4px' }}/> Receive
                                       </Button>
@@ -178,13 +177,13 @@ export default function Wallet({ usePioneer }: any) {
                                       {asset.pubkeys && asset.pubkeys.map((pk: any, idx: number) => (
                                         <Box key={idx} mb={3} p={2} bg="gray.800" borderRadius="md">
                                             <Text fontSize="sm" fontWeight="bold">{pk.type.toUpperCase()} PUBKEY</Text>
-                                            <Text fontSize="xs" color="gray.400" noOfLines={1}>{pk.pubkey}</Text>
+                                            <Text fontSize="xs" color="gray.400" >{pk.pubkey}</Text>
                                             <Text fontSize="xs" color="gray.200">Address: {pk.address}</Text>
                                             <Text fontSize="xs" color="gray.200">Path: {pk.path}</Text>
                                             {asset.explorerAddressLink && pk.address && (
                                               <Link
                                                 href={`${asset.explorerAddressLink}${pk.address}`}
-                                                isExternal
+
                                                 color="blue.200"
                                                 fontSize="xs"
                                                 target="_blank"
@@ -201,7 +200,7 @@ export default function Wallet({ usePioneer }: any) {
                               {/* Balances */}
                               <Box>
                                   <Heading as="h3" size="sm" mb={2}>All Balances</Heading>
-                                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+                                  <SimpleGrid columns={{ base: 1, md: 2 }} >
                                       {sortedBalances.map((b: any, i: number) => (
                                         <Box
                                           key={i}
@@ -219,7 +218,6 @@ export default function Wallet({ usePioneer }: any) {
                                             {asset.explorerXpubLink && b.pubkey && (
                                               <Link
                                                 href={`${asset.explorerXpubLink}${b.pubkey}`}
-                                                isExternal
                                                 color="blue.200"
                                                 fontSize="xs"
                                                 target="_blank"

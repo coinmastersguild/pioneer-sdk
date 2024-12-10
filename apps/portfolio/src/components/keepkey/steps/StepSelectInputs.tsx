@@ -24,13 +24,13 @@ export function StepSelectInputs() {
   };
 
   return (
-    <VStack align="start" spacing={6} mt={6}>
+    <VStack align="start"  mt={6}>
       <Avatar size="xl" src={app.assetContext.icon} />
 
       <Text color="gray.400" fontSize="sm">
         Asset ID: {app.assetContext?.assetId}
       </Text>
-      <HStack spacing={4} mb={2}>
+      <HStack  mb={2}>
         <Badge colorScheme="green">USD Value: ${parseFloat(app.assetContext.valueUsd || 0).toLocaleString()}</Badge>
         <Badge colorScheme="orange">Price: ${parseFloat(app.assetContext.priceUsd || 0).toLocaleString()}</Badge>
         <Badge colorScheme="blue">Balance: {app.assetContext.balance} BTC</Badge>

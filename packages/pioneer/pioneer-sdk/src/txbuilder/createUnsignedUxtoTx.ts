@@ -49,8 +49,16 @@ export async function createUnsignedUxtoTx(
 
     const utxos: any[] = [];
     for (const pubkey of relevantPubkeys) {
+      console.log('pubkey: ',pubkey)
       let utxosResp = await pioneer.ListUnspent({ network: chain, xpub: pubkey.pubkey });
       utxosResp = utxosResp.data;
+      console.log('utxosResp: ',utxosResp)
+      //classify scriptType
+      let scriptType = pubkey.scriptType
+      // Assign the scriptType to each UTXO in the array
+      for (const u of utxosResp) {
+        u.scriptType = scriptType;
+      }
       utxos.push(...utxosResp);
     }
     if (!utxos || utxos.length === 0) throw Error('No UTXOs found');
@@ -123,15 +131,17 @@ export async function createUnsignedUxtoTx(
     if (fee === undefined) throw Error('Failed to calculate transaction fee');
 
     const uniqueInputSet = new Set();
+    console.log(tag,'inputs:', inputs);
+    console.log(tag,'inputs:', inputs[0]);
     const preparedInputs = inputs
       .map(transformInput)
       .filter(({ hash, index }) =>
         uniqueInputSet.has(`${hash}:${index}`) ? false : uniqueInputSet.add(`${hash}:${index}`),
       )
-      .map(({ value, index, hash, txHex, path }) => ({
+      .map(({ value, index, hash, txHex, path, scriptType }) => ({
         addressNList: bip32ToAddressNList(path),
         //TODO this is PER INPUT not per asset, we need to detect what pubkeys are segwit what are not
-        scriptType: isSegwit ? 'p2wpkh' : 'p2sh',
+        scriptType,
         amount: value.toString(),
         vout: index,
         txid: hash,
@@ -207,4 +217,17 @@ function transformInput(input) {
       script: Buffer.from(tx.vout[0].scriptPubKey.hex, 'hex'),
     },
   };
+}
+
+function getScriptTypeFromXpub(xpub: string): string {
+  if (xpub.startsWith('xpub')) {
+    return 'p2pkh';  // Legacy
+  } else if (xpub.startsWith('ypub')) {
+    return 'p2sh';   // P2WPKH nested in P2SH
+  } else if (xpub.startsWith('zpub')) {
+    return 'p2wpkh'; // Native SegWit
+  } else {
+    // Default fallback
+    return 'p2pkh';
+  }
 }

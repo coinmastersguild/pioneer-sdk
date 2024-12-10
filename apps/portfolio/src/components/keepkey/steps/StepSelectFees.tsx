@@ -13,7 +13,7 @@ export function StepSelectFees() {
   } = useTransferContext();
 
   return (
-    <VStack spacing={4}>
+    <VStack >
       <Text color="gray.300">Select Fee Level</Text>
       <Flex gap={2}>
         <Button variant={feeLevel===1?"solid":"outline"} colorScheme="green" size="sm" onClick={()=>setFeeLevel(1)}>Slow</Button>
