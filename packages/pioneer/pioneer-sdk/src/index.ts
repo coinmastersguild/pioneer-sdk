@@ -134,6 +134,7 @@ export class SDK {
   private buildTx: (sendPayload: any) => Promise<any>;
   private estimateMax: (sendPayload: any) => Promise<void>;
   private syncMarket: () => Promise<boolean>;
+  private getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -205,11 +206,11 @@ export class SDK {
         await this.loadPubkeyCache(pubkeysCache);
 
         //No more balance cache!
-        let balanceCache = await this.keepKeySdk.storage.getBalances().catch((error) => {
-          //console.error('Error fetching balanceCache:', error);
-          return [];
-        });
-        await this.loadBalanceCache(balanceCache);
+        // let balanceCache = await this.keepKeySdk.storage.getBalances().catch((error) => {
+        //   //console.error('Error fetching balanceCache:', error);
+        //   return [];
+        // });
+        // await this.loadBalanceCache(balanceCache);
 
         await this.sync();
         return this.pioneer;
@@ -449,6 +450,7 @@ export class SDK {
         console.log('unsignedTx: ', unsignedTx);
       } catch (e) {
         console.error(e);
+        throw e
       }
     };
     this.buildTx = async function (sendPayload: any) {
@@ -469,6 +471,7 @@ export class SDK {
         return unsignedTx;
       } catch (e) {
         console.error(e);
+        throw e
       }
     };
     this.signTx = async function (unsignedTx: any) {
@@ -489,6 +492,7 @@ export class SDK {
         return signedTx;
       } catch (e) {
         console.error(e);
+        throw e
       }
     };
     this.broadcastTx = async function (caip: string, signedTx: any) {
@@ -513,6 +517,7 @@ export class SDK {
         return txid;
       } catch (e) {
         console.error(e);
+        throw e
       }
     };
     this.swap = async function (swapPayload) {
@@ -634,6 +639,7 @@ export class SDK {
           return { txid, events: this.events };
         }
       } catch (e) {
+        console.error(tag, 'Error: ', e);
         throw e;
       }
     };
@@ -785,6 +791,7 @@ export class SDK {
         this.events.emit('SET_BLOCKCHAINS', this.blockchains);
       } catch (e) {
         console.error('Failed to load balances! e: ', e);
+        throw e
       }
     };
     this.addAsset = async function (caip: string, data: any) {
@@ -835,6 +842,7 @@ export class SDK {
         return success;
       } catch (e) {
         console.error('Failed to load balances! e: ', e);
+        throw e
       }
     };
     this.clearWalletState = async function () {
@@ -945,149 +953,99 @@ export class SDK {
         throw error;
       }
     };
-    this.getBalance = async function (networkId: string) {
-      const tag = `${TAG} | getBalance | `;
-      try {
-        console.log(tag, 'networkId: ', networkId);
-
-        // Step 1: Get Native/Gas Asset balance
-        const caipNative = await networkIdToCaip(networkId);
-
-        // Adjust networkId for wildcard matching if necessary
-        if (networkId.includes('eip155:')) {
-          networkId = 'eip155:*';
-        }
-
-        const pubkeys = this.pubkeys.filter((pubkey: any) => pubkey.networks.includes(networkId));
-
-        if (!pubkeys || pubkeys.length === 0) {
-          throw new Error('missing pubkeys for networkId: ' + networkId);
-        }
-
-        const asset = this.assetsMap.get(caipNative);
-
-        if (!asset) {
-          throw new Error('Asset not found for caipNative: ' + caipNative);
-        }
-
-        // Perform Navigate calls in parallel
-        const balanceResults = await Promise.all(
-          pubkeys.map(async (pubkey: any) => {
-            try {
-              console.log(tag, 'pubkey: ', pubkey);
-              console.log(tag, 'asset: ', asset);
-
-              const balancesData = await this.pioneer.Navigate({ asset, pubkey });
-              const balances = balancesData.data;
-
-              console.log(tag, 'Navigate balances response: ', balances);
-
-              balances.forEach((balance: any) => {
-                balance.chain = balance.networkId;
-                balance.pubkey = pubkey.pubkey || pubkey.address || pubkey.master;
-
-                if (!balance.pubkey) {
-                  throw new Error('missing pubkey for balance: ' + JSON.stringify(balance));
-                }
-
-                balance.type = 'gas';
-                balance.context = this.context;
-                balance.contextType = 'KEEPKEY';
-                balance.ticker = balance.symbol;
-                balance.identifier = `${balance.caip}:${balance.pubkey}`;
-                balance.balance = balance.balance?.toString() || '0';
-                balance.valueUsd = balance.valueUsd?.toString() || '0';
-
-                // Save balance to storage
-                this.keepKeySdk.storage
-                  .createBalance(balance)
-                  .catch((error) => console.error('Error creating balance:', error));
-
-                // Add to balances if not already present
-                const exists = this.balances.some((b: any) => b.identifier === balance.identifier);
-                console.log(tag, 'exists: ', exists);
-
-                if (!exists) {
-                  balance.icon = balance.icon || 'https://pioneers.dev/coins/etherum.png';
-                  this.balances.push(balance);
-                }
-              });
-
-              return balances;
-            } catch (e) {
-              console.error(tag, 'Failed to process balance for pubkey:', pubkey, e);
-              return []; // Return an empty array for failed pubkeys
-            }
-          }),
-        );
-
-        // Flatten results and ensure balances are unique
-        const newBalances = balanceResults.flat();
-        const uniqueBalances = new Map(
-          [...this.balances, ...newBalances].map((balance) => [balance.identifier, balance]),
-        );
-
-        // Update this.balances with unique balances
-        this.balances = Array.from(uniqueBalances.values());
-        console.log(tag, `Total balances after updating: ${this.balances.length}`);
-
-        return this.balances;
-      } catch (e) {
-        console.error(tag, 'Error: ', e);
-        throw e;
-      }
-    };
-    this.getBalances = async function () {
-      const tag = `${TAG} | getBalances | `;
+    this.getBalancesForNetworks = async function (networkIds: string[]) {
+      const tag = `${TAG} | getBalancesForNetworks | `;
       try {
         let assetQuery = [];
-        //get gas assets
-        for (let i = 0; i < this.blockchains.length; i++) {
-          const blockchain = this.blockchains[i];
-          const caipNative = await networkIdToCaip(blockchain);
-          //get pubkeys for network
-          const isEip155 = blockchain.includes('eip155');
 
+        // Build a query for each network in networkIds
+        for (const networkId of networkIds) {
+          let adjustedNetworkId = networkId;
+
+          // If networkId includes 'eip155:', then we consider all EVM networks
+          // as implemented previously in getBalance
+          if (adjustedNetworkId.includes('eip155:')) {
+            adjustedNetworkId = 'eip155:*';
+          }
+
+          // Get pubkeys for this network
+          const isEip155 = adjustedNetworkId.includes('eip155');
           const pubkeys = this.pubkeys.filter((pubkey) =>
             pubkey.networks.some((network) => {
-              if (isEip155) {
-                return network.startsWith('eip155:');
-              }
-              return network === blockchain;
+              if (isEip155) return network.startsWith('eip155:');
+              return network === adjustedNetworkId;
             }),
           );
 
-          for (let j = 0; j < pubkeys.length; j++) {
-            const pubkey = pubkeys[j];
+          // For each pubkey, build assetQuery entries
+          const caipNative = await networkIdToCaip(networkId);
+          for (const pubkey of pubkeys) {
             assetQuery.push({ caip: caipNative, pubkey: pubkey.pubkey });
           }
         }
 
-        console.log(tag, 'assetQuery: ', assetQuery.length);
+        console.log(tag, 'assetQuery length: ', assetQuery.length);
         console.time('GetPortfolioBalances Response Time');
         let marketInfo = await this.pioneer.GetPortfolioBalances(assetQuery);
         console.timeEnd('GetPortfolioBalances Response Time');
-        console.log('returned balances: ', marketInfo.data);
-        this.balances = marketInfo.data;
 
-        //Enrich balances with additional data
-        this.balances.forEach((balance: any) => {
+        console.log(tag, 'returned balances: ', marketInfo.data);
+        let balances = marketInfo.data;
+
+        // Enrich balances with asset info
+        for (let balance of balances) {
           const assetInfo = this.assetsMap.get(balance.caip);
-          if (!assetInfo) return; // Skip if no asset info found
+          if (!assetInfo) continue;
 
           Object.assign(balance, assetInfo, {
             networkId: caipToNetworkId(balance.caip),
             icon: assetInfo.icon || 'https://pioneers.dev/coins/etherum.png',
             identifier: `${balance.caip}:${balance.pubkey}`
           });
-        });
+        }
 
-        this.balances = marketInfo.data;
-
+        this.balances = balances;
         this.events.emit('SET_BALANCES', this.balances);
         return this.balances;
       } catch (e) {
-        console.error(tag, 'e: ', e);
+        console.error(tag, 'Error: ', e);
+        throw e;
+      }
+    };
+
+    this.getBalances = async function () {
+      const tag = `${TAG} | getBalances | `;
+      try {
+        // Simply call the shared function with all blockchains
+        return await this.getBalancesForNetworks(this.blockchains);
+      } catch (e) {
+        console.error(tag, 'Error in getBalances: ', e);
+        throw e;
+      }
+    };
+
+    this.getBalance = async function (networkId: string) {
+      const tag = `${TAG} | getBalance | `;
+      try {
+        console.log(tag, 'networkId:', networkId);
+        // If we need to handle special logic like eip155: inside getBalance,
+        // we can do it here or just rely on getBalancesForNetworks to handle it.
+        // For example:
+        // if (networkId.includes('eip155:')) {
+        //   networkId = 'eip155:*';
+        // }
+
+        // Call the shared function with a single-network array
+        const results = await this.getBalancesForNetworks([networkId]);
+
+        // If needed, you can filter only those that match the specific network
+        // (especially if you used wildcard eip155:*)
+        const filtered = results.filter(
+          async (b) => b.networkId === (await networkIdToCaip(networkId)),
+        );
+        return filtered;
+      } catch (e) {
+        console.error(tag, 'Error: ', e);
         throw e;
       }
     };

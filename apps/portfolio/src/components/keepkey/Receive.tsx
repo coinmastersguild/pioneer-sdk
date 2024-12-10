@@ -7,7 +7,7 @@ export function Receive({ usePioneer }: any) {
     const { app, assetContext } = state;
     const [avatarUrl, setAvatarUrl] = useState('');
     const [selectedAddress, setSelectedAddress] = useState('');
-    // const [pubkeys, setPubkeys] = useState([]);
+    const [pubkeys, setPubkeys] = useState([]);
     // const { hasCopied, onCopy } = useClipboard(selectedAddress);
 
     useEffect(() => {
@@ -26,7 +26,7 @@ export function Receive({ usePioneer }: any) {
                     ? pubkey.networks.some((networkId: any) => networkId.startsWith('eip155'))
                     : pubkey.networks.includes(assetContext?.networkId)
             );
-            // setPubkeys(filteredPubkeys);
+            setPubkeys(filteredPubkeys);
             if (filteredPubkeys.length > 0) setSelectedAddress(filteredPubkeys[0]?.address || filteredPubkeys[0]?.master);
         }
     }, [app.pubkeys, assetContext]);
@@ -38,6 +38,7 @@ export function Receive({ usePioneer }: any) {
                 <Text fontSize="lg" fontWeight="bold" textAlign="center">Receive</Text>
                 <br/>
                 {selectedAddress}
+                {app.assetContext.pubkeys[0].pubkey}
                 {/*<QRCode value={selectedAddress || ""} size={64} />*/}
             </Flex>
 

@@ -58,7 +58,7 @@ const test_service = async function (this: any) {
             // 'DASH',
             // 'LTC', //BROKE "Missing inputs
             // 'MATIC',
-            'THOR', //TXID BROKE
+            // 'THOR', //TXID BROKE
             // 'GAIA',
             // 'OSMO',
             // 'BASE',
@@ -71,7 +71,7 @@ const test_service = async function (this: any) {
             // 'MAYA', //MARKET INFO BROKE
             // // 'GNO',
             // 'BCH',
-            // 'BTC',
+            'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -150,17 +150,42 @@ const test_service = async function (this: any) {
         let paths = getPaths(blockchains)
         log.info(tag,"paths: ",paths.length)
 
-        paths.push({
-            note:"Bitcoin account 0 segwit (p2sh)",
-            networks: ['bip122:000000000019d6689c085ae165831e93'],
-            script_type:"p2sh",
-            available_scripts_types:['p2pkh','p2sh','p2wpkh','p2sh-p2wpkh'],
-            type:"zpub",
-            addressNList: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 0],
-            addressNListMaster: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 0, 0, 0],
-            curve: 'secp256k1'
-        })
-
+        // paths.push({
+        //     note:"Bitcoin account 0 segwit (p2sh)",
+        //     networks: ['bip122:000000000019d6689c085ae165831e93'],
+        //     script_type:"p2sh",
+        //     available_scripts_types:['p2pkh','p2sh','p2wpkh','p2sh-p2wpkh'],
+        //     type:"zpub",
+        //     addressNList: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 0],
+        //     addressNListMaster: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 0, 0, 0],
+        //     curve: 'secp256k1'
+        // })
+        // paths.push({
+        //     note:"Bitcoin account 1 Native Segwit (Bech32)",
+        //     blockchain: 'bitcoin',
+        //     symbol: 'BTC',
+        //     symbolSwapKit: 'BTC',
+        //     networks: ['bip122:000000000019d6689c085ae165831e93'],
+        //     script_type:"p2wpkh", //bech32
+        //     available_scripts_types:['p2pkh','p2sh','p2wpkh','p2sh-p2wpkh'],
+        //     type:"zpub",
+        //     addressNList: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 1],
+        //     addressNListMaster: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 1, 0, 0],
+        //     curve: 'secp256k1'
+        // })
+        // paths.push({
+        //     note:"Bitcoin account 2 Native Segwit (Bech32)",
+        //     blockchain: 'bitcoin',
+        //     symbol: 'BTC',
+        //     symbolSwapKit: 'BTC',
+        //     networks: ['bip122:000000000019d6689c085ae165831e93'],
+        //     script_type:"p2wpkh", //bech32
+        //     available_scripts_types:['p2pkh','p2sh','p2wpkh','p2sh-p2wpkh'],
+        //     type:"zpub",
+        //     addressNList: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 2],
+        //     addressNListMaster: [0x80000000 + 84, 0x80000000 + 0, 0x80000000 + 2, 0, 0],
+        //     curve: 'secp256k1'
+        // })
 
         let config:any = {
             username,
@@ -230,6 +255,9 @@ const test_service = async function (this: any) {
             assert(caip)
             log.info(tag,'caip: ',caip)
 
+            //set context
+            await app.setAssetContext({caip})
+
             let FAUCET_ADDRESS = caipToAddressMap[caip]
             assert(FAUCET_ADDRESS)
             log.info(tag,'FAUCET_ADDRESS: ',FAUCET_ADDRESS)
@@ -243,7 +271,9 @@ const test_service = async function (this: any) {
 
             // Fetch initial balance
             let balances = app.balances.filter((e: any) => e.caip === caip);
-            let balance = balances[0];
+            log.info(tag,'app.assetContext: ', app.assetContext)
+            let balance = app.assetContext.balance
+            log.info(tag,'Balance: ', balance)
             assert(balance, `${tag} Balance not found for ${caip}`);
             log.info(tag, 'Balance before: ', balance);
             let balanceBefore = balance.balance;
@@ -308,7 +338,7 @@ const test_service = async function (this: any) {
                 caip,
                 isMax: true,
                 to: FAUCET_ADDRESS,
-                amount: balance.balance,
+                amount: balance,
                 feeLevel: 5 // Options
             };
             log.info(tag, 'Send Payload: ', sendPayload);
