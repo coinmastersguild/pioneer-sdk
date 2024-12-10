@@ -2,7 +2,6 @@
 
 import {
     Box,
-    Button as ChakraButton,
     Flex,
     Heading,
     Input,
@@ -19,13 +18,6 @@ import { Avatar } from '@/components/ui/avatar';
 
 import { Steps } from './Steps';
 import { CoinControl } from './CoinControl';
-import {
-    HoverCardRoot,
-    HoverCardTrigger,
-    HoverCardContent,
-    HoverCardArrow,
-} from "@/components/ui/hover-card"
-
 import { Button } from "@/components/ui/button"
 
 export function Transfer({ usePioneer }: any): JSX.Element {
@@ -43,11 +35,9 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const [unsignedTx, setUnsignedTx] = useState<any>(null);
     const [signedTx, setSignedTx] = useState<any>(null);
     const [broadcastResult, setBroadcastResult] = useState<any>(null);
-    const [showCoinControl, setShowCoinControl] = useState(false);
     const [showSats, setShowSats] = useState(true);
 
     const validateAddress = (address: string) => true;
-
     const caip = app.assetContext?.caip;
     const explorerTxLink = app.assetContext?.explorerTxLink;
 
@@ -195,15 +185,9 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     ], []);
 
     const handleSelectionChange = (totalSelectedValue: number) => {
-        // Update the inputAmount field whenever the user selects/deselects inputs
-        // Convert sats to the unit used in inputAmount if needed.
-        // Assuming inputAmount is in the same unit as showSats:
-        if (showSats) {
-            setInputAmount(totalSelectedValue.toString());
-        } else {
-            // If showing BTC, convert totalSelectedValue (which is in sats) to BTC
-            setInputAmount((totalSelectedValue / 1e8).toFixed(8));
-        }
+        // Always show native BTC in the form
+        const btcValue = totalSelectedValue / 1e8; // Convert sats to BTC
+        setInputAmount(btcValue.toFixed(8));
     };
 
     return (
@@ -235,6 +219,16 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     </VStack>
                 </Flex>
 
+                {/* Coin Control is now shown above the form */}
+                <CoinControl
+                  inputsData={inputsData}
+                  showSats={showSats}
+                  onToggleUnit={setShowSats}
+                  onSelectionChange={handleSelectionChange}
+                />
+
+
+
                 <Box w="full" maxW="md">
                     <Input
                       placeholder="Recipient Address"
@@ -263,49 +257,30 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                       color="white"
                       _placeholder={{ color: 'gray.500' }}
                     />
-                    <Flex justifyContent="space-between" mt={1}>
+                    <Flex justifyContent="space-between" mt={1} align="center">
                         <Text fontSize="sm" color="gray.400">
                             Available Balance: {app.assetContext?.balances[0].balance ?? '0'} {app.assetContext?.symbol}
                         </Text>
-                        <ChakraButton size="sm" colorScheme="teal" onClick={handleSendMax}>
+                        <Button
+                          colorScheme="teal"
+                          size="sm"
+                          variant="solid"
+                          onClick={handleSendMax}
+                        >
                             Send Max
-                        </ChakraButton>
+                        </Button>
                     </Flex>
                 </Box>
 
                 <Flex gap={4} align="center" justify="center">
-                    <ChakraButton
+                    <Button
                       colorScheme="teal"
                       onClick={handleSend}
-                      size="lg"
-                      shadow="md"
-                      _hover={{ bg: 'teal.600' }}
+                      size="md"
+                      variant="solid"
                     >
                         Build Transaction
-                    </ChakraButton>
-
-                    <HoverCardRoot size="sm">
-                        <HoverCardTrigger asChild>
-                            <ChakraButton
-                              size="lg"
-                              colorScheme="gray"
-                              variant="outline"
-                              onClick={() => setShowCoinControl((prev) => !prev)}
-                            >
-                                Coin Control
-                            </ChakraButton>
-                        </HoverCardTrigger>
-                        <HoverCardContent bg="gray.800" color="white">
-                            <HoverCardArrow />
-                            <VStack align="start" spacing={2}>
-                                <Text fontWeight="semibold">What is Coin Control?</Text>
-                                <Text fontSize="sm" color="gray.300">
-                                    Coin control allows you to manually select which inputs (coins) you spend
-                                    in this transaction. This helps with privacy and optimization.
-                                </Text>
-                            </VStack>
-                        </HoverCardContent>
-                    </HoverCardRoot>
+                    </Button>
                 </Flex>
 
                 {isSubmitting && !unsignedTx && (
@@ -315,15 +290,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                           <Spinner size="xl" />
                       </VStack>
                   </Center>
-                )}
-
-                {showCoinControl && (
-                  <CoinControl
-                    inputsData={inputsData}
-                    showSats={showSats}
-                    onToggleUnit={setShowSats}
-                    onSelectionChange={handleSelectionChange}
-                  />
                 )}
             </>
           )}

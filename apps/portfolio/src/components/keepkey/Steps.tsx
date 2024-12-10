@@ -30,8 +30,12 @@ export function Steps({
                         onBroadcastTx,
                       }: StepsProps) {
   if (!showSteps) return null;
+
   return (
-    <StepsRoot count={3} mt={4} currentIndex={currentStep}>
+    // Add a color scheme or palette if supported by your StepsRoot
+    // If StepsRoot supports colorScheme directly, use `colorScheme="green"`.
+    // If it requires `colorPalette`, try `colorPalette="green"`.
+    <StepsRoot count={3} mt={4} currentIndex={currentStep} colorScheme="green">
       <StepsList mb={4}>
         <StepsItem index={0} title="Review Unsigned Tx" />
         <StepsItem index={1} title="Confirm on Device" />
@@ -41,7 +45,16 @@ export function Steps({
       {/* Step 0: Review Unsigned Tx */}
       <StepsContent index={0}>
         {unsignedTx && !signedTx && (
-          <VStack>
+          // Constrain width and ensure wrapping
+          <VStack
+            maxW="full"
+            w="full"
+            whiteSpace="normal"
+            overflowWrap="break-word"
+            wordBreak="break-all"
+            spacing={4}
+            align="stretch"
+          >
             <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />
             <Button colorScheme="green" onClick={onApproveTx}>
               Approve Transaction (Sign)
@@ -53,7 +66,7 @@ export function Steps({
       {/* Step 1: Confirm on Device */}
       <StepsContent index={1}>
         {!signedTx && (
-          <VStack>
+          <VStack spacing={4}>
             <Image
               src="https://via.placeholder.com/150"
               alt="Confirm on Device"
@@ -67,8 +80,8 @@ export function Steps({
       {/* Step 2: Broadcast Transaction */}
       <StepsContent index={2}>
         {signedTx && (
-          <VStack>
-            <Button colorScheme="blue" onClick={onBroadcastTx}>
+          <VStack spacing={4}>
+            <Button colorScheme="green" onClick={onBroadcastTx}>
               Broadcast Transaction
             </Button>
           </VStack>
