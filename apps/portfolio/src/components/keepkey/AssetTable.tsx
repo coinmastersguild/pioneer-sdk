@@ -147,18 +147,18 @@ const AssetTable = ({ usePioneer, onSelect }: any) => {
                                   decimal="."
                                 />
                             </Text>
-                            {zeroBalances.length > 0 && (
-                              <IconButton
-                                aria-label="Toggle zero balances"
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleZeroBalances(network.networkId);
-                                }}
-                                icon={<Text>{showZeroBalances[network.networkId] ? "˅" : "˄"}</Text>}
-                              />
-                            )}
+                            {/*{zeroBalances.length > 0 && (*/}
+                            {/*  <IconButton*/}
+                            {/*    aria-label="Toggle zero balances"*/}
+                            {/*    size="sm"*/}
+                            {/*    variant="ghost"*/}
+                            {/*    onClick={(e) => {*/}
+                            {/*        e.stopPropagation();*/}
+                            {/*        toggleZeroBalances(network.networkId);*/}
+                            {/*    }}*/}
+                            {/*    icon={<Text>{showZeroBalances[network.networkId] ? "˅" : "˄"}</Text>}*/}
+                            {/*  />*/}
+                            {/*)}*/}
                         </Flex>
                     </AccordionItemTrigger>
                     <AccordionItemContent>
