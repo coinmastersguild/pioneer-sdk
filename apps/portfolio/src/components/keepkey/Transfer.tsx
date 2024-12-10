@@ -1,6 +1,8 @@
+"use client";
+
 import {
     Box,
-    Button,
+    Button as ChakraButton,
     Flex,
     Heading,
     Input,
@@ -9,20 +11,22 @@ import {
     Link,
     Center,
     Spinner,
-    Image
+    Image,
 } from '@chakra-ui/react';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { toaster } from '@/components/ui/toaster';
 import { Avatar } from '@/components/ui/avatar';
+
+import { Steps } from './Steps';
+import { CoinControl } from './CoinControl';
 import {
-    StepsCompletedContent,
-    StepsContent,
-    StepsItem,
-    StepsList,
-    StepsRoot,
-} from '@/components/ui/steps';
-import { TxReview } from '@/components/tx';
-import { TxStatus } from '@/components/txStatus';
+    HoverCardRoot,
+    HoverCardTrigger,
+    HoverCardContent,
+    HoverCardArrow,
+} from "@/components/ui/hover-card"
+
+import { Button } from "@/components/ui/button"
 
 export function Transfer({ usePioneer }: any): JSX.Element {
     const { state } = usePioneer();
@@ -39,11 +43,10 @@ export function Transfer({ usePioneer }: any): JSX.Element {
     const [unsignedTx, setUnsignedTx] = useState<any>(null);
     const [signedTx, setSignedTx] = useState<any>(null);
     const [broadcastResult, setBroadcastResult] = useState<any>(null);
+    const [showCoinControl, setShowCoinControl] = useState(false);
+    const [showSats, setShowSats] = useState(true);
 
-    const validateAddress = (address: string) => {
-        // Implement address validation if needed
-        return true;
-    };
+    const validateAddress = (address: string) => true;
 
     const caip = app.assetContext?.caip;
     const explorerTxLink = app.assetContext?.explorerTxLink;
@@ -65,7 +68,6 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
         setIsSubmitting(true);
 
-        // Clear previous states
         setUnsignedTx(null);
         setSignedTx(null);
         setBroadcastResult(null);
@@ -81,12 +83,11 @@ export function Transfer({ usePioneer }: any): JSX.Element {
             isMax,
         };
 
-        // Simulate delay to show spinner
+        // Simulate delay
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         try {
             let unsignedTxResult = await app.buildTx(sendPayload);
-
             let transactionState: any = {
                 method: 'transfer',
                 caip,
@@ -169,8 +170,44 @@ export function Transfer({ usePioneer }: any): JSX.Element {
         }
     }, [app, signedTx, caip]);
 
+    // Sample inputs
+    const inputsData = useMemo(() => [
+        {
+            txid: 'a47f60ff416f17cc9b0543f8afe05ae8bad98c9c2c69c207ecc0d50799dc52f0',
+            vout: 0,
+            value: '38544',
+            height: 873975,
+            confirmations: 96,
+            address: 'bc1q8w2ypqgx39gucxcypqv2m90wz9rvhmmrcnpdjs',
+            path: "m/84'/0'/0'/0/0",
+            locked: false
+        },
+        {
+            txid: 'a47f60ff416f17cc9b0543f8afe05ae8bad98c9c2c69c207ecc0d50799dc52f0',
+            vout: 2,
+            value: '20411',
+            height: 873975,
+            confirmations: 96,
+            address: '3M9rBdu7rkVGwmt9gALjuRopAqpVEBdNRR',
+            path: "m/49'/0'/0'/0/0",
+            locked: false
+        }
+    ], []);
+
+    const handleSelectionChange = (totalSelectedValue: number) => {
+        // Update the inputAmount field whenever the user selects/deselects inputs
+        // Convert sats to the unit used in inputAmount if needed.
+        // Assuming inputAmount is in the same unit as showSats:
+        if (showSats) {
+            setInputAmount(totalSelectedValue.toString());
+        } else {
+            // If showing BTC, convert totalSelectedValue (which is in sats) to BTC
+            setInputAmount((totalSelectedValue / 1e8).toFixed(8));
+        }
+    };
+
     return (
-      <VStack p={8} bg="gray.900" mx="auto" mt={10} textAlign="center">
+      <VStack p={8} bg="gray.900" mx="auto" mt={10} textAlign="center" spacing={6}>
           {!showSteps && !broadcastResult && (
             <>
                 <Heading as="h2" size="lg" color="teal.300">
@@ -198,7 +235,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     </VStack>
                 </Flex>
 
-                <Box>
+                <Box w="full" maxW="md">
                     <Input
                       placeholder="Recipient Address"
                       value={recipient}
@@ -215,7 +252,7 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     )}
                 </Box>
 
-                <Box>
+                <Box w="full" maxW="md">
                     <Input
                       placeholder="Amount"
                       value={inputAmount}
@@ -228,24 +265,48 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                     />
                     <Flex justifyContent="space-between" mt={1}>
                         <Text fontSize="sm" color="gray.400">
-                            Available Balance: {app.assetContext?.balances[0].balance ?? '0'}{' '}
-                            {app.assetContext?.symbol}
+                            Available Balance: {app.assetContext?.balances[0].balance ?? '0'} {app.assetContext?.symbol}
                         </Text>
-                        <Button size="sm" colorScheme="teal" onClick={handleSendMax}>
+                        <ChakraButton size="sm" colorScheme="teal" onClick={handleSendMax}>
                             Send Max
-                        </Button>
+                        </ChakraButton>
                     </Flex>
                 </Box>
 
-                <Button
-                  colorScheme="teal"
-                  onClick={handleSend}
-                  size="lg"
-                  shadow="md"
-                  _hover={{ bg: 'teal.600' }}
-                >
-                    Build Transaction
-                </Button>
+                <Flex gap={4} align="center" justify="center">
+                    <ChakraButton
+                      colorScheme="teal"
+                      onClick={handleSend}
+                      size="lg"
+                      shadow="md"
+                      _hover={{ bg: 'teal.600' }}
+                    >
+                        Build Transaction
+                    </ChakraButton>
+
+                    <HoverCardRoot size="sm">
+                        <HoverCardTrigger asChild>
+                            <ChakraButton
+                              size="lg"
+                              colorScheme="gray"
+                              variant="outline"
+                              onClick={() => setShowCoinControl((prev) => !prev)}
+                            >
+                                Coin Control
+                            </ChakraButton>
+                        </HoverCardTrigger>
+                        <HoverCardContent bg="gray.800" color="white">
+                            <HoverCardArrow />
+                            <VStack align="start" spacing={2}>
+                                <Text fontWeight="semibold">What is Coin Control?</Text>
+                                <Text fontSize="sm" color="gray.300">
+                                    Coin control allows you to manually select which inputs (coins) you spend
+                                    in this transaction. This helps with privacy and optimization.
+                                </Text>
+                            </VStack>
+                        </HoverCardContent>
+                    </HoverCardRoot>
+                </Flex>
 
                 {isSubmitting && !unsignedTx && (
                   <Center mt={8}>
@@ -255,75 +316,44 @@ export function Transfer({ usePioneer }: any): JSX.Element {
                       </VStack>
                   </Center>
                 )}
+
+                {showCoinControl && (
+                  <CoinControl
+                    inputsData={inputsData}
+                    showSats={showSats}
+                    onToggleUnit={setShowSats}
+                    onSelectionChange={handleSelectionChange}
+                  />
+                )}
             </>
           )}
 
-          {showSteps && (
-            <StepsRoot count={3} mt={4}>
-                <StepsList mb={4}>
-                    <StepsItem index={0} title="Review Unsigned Tx" />
-                    <StepsItem index={1} title="Confirm on Device" />
-                    <StepsItem index={2} title="Broadcast Transaction" />
-                </StepsList>
-
-                <StepsContent index={0}>
-                    {unsignedTx && !signedTx && (
-                      <VStack>
-                          <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />
-                          <Button colorScheme="green" onClick={handleApproveTx}>
-                              Approve Transaction (Sign)
-                          </Button>
-                      </VStack>
-                    )}
-                </StepsContent>
-
-                <StepsContent index={1}>
-                    {!signedTx && (
-                      <VStack>
-                          <Image
-                            src="https://via.placeholder.com/150"
-                            alt="Confirm on Device"
-                            borderRadius="md"
-                          />
-                          <Text color="gray.300">Confirm transaction on your device...</Text>
-                      </VStack>
-                    )}
-                </StepsContent>
-
-                <StepsContent index={2}>
-                    {signedTx && (
-                      <VStack>
-                          <Button colorScheme="blue" onClick={handleBroadcastTx}>
-                              Broadcast Transaction
-                          </Button>
-                      </VStack>
-                    )}
-                </StepsContent>
-
-                <StepsCompletedContent>
-                    <Text textAlign="center" color="gray.300">
-                        All steps are complete!
-                    </Text>
-                </StepsCompletedContent>
-            </StepsRoot>
-          )}
+          <Steps
+            showSteps={showSteps}
+            currentStep={currentStep}
+            unsignedTx={unsignedTx}
+            signedTx={signedTx}
+            onApproveTx={handleApproveTx}
+            onBroadcastTx={handleBroadcastTx}
+          />
 
           {!showSteps && broadcastResult && (
-            <TxStatus broadcastResult={broadcastResult} explorerTxLink={explorerTxLink} txHash={txHash} />
-          )}
-
-          {txHash && !showSteps && (
-            <Box mt={4}>
-                <Text fontSize="md" color="gray.300">
-                    Transaction ID:
-                </Text>
-                <Link
-                  href={`${explorerTxLink}${txHash}`}
-                  color="teal.500"
-                >
-                    {txHash}
-                </Link>
-            </Box>
+            <>
+                <Text color="gray.300">Transaction broadcasted successfully!</Text>
+                {txHash && (
+                  <Box mt={4}>
+                      <Text fontSize="md" color="gray.300">
+                          Transaction ID:
+                      </Text>
+                      <Link
+                        href={`${explorerTxLink}${txHash}`}
+                        color="teal.500"
+                      >
+                          {txHash}
+                      </Link>
+                  </Box>
+                )}
+            </>
           )}
       </VStack>
     );
