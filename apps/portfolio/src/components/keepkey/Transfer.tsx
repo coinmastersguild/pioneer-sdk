@@ -111,7 +111,6 @@ interface TransferContextValue {
     buildTx: () => Promise<void>;
     signTx: () => Promise<void>;
     broadcastTx: () => Promise<void>;
-    // A computed helper:
     canShowAmount: boolean;
 }
 
@@ -310,7 +309,6 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
     }, [app, caip, signedTx]);
 
     const canShowAmount = useMemo(() => {
-        // Condition from previous logic
         if (batchEnabled) {
             // At least one batch output with a valid address
             return batchOutputs.some(o => o.recipient && validateAddress(o.recipient));
@@ -541,6 +539,7 @@ function CoinControl({
 // ---------------------------
 function StepSelectInputs() {
     const {
+        app,
         coinControlEnabled, setCoinControlEnabled,
         inputsData, showSats, setShowSats,
         handleSelectionChange
@@ -548,6 +547,10 @@ function StepSelectInputs() {
 
     return (
       <VStack align="start" spacing={4} mt={4}>
+          <Text color="gray.400" fontSize="sm">
+              Asset ID: {app.assetContext?.assetId}
+          </Text>
+
           <Flex align="center" gap={2}>
               <Switch isChecked={coinControlEnabled} onChange={(e) => setCoinControlEnabled(e.target.checked)}>
                   Coin Control
@@ -575,6 +578,7 @@ function StepSelectInputs() {
 
 function StepSelectOutputs() {
     const {
+        app,
         batchEnabled, setBatchEnabled,
         opReturnEnabled, setOpReturnEnabled,
         batchOutputs, setBatchOutputs,
@@ -583,8 +587,7 @@ function StepSelectOutputs() {
         opReturnData, setOpReturnData,
         canShowAmount,
         inputAmount, setInputAmount,
-        isMax, handleSendMax,
-        app,
+        handleSendMax,
         validateAddress
     } = useTransferContext();
 
@@ -847,7 +850,6 @@ function StepBroadcastTx() {
           {signedTx && !broadcastResult && (
             <VStack spacing={4}>
                 <Button colorScheme="green">Broadcast Transaction</Button>
-                {/* Button disabled here since we handle in sign step */}
             </VStack>
           )}
 
@@ -884,6 +886,8 @@ function StepBroadcastTx() {
 // Steps Component
 // ---------------------------
 function Steps() {
+    const { app } = useTransferContext();
+
     return (
       <StepsRoot
         orientation="horizontal"
@@ -902,12 +906,12 @@ function Steps() {
               <StepsItem index={5} title="Broadcast" icon={<FaCheck />} />
           </StepsList>
 
-          <StepsContent index={0}><StepSelectInputs /></StepsContent>
-          <StepsContent index={1}><StepSelectOutputs /></StepsContent>
-          <StepsContent index={2}><StepSelectFees /></StepsContent>
-          <StepsContent index={3}><StepConfirmTx /></StepsContent>
-          <StepsContent index={4}><StepSignTx /></StepsContent>
-          <StepsContent index={5}><StepBroadcastTx /></StepsContent>
+          <StepsContent index={0}><StepSelectInputs/></StepsContent>
+          <StepsContent index={1}><StepSelectOutputs/></StepsContent>
+          <StepsContent index={2}><StepSelectFees/></StepsContent>
+          <StepsContent index={3}><StepConfirmTx/></StepsContent>
+          <StepsContent index={4}><StepSignTx/></StepsContent>
+          <StepsContent index={5}><StepBroadcastTx/></StepsContent>
 
           <StepsCompletedContent>
               <Text textAlign="center" color="gray.300">
@@ -927,29 +931,8 @@ export function Transfer({ usePioneer }: any): JSX.Element {
 
     return (
       <TransferProvider app={app}>
-          <VStack p={8} bg="gray.900" mx="auto" mt={10} textAlign="center" spacing={6}>
+          <VStack>
               <Steps />
-
-              <Flex align="center" gap={4}>
-                  <Avatar size="lg" src={app.assetContext?.icon} />
-                  <VStack align="start">
-                      <Text fontSize="lg" fontWeight="bold" color="white">
-                          {app.assetContext?.name} ({app.assetContext?.symbol})
-                      </Text>
-                      <Link
-                        href={`${app.assetContext?.explorerAddressLink}${app.assetContext?.pubkeys[0].address}`}
-                        color="teal.400"
-                      >
-                          View on Explorer
-                      </Link>
-                      <Text color="gray.400" fontSize="sm">
-                          Asset ID: {app.assetContext?.assetId}
-                      </Text>
-                      <Text color="gray.400" fontSize="sm">
-                          Network: {app.assetContext?.networkName}
-                      </Text>
-                  </VStack>
-              </Flex>
           </VStack>
       </TransferProvider>
     );
