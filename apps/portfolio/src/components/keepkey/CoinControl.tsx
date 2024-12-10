@@ -6,8 +6,8 @@ import {
   Text,
   VStack,
   Button as ChakraButton,
+  Box
 } from '@chakra-ui/react';
-import { CheckboxCard } from "@/components/ui/checkbox-card";
 import { Table } from "@chakra-ui/react"
 import {
   ActionBarContent,
@@ -54,9 +54,9 @@ export function CoinControl({
     setSelection([]);
   };
 
-  const handleSelectRow = (key: string, selected: boolean) => {
+  const toggleRowSelection = (key: string) => {
     setSelection((prev) =>
-      selected ? [...prev, key] : prev.filter((x) => x !== key)
+      prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
     );
   };
 
@@ -71,7 +71,6 @@ export function CoinControl({
     return total;
   }, [selection, inputsData]);
 
-  // Whenever selection changes, notify parent to prefill amount
   React.useEffect(() => {
     onSelectionChange(totalSelectedValue);
   }, [totalSelectedValue, onSelectionChange]);
@@ -87,12 +86,19 @@ export function CoinControl({
         <Text color="white" fontWeight="semibold">Available Inputs</Text>
         <Flex gap="2" align="center">
           <Text color="white" fontSize="sm">Show in BTC</Text>
-          <CheckboxCard
-            label="BTC Units"
-            description="Toggle between Sats and BTC"
-            selected={!showSats}
-            onSelectedChange={(selected) => onToggleUnit(!selected)}
-          />
+          <Box
+            as="button"
+            onClick={() => onToggleUnit(!showSats)}
+            px="2"
+            py="1"
+            bg={showSats ? "gray.700" : "teal.600"}
+            borderRadius="md"
+            color="white"
+            fontSize="sm"
+            _hover={{ bg: showSats ? "gray.600" : "teal.500" }}
+          >
+            {showSats ? "Sats" : "BTC"}
+          </Box>
           <ChakraButton size="sm" colorScheme="teal" onClick={handleSelectAll}>Select All</ChakraButton>
           <ChakraButton size="sm" variant="outline" colorScheme="gray" onClick={handleClearSelection}>Clear</ChakraButton>
         </Flex>
@@ -102,18 +108,29 @@ export function CoinControl({
         <Table.Header>
           <Table.Row>
             <Table.ColumnHeader w="6">
-              <CheckboxCard
-                label="All"
-                description="Select or deselect all inputs"
-                selected={selection.length > 0 && !indeterminate}
-                onSelectedChange={(selected) => {
-                  if (selected) {
-                    handleSelectAll();
-                  } else {
+              {/* Clicking this header cell toggles all or clears all */}
+              <Box
+                as="button"
+                w="full"
+                h="full"
+                textAlign="left"
+                onClick={() => {
+                  if (selection.length > 0 && !indeterminate) {
                     handleClearSelection();
+                  } else {
+                    handleSelectAll();
                   }
                 }}
-              />
+                bg={selection.length > 0 && !indeterminate ? "teal.800" : "transparent"}
+                _hover={{ bg: "teal.900" }}
+                px="2"
+                py="1"
+                borderRadius="md"
+                color="white"
+                fontSize="sm"
+              >
+                All
+              </Box>
             </Table.ColumnHeader>
             <Table.ColumnHeader>Address</Table.ColumnHeader>
             <Table.ColumnHeader>Value</Table.ColumnHeader>
@@ -128,15 +145,23 @@ export function CoinControl({
             return (
               <Table.Row
                 key={key}
-                data-selected={isSelected ? "" : undefined}
-                style={{ background: isSelected ? 'rgba(0, 128, 128, 0.2)' : 'transparent' }}
+                cursor="pointer"
+                onClick={() => toggleRowSelection(key)}
+                bg={isSelected ? "teal.800" : "transparent"}
+                _hover={{ bg: isSelected ? "teal.700" : "gray.700" }}
+                // If you want a focus ring, consider making the row focusable:
+                tabIndex={0}
+                _focusVisible={{ outline: "2px solid teal", outlineOffset: "2px" }}
               >
                 <Table.Cell>
-                  <CheckboxCard
-                    label="Select"
-                    description={`${input.address.slice(0,6)}...${input.address.slice(-6)}`}
-                    selected={isSelected}
-                    onSelectedChange={(selected) => handleSelectRow(key, selected)}
+                  {/* We can show a symbol if needed, but now entire row is clickable */}
+                  <Box
+                    as="span"
+                    display="inline-block"
+                    w="3"
+                    h="3"
+                    borderRadius="full"
+                    bg={isSelected ? "teal.400" : "gray.600"}
                   />
                 </Table.Cell>
                 <Table.Cell>{input.address}</Table.Cell>
