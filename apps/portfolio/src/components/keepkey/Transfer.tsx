@@ -37,11 +37,19 @@ import {
     StepsItem,
     StepsContent,
     StepsCompletedContent,
-    StepsNextTrigger,
-    StepsPrevTrigger,
 } from "@/components/ui/steps";
 import { TxReview } from "@/components/tx";
 import { Button } from "@/components/ui/button";
+
+import { StepsNextTrigger, StepsPrevTrigger } from "@/components/ui/steps";
+
+// Importing steps from the newly created /steps directory
+import { StepSelectInputs } from "./steps/StepSelectInputs";
+import { StepSelectOutputs } from "./steps/StepSelectOutputs";
+import { StepSelectFees } from "./steps/StepSelectFees";
+import { StepConfirmTx } from "./steps/StepConfirmTx";
+import { StepSignTx } from "./steps/StepSignTx";
+import { StepBroadcastTx } from "./steps/StepBroadcastTx";
 
 // ---------------------------
 // Context and Provider
@@ -118,7 +126,7 @@ const TransferContext = createContext<TransferContextValue | undefined>(
   undefined
 );
 
-function useTransferContext() {
+export function useTransferContext() {
     const context = useContext(TransferContext);
     if (!context) {
         throw new Error("useTransferContext must be used within a TransferProvider");
@@ -370,7 +378,7 @@ interface CoinControlProps {
     onSelectionChange: (totalSelectedValue: number) => void;
 }
 
-function CoinControl({
+export function CoinControl({
                          inputsData,
                          showSats,
                          onToggleUnit,
@@ -530,354 +538,6 @@ function CoinControl({
                   </ChakraButton>
               </ActionBarContent>
           </ActionBarRoot>
-      </>
-    );
-}
-
-// ---------------------------
-// Step Components
-// ---------------------------
-function StepSelectInputs() {
-    const {
-        app,
-        coinControlEnabled, setCoinControlEnabled,
-        inputsData, showSats, setShowSats,
-        handleSelectionChange
-    } = useTransferContext();
-
-    return (
-      <VStack align="start" spacing={4} mt={4}>
-          <Text color="gray.400" fontSize="sm">
-              Asset ID: {app.assetContext?.assetId}
-          </Text>
-
-          <Flex align="center" gap={2}>
-              <Switch isChecked={coinControlEnabled} onChange={(e) => setCoinControlEnabled(e.target.checked)}>
-                  Coin Control
-              </Switch>
-          </Flex>
-          {coinControlEnabled && (
-            <CoinControl
-              inputsData={inputsData}
-              showSats={showSats}
-              onToggleUnit={setShowSats}
-              onSelectionChange={handleSelectionChange}
-            />
-          )}
-          <Flex gap={4} mt={4}>
-              <StepsPrevTrigger asChild>
-                  <Button variant="outline" size="sm">Prev</Button>
-              </StepsPrevTrigger>
-              <StepsNextTrigger asChild>
-                  <Button variant="outline" size="sm">Next</Button>
-              </StepsNextTrigger>
-          </Flex>
-      </VStack>
-    );
-}
-
-function StepSelectOutputs() {
-    const {
-        app,
-        batchEnabled, setBatchEnabled,
-        opReturnEnabled, setOpReturnEnabled,
-        batchOutputs, setBatchOutputs,
-        recipient, setRecipient,
-        recipientError,
-        opReturnData, setOpReturnData,
-        canShowAmount,
-        inputAmount, setInputAmount,
-        handleSendMax,
-        validateAddress
-    } = useTransferContext();
-
-    const addBatchOutput = () => {
-        setBatchOutputs(prev => [...prev, { recipient: '', amount: '' }]);
-    };
-
-    const handleBatchRecipientChange = (index: number, value: string) => {
-        setBatchOutputs(prev => {
-            const newOutputs = [...prev];
-            newOutputs[index].recipient = value;
-            return newOutputs;
-        });
-    };
-
-    const handleBatchAmountChange = (index: number, value: string) => {
-        setBatchOutputs(prev => {
-            const newOutputs = [...prev];
-            newOutputs[index].amount = value;
-            return newOutputs;
-        });
-    };
-
-    const renderBatchOutputs = () => (
-      <VStack w="full" maxW="md" spacing={4} mt={4}>
-          {batchOutputs.map((output, index) => (
-            <Flex key={index} w="full" gap={2}>
-                <Input
-                  placeholder="Recipient Address"
-                  value={output.recipient}
-                  onChange={(e) => handleBatchRecipientChange(index, e.target.value)}
-                  size="sm"
-                  bg="gray.800"
-                  color="white"
-                  _placeholder={{ color: 'gray.500' }}
-                />
-                <Input
-                  placeholder="Amount"
-                  value={output.amount}
-                  onChange={(e) => handleBatchAmountChange(index, e.target.value)}
-                  type="number"
-                  size="sm"
-                  bg="gray.800"
-                  color="white"
-                  _placeholder={{ color: 'gray.500' }}
-                />
-            </Flex>
-          ))}
-          <Button variant="outline" size="sm" onClick={addBatchOutput}>
-              Add another output
-          </Button>
-      </VStack>
-    );
-
-    return (
-      <VStack spacing={4} align="start">
-          <Flex gap={8} align="center" justify="center" mt={4}>
-              <Flex align="center" gap={2}>
-                  <Switch isChecked={batchEnabled} onChange={(e) => setBatchEnabled(e.target.checked)}>
-                      Batch Output
-                  </Switch>
-              </Flex>
-              <Flex align="center" gap={2}>
-                  <Switch isChecked={opReturnEnabled} onChange={(e) => setOpReturnEnabled(e.target.checked)}>
-                      OP_RETURN
-                  </Switch>
-              </Flex>
-          </Flex>
-
-          {batchEnabled ? (
-            renderBatchOutputs()
-          ) : (
-            <Box w="full" maxW="md" mt={4}>
-                <Input
-                  placeholder="Recipient Address"
-                  value={recipient}
-                  onChange={(e) => {
-                      setRecipient(e.target.value);
-                  }}
-                  size="md"
-                  bg="gray.800"
-                  color="white"
-                  _placeholder={{ color: 'gray.500' }}
-                />
-                {recipientError && (
-                  <Text color="red.400" fontSize="xs" mt={1}>
-                      {recipientError}
-                  </Text>
-                )}
-            </Box>
-          )}
-
-          {opReturnEnabled && (
-            <Box w="full" maxW="md">
-                <Input
-                  placeholder="OP_RETURN Data (hex)"
-                  value={opReturnData}
-                  onChange={(e) => setOpReturnData(e.target.value)}
-                  size="md"
-                  bg="gray.800"
-                  color="white"
-                  _placeholder={{ color: 'gray.500' }}
-                  mt={4}
-                />
-            </Box>
-          )}
-
-          {canShowAmount && !batchEnabled && (
-            <Box w="full" maxW="md" mt={4}>
-                <Input
-                  placeholder="Amount"
-                  value={inputAmount}
-                  onChange={(e) => {
-                      setInputAmount(e.target.value);
-                  }}
-                  type="number"
-                  size="md"
-                  bg="gray.800"
-                  color="white"
-                  _placeholder={{ color: 'gray.500' }}
-                />
-                <Flex justifyContent="space-between" mt={1} align="center">
-                    <Text fontSize="sm" color="gray.400">
-                        Available Balance: {app.assetContext?.balances[0].balance ?? '0'} {app.assetContext?.symbol}
-                    </Text>
-                    <Button
-                      colorScheme="teal"
-                      size="sm"
-                      variant="solid"
-                      onClick={handleSendMax}
-                    >
-                        Send Max
-                    </Button>
-                </Flex>
-            </Box>
-          )}
-
-          <Flex gap={4} mt={4}>
-              <StepsPrevTrigger asChild>
-                  <Button variant="outline" size="sm">Prev</Button>
-              </StepsPrevTrigger>
-              <StepsNextTrigger asChild>
-                  <Button variant="outline" size="sm">Next</Button>
-              </StepsNextTrigger>
-          </Flex>
-      </VStack>
-    );
-}
-
-function StepSelectFees() {
-    const {
-        feeLevel, setFeeLevel,
-        buildTx
-    } = useTransferContext();
-
-    return (
-      <VStack spacing={4}>
-          <Text color="gray.300">Select Fee Level</Text>
-          <Flex gap={2}>
-              <Button variant={feeLevel===1?"solid":"outline"} colorScheme="green" size="sm" onClick={()=>setFeeLevel(1)}>Slow</Button>
-              <Button variant={feeLevel===3?"solid":"outline"} colorScheme="green" size="sm" onClick={()=>setFeeLevel(3)}>Medium</Button>
-              <Button variant={feeLevel===5?"solid":"outline"} colorScheme="green" size="sm" onClick={()=>setFeeLevel(5)}>Fast</Button>
-          </Flex>
-
-          <Button colorScheme="green" onClick={buildTx} size="md" variant="solid">
-              Build Transaction
-          </Button>
-
-          <Flex gap={4} mt={4}>
-              <StepsPrevTrigger asChild>
-                  <Button variant="outline" size="sm">Prev</Button>
-              </StepsPrevTrigger>
-              <StepsNextTrigger asChild>
-                  <Button variant="outline" size="sm">Next</Button>
-              </StepsNextTrigger>
-          </Flex>
-      </VStack>
-    );
-}
-
-function StepConfirmTx() {
-    const {
-        unsignedTx,
-        signedTx,
-        signTx
-    } = useTransferContext();
-
-    return (
-      <>
-          {unsignedTx && !signedTx && (
-            <VStack
-              maxW="full"
-              w="full"
-              whiteSpace="normal"
-              overflowWrap="break-word"
-              wordBreak="break-all"
-              spacing={4}
-              align="stretch"
-            >
-                <TxReview unsignedTx={unsignedTx.unsignedTx} isBuilding={false} />
-                <Text color="gray.300">Review the transaction details above.</Text>
-            </VStack>
-          )}
-          <Flex gap={4} mt={4}>
-              <StepsPrevTrigger asChild>
-                  <Button variant="outline" size="sm">Prev</Button>
-              </StepsPrevTrigger>
-              <StepsNextTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={signTx}>
-                      Sign Transaction
-                  </Button>
-              </StepsNextTrigger>
-          </Flex>
-      </>
-    );
-}
-
-function StepSignTx() {
-    const {
-        signedTx,
-        broadcastTx
-    } = useTransferContext();
-
-    return (
-      <>
-          {!signedTx && (
-            <VStack spacing={4}>
-                <Image
-                  src="https://via.placeholder.com/150"
-                  alt="Confirm on Device"
-                  borderRadius="md"
-                />
-                <Text color="gray.300">Confirm transaction on your device...</Text>
-            </VStack>
-          )}
-          <Flex gap={4} mt={4}>
-              <StepsPrevTrigger asChild>
-                  <Button variant="outline" size="sm">Prev</Button>
-              </StepsPrevTrigger>
-              <StepsNextTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={broadcastTx} isDisabled={!signedTx}>
-                      Next
-                  </Button>
-              </StepsNextTrigger>
-          </Flex>
-      </>
-    );
-}
-
-function StepBroadcastTx() {
-    const {
-        signedTx,
-        broadcastResult,
-        txHash,
-        explorerTxLink
-    } = useTransferContext();
-
-    return (
-      <>
-          {signedTx && !broadcastResult && (
-            <VStack spacing={4}>
-                <Button colorScheme="green">Broadcast Transaction</Button>
-            </VStack>
-          )}
-
-          {broadcastResult && (
-            <VStack spacing={4}>
-                <Text color="gray.300">Transaction broadcasted successfully!</Text>
-                {txHash && (
-                  <Box mt={4}>
-                      <Text fontSize="md" color="gray.300">
-                          Transaction ID:
-                      </Text>
-                      <Link
-                        href={`${explorerTxLink}${txHash}`}
-                        color="teal.500"
-                        isExternal
-                      >
-                          {txHash}
-                      </Link>
-                  </Box>
-                )}
-            </VStack>
-          )}
-
-          <Flex gap={4} mt={4}>
-              <StepsPrevTrigger asChild>
-                  <Button variant="outline" size="sm">Prev</Button>
-              </StepsPrevTrigger>
-          </Flex>
       </>
     );
 }
