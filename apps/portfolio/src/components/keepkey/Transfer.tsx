@@ -34,7 +34,7 @@ import { StepSelectFees } from "./steps/StepSelectFees";
 import { StepConfirmTx } from "./steps/StepConfirmTx";
 import { StepSignTx } from "./steps/StepSignTx";
 import { StepBroadcastTx } from "./steps/StepBroadcastTx";
-
+const TAG = " | Transfer | "
 // ---------------------------
 // Context and Provider
 // ---------------------------
@@ -188,85 +188,113 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
     }, [app]);
 
     const buildTx = useCallback(async () => {
-        setIsSubmitting(true);
-        setUnsignedTx(null);
-        setSignedTx(null);
-        setBroadcastResult(null);
-        setTxHash('');
+        let tag = TAG + " | buildTx | "
+        try{
+            console.log(tag,"buildTx clicked!!!! ")
+            //
+            setIsSubmitting(true);
+            setUnsignedTx(null);
+            setSignedTx(null);
+            setBroadcastResult(null);
+            setTxHash('');
 
-        let outputs: { address?: string; amount?: string; opReturn?: string }[] = [];
+            let outputs: { address?: string; amount?: string; opReturn?: string }[] = [];
 
-        if (!batchEnabled) {
-            // Single
-            if (!recipient || !validateAddress(recipient)) {
-                toaster.create({
-                    title: 'Error',
-                    description: 'A valid recipient address is required.',
-                    duration: 5000,
-                });
-                setIsSubmitting(false);
-                return;
+            if (!batchEnabled) {
+                console.log(tag," Not a Batch TX")
+                // Single
+                // if (!recipient || !validateAddress(recipient)) {
+                //     toaster.create({
+                //         title: 'Error',
+                //         description: 'A valid recipient address is required.',
+                //         duration: 5000,
+                //     });
+                //     setIsSubmitting(false);
+                //     return;
+                // }
+                // if (!inputAmount && !isMax) {
+                //     toaster.create({
+                //         title: 'Error',
+                //         description: 'Please enter an amount.',
+                //         duration: 5000,
+                //     });
+                //     setIsSubmitting(false);
+                //     return;
+                // }
+
+                let params = { address: recipient, amount: inputAmount }
+                console.log(tag," params: ",params)
+
+                outputs.push(params);
+            } else {
+                console.log(tag," Batch TX! ")
+                // Batch
+                const cleaned = batchOutputs.filter(o => o.recipient && validateAddress(o.recipient) && o.amount);
+                if (cleaned.length === 0) {
+                    toaster.create({
+                        title: 'Error',
+                        description: 'At least one valid batch output is required.',
+                        duration: 5000,
+                    });
+                    setIsSubmitting(false);
+                    return;
+                }
+                outputs = cleaned.map(o => ({ address: o.recipient, amount: o.amount }));
             }
-            if (!inputAmount && !isMax) {
-                toaster.create({
-                    title: 'Error',
-                    description: 'Please enter an amount.',
-                    duration: 5000,
-                });
-                setIsSubmitting(false);
-                return;
+
+            if (opReturnEnabled && opReturnData.trim() !== '') {
+                outputs.push({ opReturn: opReturnData.trim() });
             }
 
-            outputs.push({ address: recipient, amount: inputAmount });
-        } else {
-            // Batch
-            const cleaned = batchOutputs.filter(o => o.recipient && validateAddress(o.recipient) && o.amount);
-            if (cleaned.length === 0) {
-                toaster.create({
-                    title: 'Error',
-                    description: 'At least one valid batch output is required.',
-                    duration: 5000,
-                });
-                setIsSubmitting(false);
-                return;
-            }
-            outputs = cleaned.map(o => ({ address: o.recipient, amount: o.amount }));
-        }
-
-        if (opReturnEnabled && opReturnData.trim() !== '') {
-            outputs.push({ opReturn: opReturnData.trim() });
-        }
-
-        const sendPayload = {
-            caip: caip,
-            outputs,
-            feeLevel,
-            isMax,
-        };
-
-        // Simulate building tx
-        await new Promise(res => setTimeout(res, 1000));
-
-        try {
-            let unsignedTxResult = await app.buildTx(sendPayload);
-            let transactionState: any = {
-                method: 'transfer',
-                caip,
-                params: sendPayload,
-                unsignedTx: unsignedTxResult,
-                signedTx: null,
-                state: 'unsigned',
-                context: app.assetContext,
+            const sendPayload = {
+                caip: caip,
+                to:outputs[0].address,
+                amount:outputs[0].amount,
+                feeLevel:5, //TODO fee level
+                isMax,
             };
-            setUnsignedTx(transactionState);
-        } catch (error) {
-            toaster.create({
-                title: 'Transaction Failed',
-                description: 'An error occurred during the transaction.',
-                duration: 5000,
-            });
-        } finally {
-            setIsSubmitting(false);
+            console.log(tag,"sendPayload: ",sendPayload)
+            // Simulate building tx
+            // await new Promise(res => setTimeout(res, 1000));
+
+            try {
+                console.log(tag,"sendPayload: ",sendPayload)
+
+                /*
+                            const sendPayload = {
+                                caip,
+                                isMax: true,
+                                to: FAUCET_ADDRESS,
+                                amount: balance,
+                                feeLevel: 5 // Options
+                            };
+
+                 */
+
+                let unsignedTxResult = await app.buildTx(sendPayload);
+                console.log(tag,"unsignedTxResult: ",unsignedTxResult)
+
+                let transactionState: any = {
+                    method: 'transfer',
+                    caip,
+                    params: sendPayload,
+                    unsignedTx: unsignedTxResult,
+                    signedTx: null,
+                    state: 'unsigned',
+                    context: app.assetContext,
+                };
+                setUnsignedTx(transactionState);
+            } catch (error) {
+                toaster.create({
+                    title: 'Transaction Failed',
+                    description: 'An error occurred during the transaction.',
+                    duration: 5000,
+                });
+            } finally {
+                setIsSubmitting(false);
+            }
+        }catch(e){
+            console.error(e)
         }
     }, [app, recipient, inputAmount, isMax, batchEnabled, batchOutputs, opReturnEnabled, opReturnData, feeLevel, caip]);
 
@@ -285,13 +313,31 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
     }, [app, caip, unsignedTx]);
 
     const broadcastTx = useCallback(async () => {
-        if (!signedTx) return;
-        try {
-            let broadcast = await app.broadcastTx(caip, signedTx);
-            const finalTxHash = broadcast.txHash || broadcast.txid;
-            setTxHash(finalTxHash);
-            setBroadcastResult(broadcast);
-        } catch (error) {
+        let tag = TAG + " | broadcastTx | "
+        try{
+            if (!signedTx) {
+                console.error(tag,"No signedTx")
+                toaster.create({
+                    title: 'Broadcast Failed',
+                    description: 'Unable to sign! tx not built!.',
+                    duration: 5000,
+                });
+                throw Error('Unable to sign!')
+            }
+            try {
+                let broadcast = await app.broadcastTx(caip, signedTx);
+                console.log(tag,"broadcast: ",broadcast)
+                const finalTxHash = broadcast.txHash || broadcast.txid;
+                setTxHash(finalTxHash);
+                setBroadcastResult(broadcast);
+            } catch (error) {
+                toaster.create({
+                    title: 'Broadcast Failed',
+                    description: 'An error occurred during the broadcast.',
+                    duration: 5000,
+                });
+            }
+        }catch(e){
             toaster.create({
                 title: 'Broadcast Failed',
                 description: 'An error occurred during the broadcast.',

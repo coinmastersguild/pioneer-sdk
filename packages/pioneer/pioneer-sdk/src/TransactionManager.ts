@@ -261,7 +261,17 @@ export class TransactionManager {
             let responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
             console.log(tag, 'responseSign: ', responseSign);
             if (typeof responseSign === 'string') responseSign = JSON.parse(responseSign);
-            signedTx = responseSign.serializedTx;
+            console.log(tag, 'responseSign.value: ', responseSign.value);
+            console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures);
+            console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures[0]);
+            console.log(
+              tag,
+              'responseSign.value.signatures: ',
+              responseSign.value.signatures[0].serializedTx,
+            );
+
+            // Access serializedTx from signatures array
+            signedTx = responseSign.value.signatures[0].serializedTx;
           } else {
             throw new Error(`Unsupported OTHER CAIP: ${caip}`);
           }

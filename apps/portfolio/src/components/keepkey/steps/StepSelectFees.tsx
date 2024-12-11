@@ -25,14 +25,14 @@ export function StepSelectFees() {
         Build Transaction
       </Button>
 
-      <Flex gap={4} mt={4}>
-        <StepsPrevTrigger asChild>
-          <Button variant="outline" size="sm">Prev</Button>
-        </StepsPrevTrigger>
-        <StepsNextTrigger asChild>
-          <Button variant="outline" size="sm">Next</Button>
-        </StepsNextTrigger>
-      </Flex>
+      {/*<Flex gap={4} mt={4}>*/}
+      {/*  <StepsPrevTrigger asChild>*/}
+      {/*    <Button variant="outline" size="sm">Prev</Button>*/}
+      {/*  </StepsPrevTrigger>*/}
+      {/*  <StepsNextTrigger asChild>*/}
+      {/*    <Button variant="outline" size="sm">Next</Button>*/}
+      {/*  </StepsNextTrigger>*/}
+      {/*</Flex>*/}
     </VStack>
   );
 }

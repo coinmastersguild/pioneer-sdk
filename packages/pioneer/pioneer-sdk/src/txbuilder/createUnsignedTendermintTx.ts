@@ -122,12 +122,13 @@ export async function createUnsignedTendermintTx(
 
       case 'cosmos:mayachain-mainnet-v1': {
         if (isMax) {
-          const fee = fees[networkId] * 1e6; // Convert fee to smallest unit
-          amount = Math.max(0, amount * 1e6 - fee); // Adjust amount for fees if isMax
+          const fee = Math.floor(fees[networkId] * 1e10); // Convert fee to smallest unit and floor to int
+          amount = Math.max(0, Math.floor(balanceInfo.data * 1e10) - fee); // Floor to ensure no decimals
         } else {
-          amount = amount * 1e4; // Convert amount to smallest unit
+          amount = Math.max(Math.floor(amount * 1e10), 0); // Floor the multiplication result
         }
-        asset = 'cacao';
+
+        console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`)
         return to
           ? mayachainTransferTemplate({
               account_number,
@@ -143,7 +144,7 @@ export async function createUnsignedTendermintTx(
               },
               from_address: fromAddress,
               to_address: to,
-              asset,
+              asset: 'MAYA.CACAO',
               amount: amount.toString(),
               memo,
               sequence,
@@ -161,7 +162,7 @@ export async function createUnsignedTendermintTx(
                 ],
               },
               from_address: fromAddress,
-              asset,
+              asset: 'MAYA.CACAO',
               amount: amount.toString(),
               memo,
               sequence,

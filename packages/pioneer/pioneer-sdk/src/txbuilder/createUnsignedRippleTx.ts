@@ -50,9 +50,18 @@ export async function createUnsignedRippleTx(
       desttag = '0';
     }
 
-    //format amount
-    amount = amount * 1000000;
-    amount = amount.toString();
+    console.log(tag, 'amount:', amount);
+    if(isMax){
+      //balance - 1 (min) - fee
+      amount = (Number(accountInfo.Balance) - 1000000) - 1;
+      amount = amount.toString()
+    } else {
+      //format amount
+      amount = amount * 1000000;
+      amount = amount.toString();
+    }
+
+
 
     let tx = {
       type: 'auth/StdTx',

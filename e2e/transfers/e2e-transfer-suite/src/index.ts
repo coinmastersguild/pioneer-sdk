@@ -49,8 +49,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        // let spec = 'https://pioneers.dev/spec/swagger.json'
-        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        let spec = 'https://pioneers.dev/spec/swagger.json'
+        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
@@ -66,12 +66,12 @@ const test_service = async function (this: any) {
             // 'ARB',
             // 'AVAX',
             // 'BSC',
-            // 'XRP',
+            // 'XRP', //BROKE unable to broadcast
             // 'ETH',
-            // 'MAYA', //MARKET INFO BROKE
+            'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
-            'BTC',
+            // 'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -276,14 +276,12 @@ const test_service = async function (this: any) {
             log.info(tag,'Balance: ', balance)
             assert(balance, `${tag} Balance not found for ${caip}`);
             log.info(tag, 'Balance before: ', balance);
-            let balanceBefore = balance.balance;
+            let balanceBefore = balance;
+            if(balanceBefore === 0) throw Error("YOU ARE BROKE!")
             if (balanceBefore < TEST_AMOUNT) {
                 log.info(tag, 'Balance already drained! (or dust): ', balanceBefore);
                 continue
             }
-
-
-
             assert(blockchain)
 
 
@@ -360,7 +358,7 @@ const test_service = async function (this: any) {
             log.info(tag, 'signedTx: ', signedTx);
 
             //broadcast
-            let broadcast = await app.broadcastTx(caipToNetworkId(caip), signedTx);
+            let broadcast = await app.broadcastTx(caip, signedTx);
             assert(broadcast)
             log.info(tag, 'broadcast: ', broadcast);
 

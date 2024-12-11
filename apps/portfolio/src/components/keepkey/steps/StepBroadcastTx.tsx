@@ -11,14 +11,15 @@ export function StepBroadcastTx() {
     signedTx,
     broadcastResult,
     txHash,
-    explorerTxLink
+    explorerTxLink,
+    broadcastTx
   } = useTransferContext();
 
   return (
     <>
       {signedTx && !broadcastResult && (
         <VStack >
-          <Button colorScheme="green">Broadcast Transaction</Button>
+          <Button colorScheme="green" onClick={broadcastTx}>Broadcast Transaction</Button>
         </VStack>
       )}
 
@@ -41,11 +42,11 @@ export function StepBroadcastTx() {
         </VStack>
       )}
 
-      <Flex gap={4} mt={4}>
-        <StepsPrevTrigger asChild>
-          <Button variant="outline" size="sm">Prev</Button>
-        </StepsPrevTrigger>
-      </Flex>
+      {/*<Flex gap={4} mt={4}>*/}
+      {/*  <StepsPrevTrigger asChild>*/}
+      {/*    <Button variant="outline" size="sm">Prev</Button>*/}
+      {/*  </StepsPrevTrigger>*/}
+      {/*</Flex>*/}
     </>
   );
 }
