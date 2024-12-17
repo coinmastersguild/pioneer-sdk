@@ -21,7 +21,7 @@ export const thorchainTransferTemplate = (params: {
           to_address: params.to_address,
           from_address: params.from_address,
         },
-        type: 'thorchain/MsgSend' as const,
+        type: 'cosmos-sdk/MsgSend' as const,
       },
     ],
     memo: params.memo,
@@ -47,7 +47,7 @@ export const thorchainDepositTemplate = (params: {
     msgs: [
       {
         value: {
-          coins: [{ asset: params.asset, amount: params.amount }],
+          coins: [{ asset: 'THOR.RUNE', amount: params.amount }],
           memo: params.memo,
           signer: params.from_address,
         },

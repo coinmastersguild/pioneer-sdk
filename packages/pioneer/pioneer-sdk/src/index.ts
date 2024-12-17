@@ -20,6 +20,7 @@ import { getCharts } from './getCharts';
 //internal
 import { getPubkey } from './getPubkey';
 import { TransactionManager } from './TransactionManager';
+import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx';
 
 const TAG = ' | Pioneer-sdk | ';
 
@@ -450,7 +451,7 @@ export class SDK {
         console.log('unsignedTx: ', unsignedTx);
       } catch (e) {
         console.error(e);
-        throw e
+        throw e;
       }
     };
     this.buildTx = async function (sendPayload: any) {
@@ -471,7 +472,7 @@ export class SDK {
         return unsignedTx;
       } catch (e) {
         console.error(e);
-        throw e
+        throw e;
       }
     };
     this.signTx = async function (unsignedTx: any) {
@@ -492,7 +493,7 @@ export class SDK {
         return signedTx;
       } catch (e) {
         console.error(e);
-        throw e
+        throw e;
       }
     };
     this.broadcastTx = async function (caip: string, signedTx: any) {
@@ -517,7 +518,7 @@ export class SDK {
         return txid;
       } catch (e) {
         console.error(e);
-        throw e
+        throw e;
       }
     };
     this.swap = async function (swapPayload) {
@@ -590,6 +591,11 @@ export class SDK {
         } catch (e) {
           console.error(tag, 'Failed to get quote: ', e);
         }
+        if (result.length === 0)
+          throw Error(
+            'No quotes available! path: ' + quote.sellAsset.caip + ' -> ' + quote.buyAsset.caip,
+          );
+        //TODO let user handle selecting quote?
         let selected = result[0];
         let invocationId = selected.quote.id;
         console.log('invocationId: ', invocationId);
@@ -613,17 +619,34 @@ export class SDK {
           let txManager = new TransactionManager(transactionDependencies, this.events);
 
           let caip = swapPayload.caipIn;
-          const sendPayload = {
-            caip,
-            to: tx.txParams.recipientAddress,
-            amount: tx.txParams.amount,
-            feeLevel: 5,
-            memo: tx.txParams.memo,
-            //Options
-          };
-          console.log(tag, 'sendPayload: ', sendPayload);
-          let unsignedTx = await txManager.transfer(sendPayload);
-          console.log(tag, 'unsignedTx: ', unsignedTx);
+
+          let unsignedTx;
+          if (tx.type === 'deposit') {
+            //build deposit tx
+            unsignedTx = await createUnsignedTendermintTx(
+              caip,
+              tx.type,
+              tx.txParams.amount,
+              tx.txParams.memo,
+              this.pubkeys,
+              this.pioneer,
+              this.keepKeySdk,
+              false,
+              undefined,
+            );
+          } else {
+            const sendPayload = {
+              caip,
+              to: tx.txParams.recipientAddress,
+              amount: tx.txParams.amount,
+              feeLevel: 5,
+              memo: tx.txParams.memo,
+              //Options
+            };
+            console.log(tag, 'sendPayload: ', sendPayload);
+            unsignedTx = await txManager.transfer(sendPayload);
+            console.log(tag, 'unsignedTx: ', unsignedTx);
+          }
 
           let signedTx = await txManager.sign({ caip, unsignedTx });
           console.log(tag, 'signedTx: ', signedTx);
@@ -635,6 +658,9 @@ export class SDK {
           console.log(tag, 'payload: ', payload);
 
           let txid = await txManager.broadcast(payload);
+          if (txid.error) {
+            throw Error('Failed to broadcast transaction! error:' + txid.error);
+          }
           console.log(tag, 'txid: ', txid);
           return { txid, events: this.events };
         }
@@ -791,7 +817,7 @@ export class SDK {
         this.events.emit('SET_BLOCKCHAINS', this.blockchains);
       } catch (e) {
         console.error('Failed to load balances! e: ', e);
-        throw e
+        throw e;
       }
     };
     this.addAsset = async function (caip: string, data: any) {
@@ -842,7 +868,7 @@ export class SDK {
         return success;
       } catch (e) {
         console.error('Failed to load balances! e: ', e);
-        throw e
+        throw e;
       }
     };
     this.clearWalletState = async function () {
@@ -1000,7 +1026,7 @@ export class SDK {
           Object.assign(balance, assetInfo, {
             networkId: caipToNetworkId(balance.caip),
             icon: assetInfo.icon || 'https://pioneers.dev/coins/etherum.png',
-            identifier: `${balance.caip}:${balance.pubkey}`
+            identifier: `${balance.caip}:${balance.pubkey}`,
           });
         }
 

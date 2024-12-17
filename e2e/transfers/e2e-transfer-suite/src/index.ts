@@ -58,7 +58,7 @@ const test_service = async function (this: any) {
             // 'DASH',
             // 'LTC', //BROKE "Missing inputs
             // 'MATIC',
-            // 'THOR', //TXID BROKE
+            'THOR',
             // 'GAIA',
             // 'OSMO',
             // 'BASE',
@@ -68,7 +68,7 @@ const test_service = async function (this: any) {
             // 'BSC',
             // 'XRP', //BROKE unable to broadcast
             // 'ETH',
-            'MAYA',   //Amount is wrong
+            // 'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
             // 'BTC',

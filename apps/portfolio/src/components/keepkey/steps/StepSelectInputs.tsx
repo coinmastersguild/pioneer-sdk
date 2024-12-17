@@ -23,25 +23,33 @@ export function StepSelectInputs() {
     // Implement UTXO review logic here (e.g., navigate to another page or open a modal)
   };
 
+  const isBip122Network = app.assetContext?.networkId?.indexOf("bip122") > -1;
+
   return (
-    <VStack align="start"  mt={6}>
+    <VStack align="start" mt={6}>
       <Avatar size="xl" src={app.assetContext.icon} />
 
       <Text color="gray.400" fontSize="sm">
         Asset ID: {app.assetContext?.assetId}
       </Text>
-      <HStack  mb={2}>
-        <Badge colorScheme="green">USD Value: ${parseFloat(app.assetContext.valueUsd || 0).toLocaleString()}</Badge>
-        <Badge colorScheme="orange">Price: ${parseFloat(app.assetContext.priceUsd || 0).toLocaleString()}</Badge>
-        <Badge colorScheme="blue">Balance: {app.assetContext.balance} BTC</Badge>
+      <HStack mb={2}>
+        <Badge colorScheme="green">
+          USD Value: ${parseFloat(app.assetContext.valueUsd || 0).toLocaleString()}
+        </Badge>
+        <Badge colorScheme="orange">
+          Price: ${parseFloat(app.assetContext.priceUsd || 0).toLocaleString()}
+        </Badge>
+        <Badge colorScheme="blue">
+          Balance: {app.assetContext.balance} BTC
+        </Badge>
       </HStack>
 
       {/* Large text showing the total available BTC */}
       <Text fontSize="3xl" fontWeight="bold" color="white">
-        You have a total available BTC of {app.assetContext.balance}
+        You have a total available {app.assetContext.name} of {app.assetContext.balance}
       </Text>
 
-      {/* Three action buttons */}
+      {/* Action buttons */}
       <Flex gap={4}>
         {/* Continue - goes to the next step */}
         <StepsNextTrigger asChild>
@@ -50,15 +58,30 @@ export function StepSelectInputs() {
           </Button>
         </StepsNextTrigger>
 
-        {/* Select Custom Inputs - toggles coinControl */}
-        <Button variant="outline" colorScheme="teal" size="md" onClick={() => setCoinControlEnabled(true)}>
-          Select Custom Inputs
-        </Button>
+        {/* Show these buttons only if it's a bip122 network */}
+        {isBip122Network && (
+          <>
+            {/* Select Custom Inputs - toggles coinControl */}
+            <Button
+              variant="outline"
+              colorScheme="teal"
+              size="md"
+              onClick={() => setCoinControlEnabled(true)}
+            >
+              Select Custom Inputs
+            </Button>
 
-        {/* Review UTXOs - currently just logs, replace with your logic */}
-        <Button variant="outline" colorScheme="gray" size="md" onClick={handleReviewUTXOs}>
-          Review UTXO's
-        </Button>
+            {/* Review UTXOs - currently just logs, replace with your logic */}
+            <Button
+              variant="outline"
+              colorScheme="gray"
+              size="md"
+              onClick={handleReviewUTXOs}
+            >
+              Review UTXO's
+            </Button>
+          </>
+        )}
       </Flex>
 
       {/* Optionally, a Previous step trigger if needed */}

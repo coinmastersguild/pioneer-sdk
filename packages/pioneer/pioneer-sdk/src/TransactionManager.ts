@@ -82,13 +82,13 @@ export class TransactionManager {
           unsignedTx = await createUnsignedTendermintTx(
             caip,
             txType,
-            to,
             amount,
             memo,
             this.pubkeys,
             this.pioneer,
             this.keepKeySdk,
             isMax,
+            to,
           );
           break;
         }

@@ -10,13 +10,13 @@ const TAG = ' | createUnsignedTendermintTx | ';
 export async function createUnsignedTendermintTx(
   caip: string,
   type: string,
-  to: string,
   amount: number,
   memo: string,
   pubkeys: any[],
   pioneer: any,
   keepKeySdk: any,
   isMax: boolean,
+  to?: string,
 ): Promise<any> {
   const tag = TAG + ' | createUnsignedTendermintTx | ';
 
@@ -54,7 +54,7 @@ export async function createUnsignedTendermintTx(
     let asset = caip.split(':')[1]; // Assuming format is "network:asset"
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;
-
+    console.log('accountInfo: ', accountInfo);
     let balanceInfo = await pioneer.GetPubkeyBalance({ asset: chain, pubkey: fromAddress });
     console.log(tag, `balanceInfo: `, balanceInfo);
 
@@ -111,7 +111,15 @@ export async function createUnsignedTendermintTx(
           : thorchainDepositTemplate({
               account_number,
               chain_id: 'thorchain-1',
-              fee: { gas: '500000000', amount: [] },
+              fee: {
+                gas: '500000000',
+                amount: [
+                  {
+                    amount: '0',
+                    denom: 'rune',
+                  },
+                ],
+              },
               from_address: fromAddress,
               asset,
               amount: amount.toString(),
@@ -128,7 +136,7 @@ export async function createUnsignedTendermintTx(
           amount = Math.max(Math.floor(amount * 1e10), 0); // Floor the multiplication result
         }
 
-        console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`)
+        console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
         return to
           ? mayachainTransferTemplate({
               account_number,
