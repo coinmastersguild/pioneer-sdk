@@ -11,7 +11,7 @@ export const Header: FC<Props> = ({ currentNav, setCurrentNav }) => {
   return (
     <Flex maxW="8xl" mx="auto" px={5} py={5} align="center" position="relative">
       {/* Clickable smaller avatar linking to https://keepkey.info */}
-      <Link href="https://keepkey.info" isExternal>
+      <Link href="https://keepkey.info">
         <Avatar
           name="KeepKey"
           src="https://pioneers.dev/coins/keepkey.png"
