@@ -3,7 +3,7 @@
 import { SDK } from '@coinmasters/pioneer-sdk';
 import { availableChainsByWallet, getChainEnumValue, WalletOption } from '@coinmasters/types';
 //@ts-ignore
-import { ChainToNetworkId, caipToNetworkId } from '@pioneer-platform/pioneer-caip';
+import { caipToNetworkId, ChainToNetworkId } from '@pioneer-platform/pioneer-caip';
 import { getPaths } from '@pioneer-platform/pioneer-coins';
 import EventEmitter from 'eventemitter3';
 import React, { createContext, useContext, useMemo, useReducer } from 'react';
@@ -119,6 +119,8 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       dispatch({ type: WalletActions.SET_API, payload: api });
       //@ts-ignore
       dispatch({ type: WalletActions.SET_APP, payload: appInit });
+
+      appInit.getCharts();
 
       // Set default context (pre-load for swap)
       let assets_enabled = [
