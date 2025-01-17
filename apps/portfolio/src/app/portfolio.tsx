@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { VStack, Image, Flex, Center, Spinner, Text } from '@chakra-ui/react';
 import AssetTable from '@/components/keepkey/AssetTable';
 import Swap from '@/components/Swap';
+import Explore from '@/components/explore';
 import Charts from '@/components/keepkey/Charts';
 import Wallet from '@/components/keepkey/Wallet';
 import Connect from '@/components/keepkey/Connect';
@@ -105,6 +106,10 @@ export default function Portfolio({ usePioneer, currentNav, setCurrentNav }: any
                     {currentNav === 'swap' && (
                         <Swap usePioneer={usePioneer} />
                     )}
+
+                  {currentNav === 'explore' && (
+                    <Explore usePioneer={usePioneer} />
+                  )}
                 </>
             )}
         </Flex>

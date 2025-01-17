@@ -11,7 +11,7 @@ import Launch from '@/components/keepkey/Launch';
 
 export default function Home() {
   const onStartApp = useOnStartApp();
-  const [currentNav, setCurrentNav] = useState<'portfolio' | 'wallet' | 'swap'>('portfolio');
+  const [currentNav, setCurrentNav] = useState<'portfolio' | 'wallet' | 'swap' | 'explore' >('explore');
   const [isError, setIsError] = useState<string | null>(null);
 
   const initializeApp = async () => {
@@ -23,10 +23,12 @@ export default function Home() {
       // Update navigation state
       if (type === 'swap') {
         setCurrentNav('swap');
+      } if (type === 'explore') {
+        setCurrentNav('explore');
       } else if (type === 'wallet') {
         setCurrentNav('wallet');
       } else {
-        setCurrentNav('portfolio');
+        setCurrentNav('explore');
       }
     } catch (e) {
       console.error('Initialization error:', e);

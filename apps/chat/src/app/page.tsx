@@ -1,0 +1,48 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Box, Text } from '@chakra-ui/react';
+import { useSearchParams } from 'next/navigation';
+import { useOnStartApp } from './utils/onStart';
+import { usePioneer } from '@coinmasters/pioneer-react';
+import Chat  from '@/components/chat';
+import { Header } from '@/components/header';
+
+
+export default function Home() {
+  const onStartApp = useOnStartApp();
+  const [currentNav, setCurrentNav] = useState<'portfolio' | 'wallet' | 'swap' | 'explore' >('explore');
+  const [isError, setIsError] = useState<string | null>(null);
+
+  const initializeApp = async () => {
+    try {
+      await onStartApp(); // Ensure the function resolves or rejects correctly
+      const searchParams = useSearchParams();
+      const type = searchParams.get('type');
+
+
+    } catch (e) {
+      console.error('Initialization error:', e);
+      //@ts-ignore
+      setIsError(e.message || 'An unexpected error occurred');
+    }
+  };
+
+  useEffect(() => {
+    initializeApp().catch((error) => console.error('Error during initialization:', error));
+  }, []);
+
+  // if (isError) {
+  //   return (
+  //     <Launch />
+  //   );
+  // }
+
+  return (
+    <Box bg="black" minH="100vh" color="white">
+      <Header currentNav={currentNav} setCurrentNav={setCurrentNav} />
+      <Chat usePioneer={usePioneer}></Chat>
+      {/* <Footer /> */}
+    </Box>
+  );
+}

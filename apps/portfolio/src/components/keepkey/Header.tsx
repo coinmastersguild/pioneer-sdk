@@ -3,8 +3,8 @@ import { Flex, Button, Link } from "@chakra-ui/react";
 import { Avatar } from "@/components/ui/avatar";
 
 interface Props {
-  currentNav: "portfolio" | "wallet" | "swap";
-  setCurrentNav: (nav: "portfolio" | "wallet" | "swap") => void;
+  currentNav: "portfolio" | "wallet" | "swap" | "explore";
+  setCurrentNav: (nav: "portfolio" | "wallet" | "swap" | "explore") => void;
 }
 
 export const Header: FC<Props> = ({ currentNav, setCurrentNav }) => {
@@ -52,10 +52,19 @@ export const Header: FC<Props> = ({ currentNav, setCurrentNav }) => {
           variant="ghost"
           color="white"
           _hover={{ color: "white" }}
-          onClick={() => setCurrentNav("swap")}
+          onClick={() => setCurrentNav("explore")}
         >
-          Swap
+          Explore
         </Button>
+
+        {/*<Button*/}
+        {/*  variant="ghost"*/}
+        {/*  color="white"*/}
+        {/*  _hover={{ color: "white" }}*/}
+        {/*  onClick={() => setCurrentNav("swap")}*/}
+        {/*>*/}
+        {/*  Swap*/}
+        {/*</Button>*/}
       </Flex>
     </Flex>
   );
