@@ -14,6 +14,7 @@ import {
   // @ts-ignore
 } from '@pioneer-platform/pioneer-coins';
 import { assetData } from '@pioneer-platform/pioneer-discovery';
+import { Events } from '@pioneer-platform/pioneer-events';
 import EventEmitter from 'events';
 
 import { getCharts } from './getCharts';
@@ -197,6 +198,23 @@ export class SDK {
         this.keepKeySdk = keepKeySdk;
         this.context = 'keepkey:' + features.label + '.json';
         this.events.emit('SET_STATUS', 'init');
+
+        let configWss = {
+          // queryKey:TEST_QUERY_KEY_2,
+          username: this.username,
+          queryKey: this.queryKey,
+          wss: this.wss,
+        };
+        let clientEvents = new Events(configWss);
+        console.log(tag, 'clientEvents: ', clientEvents);
+        await clientEvents.init();
+        await clientEvents.setUsername(config.username);
+
+        //events
+        clientEvents.events.on('message', (request) => {
+          console.log(tag, 'request: ', request);
+          this.events.emit('message', request);
+        });
 
         await this.getGasAssets();
 

@@ -89,8 +89,8 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       localStorage.setItem('queryKey', queryKey);
 
       let keepkeyApiKey = localStorage.getItem('keepkeyApiKey');
+      if (!keepkeyApiKey) keepkeyApiKey = '123';
       console.log(tag, '(from localstorage) keepkeyApiKey: ', keepkeyApiKey);
-      if (!keepkeyApiKey) keepkeyApiKey = '01d97532-d0f0-4c5e-8afd-072741bc24ca';
 
       const walletType = WalletOption.KEEPKEY;
       const allSupported = availableChainsByWallet[walletType];
@@ -99,7 +99,8 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
         (chainStr: any) => ChainToNetworkId[getChainEnumValue(chainStr)],
       );
       const paths = getPaths(blockchains);
-      const spec = localStorage.getItem('pioneerUrl') || 'https://pioneers.dev/spec/swagger.json';
+      const spec = localStorage.getItem('pioneerUrl') || 'http://127.0.0.1:9001/spec/swagger.json';
+      // const spec = localStorage.getItem('pioneerUrl') || 'https://pioneers.dev/spec/swagger.json';
       const wss = 'wss://pioneers.dev';
       //@ts-ignore
       const appInit = new SDK(spec, {

@@ -2,15 +2,8 @@
 
 import React, { useState } from 'react';
 import { Box, Flex, Text, Input, Button } from '@chakra-ui/react';
+const TAG = " | Chat | "
 
-// Mock components for Header, Messages, and Footer
-const Header = () => (
-  <Flex p={4} bg="blue.500" color="white" justifyContent="center">
-    <Text fontSize="lg" fontWeight="bold">
-      HoneyChat
-    </Text>
-  </Flex>
-);
 
 const Messages = ({ messages }: { messages: { from: string; text: string }[] }) => (
   <Flex flex="1" flexDir="column" p={4} bg="gray.100" overflowY="auto">
@@ -41,7 +34,7 @@ const Footer = ({
   setInputMessage: React.Dispatch<React.SetStateAction<string>>;
   handleSendMessage: () => void;
 }) => (
-  <Flex p={4} bg="white" alignItems="center">
+  <Flex p={4} alignItems="center">
     <Input
       flex="1"
       value={inputMessage}
@@ -49,7 +42,7 @@ const Footer = ({
       placeholder="Type your message..."
       mr={2}
     />
-    <Button onClick={handleSendMessage} colorScheme="blue">
+    <Button onClick={handleSendMessage} >
       Send
     </Button>
   </Flex>
@@ -59,45 +52,58 @@ const Chat = ({ usePioneer }: any) => {
   const { state, connectWallet } = usePioneer();
   const { app } = state;
   const [messages, setMessages] = useState([
-    { from: 'computer', text: 'Hi, My Name is HoneyChat' },
-    { from: 'me', text: 'Hey there' },
-    { from: 'me', text: 'Myself Ferin Patel' },
+    { from: 'computer', text: 'Hi, I am KeepKey support' },
     {
       from: 'computer',
-      text: "Nice to meet you. You can send me a message and I'll reply to you with the same message.",
+      text: "lets Review your situation",
     },
   ]);
 
   const [inputMessage, setInputMessage] = useState('');
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async function(){
+    let tag = TAG + " | handleSendMessage | "
+    try{
+
+      const data = inputMessage;
+      console.log(tag,'data: ',data)
+      setMessages((prev) => [...prev, { from: 'me', text: data }]);
+      setInputMessage('');
+
+      console.log(tag,'app: ',app)
+      if(app && app.pioneer){
+        console.log(tag,'app: ',app.pioneer)
+        let result = await app.pioneer.Support({state:{},messages})
+        console.log("result", result)
+
+      }
+
+
+
+      //
+      // setTimeout(() => {
+      //   setMessages((prev) => [...prev, { from: 'computer', text: data }]);
+      // }, 1000);
+    }catch(e){
+      console.error(e)
+    }
     if (!inputMessage.trim().length) {
       return;
     }
+  }
 
-    const data = inputMessage;
-    setMessages((prev) => [...prev, { from: 'me', text: data }]);
-    setInputMessage('');
-
-    setTimeout(() => {
-      setMessages((prev) => [...prev, { from: 'computer', text: data }]);
-    }, 1000);
-  };
 
   return (
-    <Flex w="100%" h="100vh" justify="center" align="center" bg="gray.200">
-      <Flex w="40%" h="90%" flexDir="column" boxShadow="lg" bg="white" borderRadius="md">
-        <Header />
-        <br />
-        <Messages messages={messages} />
-        <br />
-        <Footer
-          inputMessage={inputMessage}
-          setInputMessage={setInputMessage}
-          handleSendMessage={handleSendMessage}
-        />
-      </Flex>
-    </Flex>
+    <div>
+      <br />
+      <Messages messages={messages} />
+      <br />
+      <Footer
+        inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
+        handleSendMessage={handleSendMessage}
+      />
+    </div>
   );
 };
 

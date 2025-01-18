@@ -1,7 +1,7 @@
 {
   "author": "highlander",
   "name": "@coinmasters/pioneer-sdk",
-  "version": "4.8.26",
+  "version": "4.8.27",
   "dependencies": {
     "@coinmasters/api": "workspace:*",
     "@coinmasters/tokens": "workspace:*",
@@ -12,6 +12,7 @@
     "@pioneer-platform/pioneer-client": "^9.2.5",
     "@pioneer-platform/pioneer-coins": "^9.2.23",
     "@pioneer-platform/pioneer-discovery": "^0.0.15",
+    "@pioneer-platform/pioneer-events": "^8.3.2",
     "coinselect": "^3.1.13"
   },
   "description": "Pioneer Core SDK",

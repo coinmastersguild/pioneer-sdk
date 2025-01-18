@@ -16,9 +16,8 @@ export default function Home() {
 
   const initializeApp = async () => {
     try {
+      console.log("Initializing App");
       await onStartApp(); // Ensure the function resolves or rejects correctly
-      const searchParams = useSearchParams();
-      const type = searchParams.get('type');
 
 
     } catch (e) {

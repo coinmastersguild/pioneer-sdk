@@ -141,14 +141,12 @@ export function Explore({ usePioneer }: any): JSX.Element {
           {/* Attach and Global Icons */}
           <Flex align="center" gap={2}>
             <IconButton
-              icon={<AiOutlinePaperClip />}
               aria-label="Attach file"
               variant="ghost"
               color="gray.500"
               fontSize="20px"
             />
             <IconButton
-              icon={<AiOutlineGlobal />}
               aria-label="Global icon"
               variant="ghost"
               color="gray.500"
@@ -158,7 +156,7 @@ export function Explore({ usePioneer }: any): JSX.Element {
 
           {/* Input Field */}
           <Input
-            variant="unstyled"
+            // variant="unstyled"
             placeholder="Message KeepKeyGPT"
             color="white"
             px={4}
@@ -168,7 +166,6 @@ export function Explore({ usePioneer }: any): JSX.Element {
 
           {/* Microphone Icon */}
           <IconButton
-            icon={<FiMic />}
             aria-label="Voice input"
             variant="ghost"
             color="gray.500"
