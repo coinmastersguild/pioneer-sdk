@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Button, Icon, Badge, HStack, Image } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Button, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
 import { toaster } from '@/components/ui/toaster';
 import { Avatar } from "@/components/ui/avatar"
 import { HiHeart } from "react-icons/hi"
@@ -128,18 +128,41 @@ const Chat = ({ usePioneer }: any) => {
     switch (view?.type) {
       case 'inquiry':
         return (
-          <Box key={index} mb={2}>
+          <Box
+            key={index}
+            mb={2}
+            bg="gray.300"
+            color="black"
+            px={4}
+            py={2}
+            borderRadius="md"
+          >
             <Text fontWeight="bold">Inquiry:</Text>
             <Text>{view.payload.inquiry}</Text>
           </Box>
         );
       case 'article':
         return (
-          <Box key={index} mb={2}>
+          <Box
+            key={index}
+            mb={2}
+            bg="gray.300"
+            color="black"
+            px={4}
+            py={2}
+            borderRadius="md"
+          >
             <Text fontWeight="bold">Article Link:</Text>
-            <Text color="blue.600" textDecoration="underline">
+            <Link
+              href={view.payload.link}
+              color="blue.600"
+              textDecoration="underline"
+              isExternal
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {view.payload.link}
-            </Text>
+            </Link>
           </Box>
         );
       default:
