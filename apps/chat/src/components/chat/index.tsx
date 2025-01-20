@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Button, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
+import { Button } from "@/components/ui/button"
+
 import { toaster } from '@/components/ui/toaster';
 import { Avatar } from "@/components/ui/avatar"
 import { HiHeart } from "react-icons/hi"
@@ -70,6 +72,11 @@ const Chat = ({ usePioneer }: any) => {
 
   const [inputMessage, setInputMessage] = useState('');
 
+  // This function will handle what happens when a user clicks an inquiry option.
+  const handleInquiryOptionClick = (option: string) => {
+    console.log("Inquiry option clicked: ", option);
+    // TODO: Trigger your next steps or calls here.
+  };
 
   function renderEventMessage(eventMessage: any, index: number) {
     return (
@@ -139,6 +146,15 @@ const Chat = ({ usePioneer }: any) => {
           >
             <Text fontWeight="bold">Inquiry:</Text>
             <Text>{view.payload.inquiry}</Text>
+            {view.payload.options && view.payload.options.length > 0 && (
+              <HStack spacing={2} mt={2}>
+                {view.payload.options.map((option: string, i: number) => (
+                  <Button colorPalette="green" key={i} variant="surface" onClick={() => handleInquiryOptionClick(option)}>
+                   {option}
+                  </Button>
+                ))}
+              </HStack>
+            )}
           </Box>
         );
       case 'article':
@@ -317,7 +333,7 @@ const Chat = ({ usePioneer }: any) => {
           placeholder="Type your message..."
           mr={2}
         />
-        <Button onClick={handleSendMessage}>
+        <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
           Send
         </Button>
       </Flex>
