@@ -1,28 +1,63 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Button } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Button, Icon } from '@chakra-ui/react';
 import { toaster } from '@/components/ui/toaster';
+import { Avatar } from "@/components/ui/avatar"
+import { HiHeart } from "react-icons/hi"
+
 const TAG = " | Chat | "
 
+const AVATARS = {
+  'user': HiHeart,
+  'computer': 'https://pioneers.dev/coins/keepkey.png'
+}
 
 const Messages = ({ messages }: { messages: { from: string; text: string }[] }) => (
   <Flex flex="1" flexDir="column" p={4} bg="gray.100" overflowY="auto">
-    {messages.map((message, index) => (
-      <Box
-        key={index}
-        alignSelf={message.from === 'me' ? 'flex-end' : 'flex-start'}
-        bg={message.from === 'me' ? 'blue.200' : 'gray.300'}
-        color="black"
-        px={4}
-        py={2}
-        borderRadius="md"
-        mb={2}
-        maxW="70%"
-      >
-        {message.text}
-      </Box>
-    ))}
+    {messages.map((message, index) => {
+      const avatar = AVATARS[message.from] || '';
+      return (
+        <Flex
+          key={index}
+          alignSelf={message.from === 'me' ? 'flex-end' : 'flex-start'}
+          mb={2}
+          maxW="70%"
+        >
+          {message.from !== 'me' && (
+            <Box mr={2}>
+              {typeof avatar === 'string' ? (
+                <Avatar src={avatar} alt={`${message.from}-avatar`} />
+              ) : (
+                <Avatar>
+                  <Icon as={avatar} />
+                </Avatar>
+              )}
+            </Box>
+          )}
+          <Box
+            bg={message.from === 'me' ? 'blue.200' : 'gray.300'}
+            color="black"
+            px={4}
+            py={2}
+            borderRadius="md"
+          >
+            {message.text}
+          </Box>
+          {message.from === 'me' && (
+            <Box ml={2}>
+              {typeof avatar === 'string' ? (
+                <Avatar src={avatar} alt={`${message.from}-avatar`} />
+              ) : (
+                <Avatar>
+                  <Icon as={avatar} />
+                </Avatar>
+              )}
+            </Box>
+          )}
+        </Flex>
+      );
+    })}
   </Flex>
 );
 
@@ -72,8 +107,8 @@ const Chat = ({ usePioneer }: any) => {
           console.log('**** Event: ',action, data);
           try{
             let payload = JSON.parse(action);
-            console.log('**** Event: ',payload.content);
-            setMessages((prev) => [...prev, { from: 'computer', text: payload.content || '' }]);
+            console.log('**** Event: ',payload.message);
+            setMessages((prev) => [...prev, { from: 'computer', text: payload.message || '' }]);
           }catch(e){
             console.error(e)
           }
