@@ -8,9 +8,9 @@ import { HiHeart } from "react-icons/hi"
 
 const TAG = " | Chat | "
 
-const AVATARS = {
-  'user': HiHeart,
-  'computer': 'https://pioneers.dev/coins/keepkey.png'
+const AVATARS: Record<string, typeof HiHeart | string> = {
+  user: HiHeart,
+  computer: 'https://pioneers.dev/coins/keepkey.png'
 }
 
 const Messages = ({ messages }: { messages: { from: string; text: string }[] }) => (
@@ -27,7 +27,7 @@ const Messages = ({ messages }: { messages: { from: string; text: string }[] }) 
           {message.from !== 'me' && (
             <Box mr={2}>
               {typeof avatar === 'string' ? (
-                <Avatar src={avatar} alt={`${message.from}-avatar`} />
+                <Avatar src={avatar} name={`${message.from}-avatar`} />
               ) : (
                 <Avatar>
                   <Icon as={avatar} />
@@ -47,7 +47,7 @@ const Messages = ({ messages }: { messages: { from: string; text: string }[] }) 
           {message.from === 'me' && (
             <Box ml={2}>
               {typeof avatar === 'string' ? (
-                <Avatar src={avatar} alt={`${message.from}-avatar`} />
+                <Avatar src={avatar} name={`${message.from}-avatar`} />
               ) : (
                 <Avatar>
                   <Icon as={avatar} />
@@ -104,18 +104,54 @@ const Chat = ({ usePioneer }: any) => {
       if(app && app.events){
         console.log(tag,'Starting chat');
         app.events.on('message', (action: string, data: any) => {
-          console.log('**** Event: ',action, data);
-          try{
-            let payload = JSON.parse(action);
-            console.log('**** Event: ',payload.message);
-            setMessages((prev) => [...prev, { from: 'computer', text: payload.message || '' }]);
-          }catch(e){
-            console.error(e)
-          }
-          // let payload = JSON.parse(action);
-          // console.log('**** Event: ',payload.message);
+          console.log('**** Event:', action, data);
+          try {
+            // 1) If action is a JSON string, parse it; if object, use it directly.
+            let dataObj: any;
+            if (typeof action === 'string') {
+              dataObj = JSON.parse(action);
+            } else if (typeof action === 'object') {
+              dataObj = action;
+            } else {
+              dataObj = {};
+            }
 
-          // setMessages((prev) => [...prev, { from: 'computer', text: payload.message }]);
+            // 2) Pull message/views from dataObj or fallback to data if needed.
+            let message = dataObj.message || data?.message || '';
+            let views   = dataObj.views   || data?.views   || [];
+
+            console.log('**** Event message:', message);
+            console.log('**** Event views:', views);
+
+            // 3) If there are views, handle them
+            if (views && views.length > 0) {
+              for (let i = 0; i < views.length; i++) {
+                let view = views[i];
+                switch (view.type) {
+                  case 'inquiry':
+                    setMessages((prev) => [
+                      ...prev,
+                      { from: 'computer', text: view.payload.inquiry }
+                    ]);
+                    break;
+
+                  case 'articlePreview':
+                    // Future handling for an articlePreview type
+                    break;
+                  default:
+                    console.log('Unhandled view type:', view.type);
+                }
+              }
+            }
+
+            // Always push the main message at the end
+            setMessages((prev) => [
+              ...prev,
+              { from: 'computer', text: message }
+            ]);
+          } catch (e) {
+            console.error(e);
+          }
         });
       } else {
         console.log('Unable to start chat');
