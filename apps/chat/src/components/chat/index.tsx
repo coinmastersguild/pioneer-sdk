@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Button, Icon } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Button, Icon, Badge, HStack, Image } from '@chakra-ui/react';
 import { toaster } from '@/components/ui/toaster';
 import { Avatar } from "@/components/ui/avatar"
 import { HiHeart } from "react-icons/hi"
+
 
 const TAG = " | Chat | "
 
@@ -13,8 +14,68 @@ const AVATARS: Record<string, typeof HiHeart | string> = {
   computer: 'https://pioneers.dev/coins/keepkey.png'
 }
 
+let messages = [
+  {
+    type: 'event',
+    message: 'user has joined the chat',
+  },
+  {
+    type: 'message',
+    icon: AVATARS['computer'],
+    from: 'computer',
+    text: 'Welcome to the keepkey support!',
+  },
+  {
+    type: 'message',
+    from: 'computer',
+    text: 'Welcome to the Chat!',
+  },
+  {
+    type: 'view',
+    view:{
+      type:'inquiry',
+      payload:{
+        id: 1,
+        inquiry: 'Have you installed KeepKey Desktop?',
+        topics: [],
+        importance: 5,
+        isDone: false,
+        isSkipped: false,
+        options: [
+          'Yes I have',
+          'Give me more information on KeepKey Desktop',
+          'Im not a keepkey customer'
+        ],
+        createdAt: 1737265353814
+      }
+    }
+  },
+  {
+    type: 'view',
+    view:{
+      type:'article',
+      payload:{
+        id: 1,
+        link: 'https://keepkey.com',
+        topics: ['keepkey'],
+        importance: 5,
+        summary: '',
+        icon:''
+      }
+    }
+  },
+]
+
+
 const Messages = ({ messages }: { messages: { from: string; text: string }[] }) => (
   <Flex flex="1" flexDir="column" p={4} bg="gray.100" overflowY="auto">
+    <Text fontSize="sm" color="black" mb={2}>
+      User has joined the chat
+    </Text>
+    <Text fontSize="sm" color="black" mb={4}>
+      KeepKey support has entered the chat
+    </Text>
+
     {messages.map((message, index) => {
       const avatar = AVATARS[message.from] || '';
       return (
@@ -127,6 +188,7 @@ const Chat = ({ usePioneer }: any) => {
             if (views && views.length > 0) {
               for (let i = 0; i < views.length; i++) {
                 let view = views[i];
+                console.log(tag,'view:', view);
                 switch (view.type) {
                   case 'inquiry':
                     setMessages((prev) => [
