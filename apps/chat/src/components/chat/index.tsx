@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Input, Button } from '@chakra-ui/react';
+import { toaster } from '@/components/ui/toaster';
 const TAG = " | Chat | "
 
 
@@ -60,6 +61,38 @@ const Chat = ({ usePioneer }: any) => {
   ]);
 
   const [inputMessage, setInputMessage] = useState('');
+
+  let onStart = async function(){
+    let tag = TAG + " | onStart | "
+    try{
+      //
+      if(app && app.events){
+        console.log(tag,'Starting chat');
+        app.events.on('message', (action: string, data: any) => {
+          console.log('**** Event: ',action, data);
+          try{
+            let payload = JSON.parse(action);
+            console.log('**** Event: ',payload.content);
+            setMessages((prev) => [...prev, { from: 'computer', text: payload.content || '' }]);
+          }catch(e){
+            console.error(e)
+          }
+          // let payload = JSON.parse(action);
+          // console.log('**** Event: ',payload.message);
+
+          // setMessages((prev) => [...prev, { from: 'computer', text: payload.message }]);
+        });
+      } else {
+        console.log('Unable to start chat');
+      }
+    }catch(e){
+      console.error(e);
+    }
+  }
+  useEffect(() => {
+    onStart();
+  }, [app, app?.events]);
+
 
   const handleSendMessage = async function(){
     let tag = TAG + " | handleSendMessage | "

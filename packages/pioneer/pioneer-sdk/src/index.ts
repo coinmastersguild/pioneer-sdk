@@ -190,13 +190,22 @@ export class SDK {
             url: 'http://localhost:1646',
           },
         };
-        //@ts-ignore
-        const keepKeySdk = await KeepKeySdk.create(configKeepKey);
-        const keepkeyApiKey = configKeepKey.apiKey;
-        const features = await keepKeySdk.system.info.getFeatures();
-        this.keepkeyApiKey = keepkeyApiKey;
-        this.keepKeySdk = keepKeySdk;
-        this.context = 'keepkey:' + features.label + '.json';
+        try {
+          //@ts-ignore
+          const keepKeySdk = await KeepKeySdk.create(configKeepKey);
+          const keepkeyApiKey = configKeepKey.apiKey;
+          const features = await keepKeySdk.system.info.getFeatures();
+          this.keepkeyApiKey = keepkeyApiKey;
+          this.keepKeySdk = keepKeySdk;
+          this.context = 'keepkey:' + features.label + '.json';
+          let pubkeysCache = await this.keepKeySdk.storage.getPubkeys().catch((error) => {
+            //console.error('Error fetching pubkeysCache:', error);
+            return [];
+          });
+          await this.loadPubkeyCache(pubkeysCache);
+        } catch (e) {
+          console.error(e);
+        }
         this.events.emit('SET_STATUS', 'init');
 
         let configWss = {
@@ -208,7 +217,7 @@ export class SDK {
         let clientEvents = new Events(configWss);
         console.log(tag, 'clientEvents: ', clientEvents);
         await clientEvents.init();
-        await clientEvents.setUsername(config.username);
+        await clientEvents.setUsername(this.username);
 
         //events
         clientEvents.events.on('message', (request) => {
@@ -218,20 +227,7 @@ export class SDK {
 
         await this.getGasAssets();
 
-        let pubkeysCache = await this.keepKeySdk.storage.getPubkeys().catch((error) => {
-          //console.error('Error fetching pubkeysCache:', error);
-          return [];
-        });
-        await this.loadPubkeyCache(pubkeysCache);
-
-        //No more balance cache!
-        // let balanceCache = await this.keepKeySdk.storage.getBalances().catch((error) => {
-        //   //console.error('Error fetching balanceCache:', error);
-        //   return [];
-        // });
-        // await this.loadBalanceCache(balanceCache);
-
-        await this.sync();
+        if (this.keepKeySdk) await this.sync();
         return this.pioneer;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -335,39 +331,7 @@ export class SDK {
             }
           }
         }
-
-        // await this.getBalances();
-
-        //TODO target old stale balances & missing
-        console.log(tag, 'pubkeys (Checkpoint3)');
-
         await this.getBalances();
-
-        // for (let i = 0; i < this.blockchains.length; i++) {
-        //   let networkId = this.blockchains[i];
-        //   // if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-        //   console.log(tag, 'networkId: ', networkId);
-        //   let balancesForChain = this.balances.filter((balance) => balance.networkId === networkId);
-        //   console.log(tag, 'balancesForChain: ', balancesForChain.length);
-        //
-        //   //pubkey count
-        //   let processedNetworkId = networkId.indexOf('eip155:') >= 0 ? 'eip155:*' : networkId;
-        //
-        //   let pubkeyCount = this.pubkeys.filter((pubkey) =>
-        //     pubkey.networks.includes(processedNetworkId),
-        //   );
-        //   console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount.length);
-        //   console.log(tag, networkId + ' pubkeyCount: ', pubkeyCount);
-        //
-        //   if (balancesForChain.length < pubkeyCount.length || balancesForChain.length === 0) {
-        //     console.log(tag, 'No balance found for network ' + networkId);
-        //     let resultBalance = await this.getBalance(this.blockchains[i]);
-        //     console.log(tag, 'resultBalance: ', resultBalance.length);
-        //   } else {
-        //     console.log(tag, ' **** CACHE **** Cache valid for balance: ', networkId);
-        //   }
-        // }
-
         //console.log(tag, 'balances (Checkpoint4)');
         return true;
       } catch (e) {
