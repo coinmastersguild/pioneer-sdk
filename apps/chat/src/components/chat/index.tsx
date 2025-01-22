@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link, Spinner } from '@chakra-ui/react';
 import { Button } from "@/components/ui/button"
 
 import { toaster } from '@/components/ui/toaster';
@@ -326,26 +326,50 @@ const Chat = ({ usePioneer }: any) => {
 
 
   return (
-    <Box bg="gray.900" color="white" minH="100vh">
-      <br />
-      <Messages messages={messages} />
-      <br />
-      <Flex p={4} alignItems="center" bg="gray.800">
-        <Input
-          flex="1"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          placeholder="Type your message..."
-          mr={2}
-          bg="gray.800"
+    <>
+      {!app ? (
+        <Flex
+          justifyContent="center"
+          alignItems="center"
+          bg="gray.900"
           color="white"
-          _placeholder={{ color: 'gray.400' }}
-        />
-        <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
-          Send
-        </Button>
-      </Flex>
-    </Box>
+          minH="100vh"
+          flexDir="column"
+        >
+          <Spinner
+            thickness="10px"
+            speed="0.65s"
+            label="Loading..."
+            color="white"
+            size="xl"
+          />
+          <Text mt={4} fontSize="xl" color="white">
+            Loading...
+          </Text>
+        </Flex>
+      ) : (
+        <Box bg="gray.900" color="white" minH="100vh">
+          <br />
+          <Messages messages={messages} />
+          <br />
+          <Flex p={4} alignItems="center" bg="gray.800">
+            <Input
+              flex="1"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder="Type your message..."
+              mr={2}
+              bg="gray.800"
+              color="white"
+              _placeholder={{ color: 'gray.400' }}
+            />
+            <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
+              Send
+            </Button>
+          </Flex>
+        </Box>
+      )}
+    </>
   );
 };
 
