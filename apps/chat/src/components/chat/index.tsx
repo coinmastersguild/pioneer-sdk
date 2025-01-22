@@ -80,7 +80,12 @@ const Chat = ({ usePioneer }: any) => {
 
   function renderEventMessage(eventMessage: any, index: number) {
     return (
-      <Text key={index} fontSize="sm" color="black" mb={2}>
+      <Text
+        key={index}
+        fontSize="sm"
+        color="gray.300"
+        mb={2}
+      >
         {eventMessage.message}
       </Text>
     );
@@ -107,8 +112,8 @@ const Chat = ({ usePioneer }: any) => {
           </Box>
         )}
         <Box
-          bg={msg.from === 'me' ? 'blue.200' : 'gray.300'}
-          color="black"
+          bg={msg.from === 'me' ? 'blue.700' : 'gray.700'}
+          color="white"
           px={4}
           py={2}
           borderRadius="md"
@@ -138,8 +143,8 @@ const Chat = ({ usePioneer }: any) => {
           <Box
             key={index}
             mb={2}
-            bg="gray.300"
-            color="black"
+            bg="gray.700"
+            color="white"
             px={4}
             py={2}
             borderRadius="md"
@@ -162,8 +167,8 @@ const Chat = ({ usePioneer }: any) => {
           <Box
             key={index}
             mb={2}
-            bg="gray.300"
-            color="black"
+            bg="gray.700"
+            color="white"
             px={4}
             py={2}
             borderRadius="md"
@@ -171,7 +176,7 @@ const Chat = ({ usePioneer }: any) => {
             <Text fontWeight="bold">Article Link:</Text>
             <Link
               href={view.payload.link}
-              color="blue.600"
+              color="blue.300"
               textDecoration="underline"
               isExternal
               target="_blank"
@@ -321,23 +326,26 @@ const Chat = ({ usePioneer }: any) => {
 
 
   return (
-    <div>
+    <Box bg="gray.900" color="white" minH="100vh">
       <br />
       <Messages messages={messages} />
       <br />
-      <Flex p={4} alignItems="center">
+      <Flex p={4} alignItems="center" bg="gray.800">
         <Input
           flex="1"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder="Type your message..."
           mr={2}
+          bg="gray.800"
+          color="white"
+          _placeholder={{ color: 'gray.400' }}
         />
         <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
           Send
         </Button>
       </Flex>
-    </div>
+    </Box>
   );
 };
 
