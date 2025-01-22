@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
 import { Button } from "@/components/ui/button"
 
 import { toaster } from '@/components/ui/toaster';
@@ -18,63 +18,66 @@ const TAG = " | Chat | "
 const Chat = ({ usePioneer }: any) => {
   const { state, connectWallet } = usePioneer();
   const { app } = state;
-  const [messages, setMessages] = useState([
-    {
-      type: 'event',
-      message: 'user has joined the chat',
-    },
-    {
-      type: 'message',
-      icon: AVATARS['computer'],
-      from: 'computer',
-      text: 'Welcome to the keepkey support!',
-    },
-    {
-      type: 'message',
-      from: 'computer',
-      text: 'Welcome to the Chat!',
-    },
-    {
-      type: 'view',
-      view:{
-        type:'inquiry',
-        payload:{
-          id: 1,
-          inquiry: 'Have you installed KeepKey Desktop?',
-          topics: [],
-          importance: 5,
-          isDone: false,
-          isSkipped: false,
-          options: [
-            'Yes I have',
-            'Give me more information on KeepKey Desktop',
-            'Im not a keepkey customer'
-          ],
-          createdAt: 1737265353814
-        }
-      }
-    },
-    {
-      type: 'view',
-      view:{
-        type:'article',
-        payload:{
-          id: 1,
-          link: 'https://keepkey.com',
-          topics: ['keepkey'],
-          importance: 5,
-          summary: '',
-          icon:''
-        }
-      }
-    },
+  const [messages, setMessages] = useState<any>([
+    // {
+    //   type: 'event',
+    //   message: 'user has joined the chat',
+    // },
+    // {
+    //   type: 'message',
+    //   icon: AVATARS['computer'],
+    //   from: 'computer',
+    //   text: 'Welcome to the keepkey support!',
+    // },
+    // {
+    //   type: 'message',
+    //   from: 'computer',
+    //   text: 'Welcome to the Chat!',
+    // },
+    // {
+    //   type: 'view',
+    //   view:{
+    //     type:'inquiry',
+    //     payload:{
+    //       id: 1,
+    //       inquiry: 'Have you installed KeepKey Desktop?',
+    //       topics: [],
+    //       importance: 5,
+    //       isDone: false,
+    //       isSkipped: false,
+    //       options: [
+    //         'Yes I have',
+    //         'Give me more information on KeepKey Desktop',
+    //         'Im not a keepkey customer'
+    //       ],
+    //       createdAt: 1737265353814
+    //     }
+    //   }
+    // },
+    // {
+    //   type: 'view',
+    //   view:{
+    //     type:'article',
+    //     payload:{
+    //       id: 1,
+    //       link: 'https://keepkey.com',
+    //       topics: ['keepkey'],
+    //       importance: 5,
+    //       summary: '',
+    //       icon:''
+    //     }
+    //   }
+    // },
   ]);
 
   const [inputMessage, setInputMessage] = useState('');
+  const [showInput, setShowInput] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   // This function will handle what happens when a user clicks an inquiry option.
   const handleInquiryOptionClick = (option: string) => {
     console.log("Inquiry option clicked: ", option);
+    setShowInput(true);
     // TODO: Trigger your next steps or calls here.
   };
 
@@ -234,6 +237,32 @@ const Chat = ({ usePioneer }: any) => {
   let onStart = async function(){
     let tag = TAG + " | onStart | "
     try{
+      // Check localStorage for existing roomId:
+      const existingRoomId = localStorage.getItem('myRoomId');
+      if (existingRoomId) {
+        console.log(tag, 'Found existing roomId:', existingRoomId);
+        setRoomId(existingRoomId);
+        setMessages([...messages, {
+          type: 'event',
+          message: app.username+' has joined the room '+existingRoomId
+        }]);
+      } else {
+        // If no existing roomId, create one. Replace with real logic as needed.
+        let response = await app.pioneer.CreateRoom({
+          username:app.username,
+          auth: app.queryKey,
+        })
+        let roomId = response.data.roomId
+        setRoomId(roomId);
+        localStorage.setItem('myRoomId', roomId);
+        setMessages([...messages, {
+          type: 'event',
+          message: app.username+' has joined the room '+roomId
+        }]);
+
+        console.log(tag, 'No roomId found, created new:', roomId);
+      }
+
       //
       if(app && app.events){
         console.log(tag,'Starting chat');
@@ -336,11 +365,9 @@ const Chat = ({ usePioneer }: any) => {
           minH="100vh"
           flexDir="column"
         >
-          <Spinner
-            thickness="10px"
-            speed="0.65s"
-            label="Loading..."
-            color="white"
+          <Avatar
+            src="/gif/kk.gif"
+            name="Loading Avatar"
             size="xl"
           />
           <Text mt={4} fontSize="xl" color="white">
@@ -352,21 +379,23 @@ const Chat = ({ usePioneer }: any) => {
           <br />
           <Messages messages={messages} />
           <br />
-          <Flex p={4} alignItems="center" bg="gray.800">
-            <Input
-              flex="1"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message..."
-              mr={2}
-              bg="gray.800"
-              color="white"
-              _placeholder={{ color: 'gray.400' }}
-            />
-            <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
-              Send
-            </Button>
-          </Flex>
+          {showInput && (
+            <Flex p={4} alignItems="center" bg="gray.800">
+              <Input
+                flex="1"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Type your message..."
+                mr={2}
+                bg="gray.800"
+                color="white"
+                _placeholder={{ color: 'gray.400' }}
+              />
+              <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
+                Send
+              </Button>
+            </Flex>
+          )}
         </Box>
       )}
     </>
