@@ -19,21 +19,21 @@ const Chat = ({ usePioneer }: any) => {
   const { state, connectWallet } = usePioneer();
   const { app } = state;
   const [messages, setMessages] = useState<any>([
-    // {
-    //   type: 'event',
-    //   message: 'user has joined the chat',
-    // },
-    // {
-    //   type: 'message',
-    //   icon: AVATARS['computer'],
-    //   from: 'computer',
-    //   text: 'Welcome to the keepkey support!',
-    // },
-    // {
-    //   type: 'message',
-    //   from: 'computer',
-    //   text: 'Welcome to the Chat!',
-    // },
+    {
+      type: 'event',
+      message: 'user has joined the chat',
+    },
+    {
+      type: 'message',
+      icon: AVATARS['computer'],
+      from: 'computer',
+      text: 'Welcome to the keepkey support!',
+    },
+    {
+      type: 'message',
+      from: 'me',
+      text: 'Welcome to the Chat!',
+    },
     // {
     //   type: 'view',
     //   view:{
@@ -332,11 +332,7 @@ const Chat = ({ usePioneer }: any) => {
     try{
       const data = inputMessage;
       console.log(tag,'data: ',data)
-      // setMessages([...messages, {
-      //   type: 'message',
-      //   from: 'user',
-      //   text: data,
-      // }]);
+      setMessages([...messages, { type: 'message', from: 'me', text: data }]);
 
       setInputMessage('');
 
