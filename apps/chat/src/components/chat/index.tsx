@@ -71,7 +71,7 @@ const Chat = ({ usePioneer }: any) => {
   ]);
 
   const [inputMessage, setInputMessage] = useState('');
-  const [showInput, setShowInput] = useState(false);
+  const [showInput, setShowInput] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(null);
 
   // This function will handle what happens when a user clicks an inquiry option.
@@ -284,28 +284,33 @@ const Chat = ({ usePioneer }: any) => {
               for (let i = 0; i < views.length; i++) {
                 let view = views[i];
                 console.log(tag,'view:', view);
-                switch (view.type) {
-                  case 'inquiry':
-                    setMessages((prev) => [
-                      ...prev,
-                      { from: 'computer', text: view.payload.inquiry }
-                    ]);
-                    break;
+                setMessages((prev) => [
+                  ...prev,
+                  view.payload
+                ]);
 
-                  case 'articlePreview':
-                    // Future handling for an articlePreview type
-                    break;
-                  default:
-                    console.log('Unhandled view type:', view.type);
-                }
+                // switch (view.type) {
+                //   case 'inquiry':
+                //     setMessages((prev) => [
+                //       ...prev,
+                //       view.payload
+                //     ]);
+                //     break;
+                //
+                //   case 'articlePreview':
+                //     // Future handling for an articlePreview type
+                //     break;
+                //   default:
+                //     console.log('Unhandled view type:', view.type);
+                // }
               }
             }
 
             // Always push the main message at the end
-            setMessages((prev) => [
-              ...prev,
-              { from: 'computer', text: message }
-            ]);
+            // setMessages((prev) => [
+            //   ...prev,
+            //   { from: 'computer', text: message }
+            // ]);
           } catch (e) {
             console.error(e);
           }
@@ -325,10 +330,14 @@ const Chat = ({ usePioneer }: any) => {
   const handleSendMessage = async function(){
     let tag = TAG + " | handleSendMessage | "
     try{
-
       const data = inputMessage;
       console.log(tag,'data: ',data)
-      setMessages((prev) => [...prev, { from: 'me', text: data }]);
+      // setMessages([...messages, {
+      //   type: 'message',
+      //   from: 'user',
+      //   text: data,
+      // }]);
+
       setInputMessage('');
 
       console.log(tag,'app: ',app)
