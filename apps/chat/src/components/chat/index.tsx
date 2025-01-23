@@ -18,57 +18,7 @@ const TAG = " | Chat | "
 const Chat = ({ usePioneer }: any) => {
   const { state, connectWallet } = usePioneer();
   const { app } = state;
-  const [messages, setMessages] = useState<any>([
-    {
-      type: 'event',
-      message: 'user has joined the chat',
-    },
-    {
-      type: 'message',
-      icon: AVATARS['computer'],
-      from: 'computer',
-      text: 'Welcome to the keepkey support!',
-    },
-    {
-      type: 'message',
-      from: 'me',
-      text: 'Welcome to the Chat!',
-    },
-    // {
-    //   type: 'view',
-    //   view:{
-    //     type:'inquiry',
-    //     payload:{
-    //       id: 1,
-    //       inquiry: 'Have you installed KeepKey Desktop?',
-    //       topics: [],
-    //       importance: 5,
-    //       isDone: false,
-    //       isSkipped: false,
-    //       options: [
-    //         'Yes I have',
-    //         'Give me more information on KeepKey Desktop',
-    //         'Im not a keepkey customer'
-    //       ],
-    //       createdAt: 1737265353814
-    //     }
-    //   }
-    // },
-    // {
-    //   type: 'view',
-    //   view:{
-    //     type:'article',
-    //     payload:{
-    //       id: 1,
-    //       link: 'https://keepkey.com',
-    //       topics: ['keepkey'],
-    //       importance: 5,
-    //       summary: '',
-    //       icon:''
-    //     }
-    //   }
-    // },
-  ]);
+  const [messages, setMessages] = useState<any>([]);
 
   const [inputMessage, setInputMessage] = useState('');
   const [showInput, setShowInput] = useState(true);
@@ -139,7 +89,10 @@ const Chat = ({ usePioneer }: any) => {
   }
 
   function renderViewMessage(viewMessage: any, index: number) {
+    let tag = TAG + " | renderViewMessage | "
     const { view } = viewMessage;
+    console.log(tag,'view: ',view)
+    console.log(tag,'view: ',view.type)
     switch (view?.type) {
       case 'inquiry':
         return (
@@ -192,7 +145,7 @@ const Chat = ({ usePioneer }: any) => {
       default:
         return (
           <Box key={index} mb={2}>
-            <Text>Unhandled view type: {view?.type}</Text>
+            <Text>Unhandled view type: {view?.type} {JSON.stringify(view)}</Text>
           </Box>
         );
     }
@@ -284,25 +237,8 @@ const Chat = ({ usePioneer }: any) => {
               for (let i = 0; i < views.length; i++) {
                 let view = views[i];
                 console.log(tag,'view:', view);
-                setMessages((prev) => [
-                  ...prev,
-                  view.payload
-                ]);
-
-                // switch (view.type) {
-                //   case 'inquiry':
-                //     setMessages((prev) => [
-                //       ...prev,
-                //       view.payload
-                //     ]);
-                //     break;
-                //
-                //   case 'articlePreview':
-                //     // Future handling for an articlePreview type
-                //     break;
-                //   default:
-                //     console.log('Unhandled view type:', view.type);
-                // }
+                console.log(tag,'view:', view.type);
+                setMessages([...messages, view]);
               }
             }
 
@@ -339,9 +275,8 @@ const Chat = ({ usePioneer }: any) => {
       console.log(tag,'app: ',app)
       if(app && app.pioneer){
         console.log(tag,'app: ',app.pioneer)
-        let result = await app.pioneer.Support({state:{},messages})
+        let result = await app.pioneer.Support({state:{},message:data})
         console.log("result", result)
-
       }
 
 
