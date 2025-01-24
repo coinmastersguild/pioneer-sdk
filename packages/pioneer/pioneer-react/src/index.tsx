@@ -120,6 +120,7 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       });
 
       const api = await appInit.init([], setup);
+      localStorage.setItem('keepkeyApiKey', appInit.keepkeyApiKey);
       //@ts-ignore
       dispatch({ type: WalletActions.SET_API, payload: api });
       //@ts-ignore

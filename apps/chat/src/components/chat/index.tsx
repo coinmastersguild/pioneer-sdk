@@ -18,18 +18,32 @@ const TAG = " | Chat | "
 const Chat = ({ usePioneer }: any) => {
   const { state, connectWallet } = usePioneer();
   const { app } = state;
-  const [messages, setMessages] = useState<any>([]);
+  const [messages, setMessages] = useState<any>([
+    // {
+    //   type: 'view',
+    //   view:{
+    //     type:'inquiry',
+    //     payload:{
+    //       id: 1,
+    //       inquiry: 'Have you installed KeepKey Desktop?',
+    //       topics: [],
+    //       importance: 5,
+    //       isDone: false,
+    //       isSkipped: false,
+    //       options: [
+    //         'Yes I have',
+    //         'Give me more information on KeepKey Desktop',
+    //         'Im not a keepkey customer'
+    //       ],
+    //       createdAt: 1737265353814
+    //     }
+    //   }
+    // }
+  ]);
 
   const [inputMessage, setInputMessage] = useState('');
   const [showInput, setShowInput] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(null);
-
-  // This function will handle what happens when a user clicks an inquiry option.
-  const handleInquiryOptionClick = (option: string) => {
-    console.log("Inquiry option clicked: ", option);
-    setShowInput(true);
-    // TODO: Trigger your next steps or calls here.
-  };
 
   const Messages = ({
                       messages,
@@ -46,6 +60,7 @@ const Chat = ({ usePioneer }: any) => {
     return (
       <Flex flex="1" flexDir="column" p={4} overflowY="auto">
         {messages.map((msg, index) => {
+          console.log(TAG,' pre: message: ',msg)
           switch (msg.type) {
             case 'event':
               return renderEventMessage(msg, index);
@@ -106,10 +121,16 @@ const Chat = ({ usePioneer }: any) => {
             let dataObj = JSON.parse(action);
 
             // 2) Pull message/views from dataObj or fallback to data if needed.
-            let message = dataObj.message || data?.message || '';
+            let message = dataObj.sentences || data?.sentences || '';
             let views   = dataObj.views   || data?.views   || [];
 
             console.log('**** Event message:', message);
+            let messageNew = {
+              type: 'message',
+              from: 'computer',
+              text: message,
+            }
+            setMessages([...messages, messageNew]);
             console.log('**** Event views:', views);
 
             // 3) If there are views, handle them
@@ -118,7 +139,7 @@ const Chat = ({ usePioneer }: any) => {
                 let view = views[i];
                 console.log(tag,'view:', view);
                 console.log(tag,'view:', view.type);
-                setMessages([...messages, view]);
+                setMessages([...messages, {type:'view',view}]);
               }
             }
           } catch (e) {
