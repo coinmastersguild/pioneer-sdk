@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
+import { Button as ChakraButton, Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
 import { Button } from "@/components/ui/button"
 
 import { toaster } from '@/components/ui/toaster';
@@ -203,7 +203,7 @@ const Chat = ({ usePioneer }: any) => {
           </Text>
         </Flex>
       ) : (
-        <Box bg="gray.900" color="white" minH="100vh">
+        <Box bg="gray.900" color="white" minH="120vh">
           <br />
           <Messages messages={messages} />
           <br />
@@ -214,10 +214,6 @@ const Chat = ({ usePioneer }: any) => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type your message..."
-                mr={2}
-                bg="gray.800"
-                color="white"
-                _placeholder={{ color: 'gray.400' }}
               />
               <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
                 Send
