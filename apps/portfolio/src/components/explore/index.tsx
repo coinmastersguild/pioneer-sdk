@@ -150,7 +150,7 @@ export function Explore({ usePioneer }: any): JSX.Element {
       <Box bg="gray.900" color="white" minH="100vh" p={8}>
         {/* Header */}
         <Text fontSize="2xl" fontWeight="bold" textAlign="center" mb={8}>
-          What can I help with?
+          Explore
         </Text>
 
         {/* Input Area */}
@@ -199,30 +199,34 @@ export function Explore({ usePioneer }: any): JSX.Element {
         </Flex>
 
         {/* Action Buttons */}
-        <Stack direction="row"  mt={6} justify="center">
-          <Button variant="outline" colorScheme="green">
-            Find an Asset
-          </Button>
-          <Button variant="outline" colorScheme="orange">
-            Explore a blockchain
-          </Button>
-          <Button variant="outline" colorScheme="yellow">
-            explore dApps
-          </Button>
-        </Stack>
+        {/*<Stack direction="row"  mt={6} justify="center">*/}
+        {/*  <Button variant="outline" colorScheme="green">*/}
+        {/*    Find an Asset*/}
+        {/*  </Button>*/}
+        {/*  <Button variant="outline" colorScheme="orange">*/}
+        {/*    Explore a blockchain*/}
+        {/*  </Button>*/}
+        {/*  <Button variant="outline" colorScheme="yellow">*/}
+        {/*    explore dApps*/}
+        {/*  </Button>*/}
+        {/*</Stack>*/}
 
         {/* Search Results as a grid of cards */}
-        <SimpleGrid columns={[1, 2, 3]} spacing="6" mt={6}>
-          {searchResults.map((asset) => (
+        <SimpleGrid columns={[1, 2, 3]} gap={6} mt={6}>
+          {searchResults.slice(0, 6).map((asset) => (
             <ChakraCard.Root key={asset.assetId} maxW="sm" overflow="hidden">
-              <Image src={asset.icon} alt={asset.name} />
+              <Image src={asset.icon}
+                     boxSize="150px"
+                     borderRadius="full"
+                     fit="cover"
+                     alt="Naruto Uzumaki" />
               <ChakraCard.Body gap="2">
                 <ChakraCard.Title>{asset.name}</ChakraCard.Title>
                 <ChakraCard.Description>
                   Symbol: {asset.symbol}
                 </ChakraCard.Description>
                 <Text textStyle="2xl" fontWeight="medium" letterSpacing="tight" mt="2">
-                  Network: {asset.networkName}
+                  caip: {asset.caip}
                 </Text>
               </ChakraCard.Body>
             </ChakraCard.Root>
