@@ -137,12 +137,14 @@ export class SDK {
   private estimateMax: (sendPayload: any) => Promise<void>;
   private syncMarket: () => Promise<boolean>;
   private getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
+  private search: (query: string, config: any) => Promise<void>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
     this.appIcon = config.appIcon || 'https://pioneers.dev/coins/keepkey.png';
     this.spec = spec || config.spec || 'https://pioneers.dev/spec/swagger';
     this.wss = config.wss || 'wss://pioneers.dev';
+    this.assets = assetData;
     this.assetsMap = new Map();
     this.username = config.username;
     this.queryKey = config.queryKey;
@@ -234,6 +236,27 @@ export class SDK {
         throw e;
       }
     };
+    // this.search = async (query: string, config: any) => {
+    //   let tag = TAG + ' | search | ';
+    //   try {
+    //     //
+    //     console.log(tag, 'query: ', query);
+    //     console.log(tag, 'config: ', config);
+    //
+    //     let results = [];
+    //
+    //
+    //     return assetData.filter((item: any) => {
+    //       const combinedFields = [item.symbol, item.name, item.networkName].join(' ').toLowerCase();
+    //       return combinedFields.includes(query.toLowerCase());
+    //     });
+    //
+    //     return results;
+    //   } catch (err) {
+    //     console.error(err.message);
+    //     throw err;
+    //   }
+    // };
     this.syncMarket = async function () {
       const tag = `${TAG} | syncMarket | `;
       try {

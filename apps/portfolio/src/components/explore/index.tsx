@@ -4,9 +4,10 @@ import { RiAddFill } from "react-icons/ri";
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Avatar } from "@/components/ui/avatar"
-import { Box, Flex, Text, Input, Button, IconButton, Stack, Spacer, Table } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Button, IconButton, Stack, Spacer, Table, SimpleGrid } from '@chakra-ui/react';
 import { FiMic } from 'react-icons/fi';
 import { AiOutlinePaperClip, AiOutlineGlobal } from 'react-icons/ai';
+import { Card as ChakraCard, Image } from '@chakra-ui/react';
 
 export function Explore({ usePioneer }: any): JSX.Element {
   const { state, connectWallet } = usePioneer();
@@ -24,6 +25,8 @@ export function Explore({ usePioneer }: any): JSX.Element {
   const [totalAssetsCount, setTotalAssetsCount] = useState(0);
   const [selectedBlockchain, setSelectedBlockchain] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [allAssets, setAllAssets] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
 
   const onStart = async function () {
@@ -32,6 +35,15 @@ export function Explore({ usePioneer }: any): JSX.Element {
     console.log("globals: ", globals.data)
     setAssets(globals.data.info.assets)
     setBlockchains(globals.data.info.blockchains)
+
+    console.log('assets: ',app.assets)
+
+    // Convert the assets object into a normal array for filtering
+    if (app.assets) {
+      const tmpAssets = Object.keys(app.assets).map(key => app.assets[key]);
+      setAllAssets(tmpAssets);
+    }
+
   }
 
   // onStart()
@@ -81,12 +93,25 @@ export function Explore({ usePioneer }: any): JSX.Element {
     };
   }, [query]);
 
-  // Fetch data when debouncedQuery changes
+  // Whenever query changes (after debounce), filter the asset array
   useEffect(() => {
+    const filterAssets = () => {
+      const lowerQuery = debouncedQuery.toLowerCase();
+
+      const filtered = allAssets.filter(asset =>
+        asset.symbol?.toLowerCase()?.includes(lowerQuery) ||
+        asset.name?.toLowerCase()?.includes(lowerQuery) ||
+        asset.networkName?.toLowerCase()?.includes(lowerQuery)
+      );
+      setSearchResults(filtered);
+    };
+
     if (debouncedQuery) {
-      fetchPageData(0, pageSize, debouncedQuery);
+      filterAssets();
+    } else {
+      setSearchResults([]); // or set to allAssets if you prefer
     }
-  }, [debouncedQuery, pageSize]);
+  }, [debouncedQuery, allAssets]);
 
   const items = [
     { id: 1, name: "Laptop", category: "Electronics", price: 999.99 },
@@ -156,12 +181,12 @@ export function Explore({ usePioneer }: any): JSX.Element {
 
           {/* Input Field */}
           <Input
-            // variant="unstyled"
             placeholder="Message KeepKeyGPT"
             color="white"
             px={4}
             _placeholder={{ color: 'gray.500' }}
             flex={1}
+            onChange={(e) => setQuery(e.target.value)}
           />
 
           {/* Microphone Icon */}
@@ -185,6 +210,24 @@ export function Explore({ usePioneer }: any): JSX.Element {
             explore dApps
           </Button>
         </Stack>
+
+        {/* Search Results as a grid of cards */}
+        <SimpleGrid columns={[1, 2, 3]} spacing="6" mt={6}>
+          {searchResults.map((asset) => (
+            <ChakraCard.Root key={asset.assetId} maxW="sm" overflow="hidden">
+              <Image src={asset.icon} alt={asset.name} />
+              <ChakraCard.Body gap="2">
+                <ChakraCard.Title>{asset.name}</ChakraCard.Title>
+                <ChakraCard.Description>
+                  Symbol: {asset.symbol}
+                </ChakraCard.Description>
+                <Text textStyle="2xl" fontWeight="medium" letterSpacing="tight" mt="2">
+                  Network: {asset.networkName}
+                </Text>
+              </ChakraCard.Body>
+            </ChakraCard.Root>
+          ))}
+        </SimpleGrid>
       </Box>
     </div>
   );

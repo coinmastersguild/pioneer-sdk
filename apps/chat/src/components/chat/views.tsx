@@ -157,7 +157,7 @@ export function renderViewMessage(viewMessage: any, index: number) {
             </Card.Description>
 
             {/* Fields (Links) */}
-            {view.article.fields.map((field, fieldIndex) => (
+            {view.article.fields.map((field:any, fieldIndex:any) => (
               <Box key={fieldIndex} mb={2}>
                 <Text fontWeight="semibold" as="span">
                   {field.name}
@@ -182,6 +182,7 @@ export function renderViewMessage(viewMessage: any, index: number) {
               <Text fontWeight="medium">{view.article.footer.text}</Text>
               {view.article.footer.iconURL && (
                 <Box as="img"
+                     //@ts-ignore
                      src={view.article.footer.iconURL}
                      alt="icon"
                      width="24px"
