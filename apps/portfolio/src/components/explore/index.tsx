@@ -4,10 +4,16 @@ import { RiAddFill } from "react-icons/ri";
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Avatar } from "@/components/ui/avatar"
-import { Box, Flex, Text, Input, Button, IconButton, Stack, Spacer, Table, SimpleGrid } from '@chakra-ui/react';
+import { Box, Flex, Text, Input, Button, IconButton, Stack, Spacer, Table, SimpleGrid, HStack } from '@chakra-ui/react';
 import { FiMic } from 'react-icons/fi';
 import { AiOutlinePaperClip, AiOutlineGlobal } from 'react-icons/ai';
 import { Card as ChakraCard, Image } from '@chakra-ui/react';
+import {
+  PaginationItems,
+  PaginationNextTrigger,
+  PaginationPrevTrigger,
+  PaginationRoot,
+} from "@/components/ui/pagination";
 
 export function Explore({ usePioneer }: any): JSX.Element {
   const { state, connectWallet } = usePioneer();
@@ -16,18 +22,27 @@ export function Explore({ usePioneer }: any): JSX.Element {
   const [blockchains, setBlockchains] = useState('...');
   const [data, setData] = React.useState<any[]>([]);
   //
-  const [query, setQuery] = useState<string>('');
+  const [query, setQuery] = useState<string>('bitcoin');
   const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [timeOut, setTimeOut] = useState<NodeJS.Timeout | null>(null);
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10); // Set your desired page size
-  const [totalAssetsCount, setTotalAssetsCount] = useState(0);
   const [selectedBlockchain, setSelectedBlockchain] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [allAssets, setAllAssets] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
+  // Add pagination states
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
+
+  // Memoize the displayed results for the current page
+  const displayedResults = React.useMemo(() => {
+    // We slice the search results based on page and pageSize,
+    // which is an even number.
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    return searchResults.slice(start, end);
+  }, [searchResults, page, pageSize]);
 
   const onStart = async function () {
 
@@ -70,8 +85,6 @@ export function Explore({ usePioneer }: any): JSX.Element {
         setData(existingData => [...existingData, ...response.data]); // Append new data
       }
 
-      setCurrentPage(page);
-      setTotalAssetsCount(response.totalCount || totalAssetsCount);
       setIsLoading(false);
     } catch (error: unknown) {
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -181,11 +194,15 @@ export function Explore({ usePioneer }: any): JSX.Element {
 
           {/* Input Field */}
           <Input
+            value={query}
             placeholder="Message KeepKeyGPT"
             color="white"
             px={4}
             _placeholder={{ color: 'gray.500' }}
             flex={1}
+            onFocus={() => {
+              setQuery('');
+            }}
             onChange={(e) => setQuery(e.target.value)}
           />
 
@@ -213,13 +230,15 @@ export function Explore({ usePioneer }: any): JSX.Element {
 
         {/* Search Results as a grid of cards */}
         <SimpleGrid columns={[1, 2, 3]} gap={6} mt={6}>
-          {searchResults.slice(0, 6).map((asset) => (
+          {displayedResults.map((asset) => (
             <ChakraCard.Root key={asset.assetId} maxW="sm" overflow="hidden">
-              <Image src={asset.icon}
-                     boxSize="150px"
-                     borderRadius="full"
-                     fit="cover"
-                     alt="Naruto Uzumaki" />
+              <Image
+                src={asset.icon}
+                boxSize={asset.caip ? "150px" : "40px"} 
+                borderRadius="full"
+                fit="cover"
+                alt={asset.name}
+              />
               <ChakraCard.Body gap="2">
                 <ChakraCard.Title>{asset.name}</ChakraCard.Title>
                 <ChakraCard.Description>
@@ -232,6 +251,20 @@ export function Explore({ usePioneer }: any): JSX.Element {
             </ChakraCard.Root>
           ))}
         </SimpleGrid>
+
+        {/* Pagination */}
+        <PaginationRoot
+          count={searchResults.length}
+          pageSize={pageSize}
+          page={page}
+          onPageChange={({ page }) => setPage(page)}
+        >
+          <HStack mt={4} justify="center">
+            <PaginationPrevTrigger />
+            <PaginationItems />
+            <PaginationNextTrigger />
+          </HStack>
+        </PaginationRoot>
       </Box>
     </div>
   );
