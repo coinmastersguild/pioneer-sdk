@@ -108,7 +108,7 @@ const Chat = ({ usePioneer }: any) => {
             <Text fontWeight="bold">Inquiry:</Text>
             <Text>{view.payload.inquiry}</Text>
             {view.payload.options && view.payload.options.length > 0 && (
-              <HStack spacing={2} mt={2}>
+              <HStack mt={2}>
                 {view.payload.options.map((option: string, i: number) => (
                   <Button colorPalette="green" key={i} variant="surface" onClick={() => handleInquiryOptionClick(option)}>
                    {option}
@@ -134,7 +134,6 @@ const Chat = ({ usePioneer }: any) => {
               href={view.payload.link}
               color="blue.300"
               textDecoration="underline"
-              isExternal
               target="_blank"
               rel="noopener noreferrer"
             >
