@@ -108,7 +108,7 @@ export default function Portfolio({ usePioneer, currentNav, setCurrentNav }: any
                     )}
 
                   {currentNav === 'explore' && (
-                    <Explore usePioneer={usePioneer} />
+                    <Explore usePioneer={usePioneer} setCurrentNav={setCurrentNav}/>
                   )}
                 </>
             )}

@@ -14,8 +14,9 @@ import {
   PaginationPrevTrigger,
   PaginationRoot,
 } from "@/components/ui/pagination";
+import { toaster } from '@/components/ui/toaster';
 
-export function Explore({ usePioneer }: any): JSX.Element {
+export function Explore({ usePioneer, setCurrentNav }: any): JSX.Element {
   const { state, connectWallet } = usePioneer();
   const { app } = state;
   const [assets, setAssets] = useState('...');
@@ -45,7 +46,6 @@ export function Explore({ usePioneer }: any): JSX.Element {
   }, [searchResults, page, pageSize]);
 
   const onStart = async function () {
-
     let globals = await app.pioneer.Globals()
     console.log("globals: ", globals.data)
     setAssets(globals.data.info.assets)
@@ -55,10 +55,15 @@ export function Explore({ usePioneer }: any): JSX.Element {
 
     // Convert the assets object into a normal array for filtering
     if (app.assets) {
-      const tmpAssets = Object.keys(app.assets).map(key => app.assets[key]);
+      const tmpAssets = Object.keys(app.assets).map((key) => {
+        const asset = app.assets[key];
+        if (!asset.caip) {
+          asset.caip = key; // Ensure the asset has the caip set
+        }
+        return asset;
+      });
       setAllAssets(tmpAssets);
     }
-
   }
 
   // onStart()
@@ -157,13 +162,28 @@ export function Explore({ usePioneer }: any): JSX.Element {
     )
   }
 
+  // Add a new function to handle asset clicks
+  const handleAssetClick = async (asset: any) => {
+    try{
+      console.log("Asset clicked:", asset);
+      await app.setAssetContext(asset);
+      setCurrentNav('wallet')
+      // Show a toast with the selected context
+      toaster.create({
+        title: `Settings context set to ${asset.name}`,
+        duration: 3000,
+      });
+    }catch(error){
+      console.error(error)
+    }
+  };
 
   return (
     <div>
       <Box bg="gray.900" color="white" minH="100vh" p={8}>
         {/* Header */}
         <Text fontSize="2xl" fontWeight="bold" textAlign="center" mb={8}>
-          Explore
+          Explore the KeepKey Dashboard
         </Text>
 
         {/* Input Area */}
@@ -231,7 +251,12 @@ export function Explore({ usePioneer }: any): JSX.Element {
         {/* Search Results as a grid of cards */}
         <SimpleGrid columns={[1, 2, 3]} gap={6} mt={6}>
           {displayedResults.map((asset) => (
-            <ChakraCard.Root key={asset.assetId} maxW="sm" overflow="hidden">
+            <ChakraCard.Root
+              key={asset.assetId}
+              maxW="sm"
+              overflow="hidden"
+              onClick={() => handleAssetClick(asset)}
+            >
               <Image
                 src={asset.icon}
                 boxSize={asset.caip ? "150px" : "40px"} 

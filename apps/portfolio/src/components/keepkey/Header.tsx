@@ -30,6 +30,16 @@ export const Header: FC<Props> = ({ currentNav, setCurrentNav }) => {
         gap={6}
         align="center"
       >
+
+        <Button
+          variant="ghost"
+          color="white"
+          _hover={{ color: "white" }}
+          onClick={() => setCurrentNav("explore")}
+        >
+          Explore
+        </Button>
+
         <Button
           variant="ghost"
           color={currentNav === "portfolio" ? "yellow" : "white"}
@@ -46,15 +56,6 @@ export const Header: FC<Props> = ({ currentNav, setCurrentNav }) => {
           onClick={() => setCurrentNav("wallet")}
         >
           Wallet
-        </Button>
-
-        <Button
-          variant="ghost"
-          color="white"
-          _hover={{ color: "white" }}
-          onClick={() => setCurrentNav("explore")}
-        >
-          Explore
         </Button>
 
         {/*<Button*/}
