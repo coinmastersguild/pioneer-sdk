@@ -8,6 +8,7 @@ import { usePioneer } from '@coinmasters/pioneer-react';
 import PortfolioPage from './portfolio';
 import { Header } from '@/components/keepkey/Header';
 import Launch from '@/components/keepkey/Launch';
+import {WalletAdvanced} from 'keepkey-support-widget-export'
 
 export default function Home() {
   const onStartApp = useOnStartApp();
@@ -50,6 +51,7 @@ export default function Home() {
   return (
     <Box bg="black" minH="100vh" color="white">
       <Header currentNav={currentNav} setCurrentNav={setCurrentNav} />
+      <WalletAdvanced></WalletAdvanced>
       <PortfolioPage
         usePioneer={usePioneer}
         currentNav={currentNav}
