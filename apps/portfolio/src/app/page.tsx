@@ -8,7 +8,7 @@ import { usePioneer } from '@coinmasters/pioneer-react';
 import PortfolioPage from './portfolio';
 import { Header } from '@/components/keepkey/Header';
 import Launch from '@/components/keepkey/Launch';
-import {WalletAdvanced} from 'keepkey-support-widget-export'
+import {WalletAdvanced} from 'keepkey-support-widget-export/next'
 
 export default function Home() {
   const onStartApp = useOnStartApp();
