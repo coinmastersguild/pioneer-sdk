@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button as ChakraButton, Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
+import { Card, Button as ChakraButton, Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
 import { Button } from "@/components/ui/button"
 
 import { toaster } from '@/components/ui/toaster';
 import { Avatar } from "@/components/ui/avatar"
 import { HiHeart } from "react-icons/hi"
 import {renderEventMessage,renderStandardMessage,renderViewMessage} from './views'
-import { Card } from "@/components/ui/card"
 
 const AVATARS: Record<string, typeof HiHeart | string> = {
   user: HiHeart,
@@ -104,7 +103,6 @@ const Chat = ({ usePioneer }: any) => {
                           ml={1}
                           color="blue.400"
                           _hover={{ color: "blue.200", textDecoration: "underline" }}
-                          isExternal
                           display="inline-block"
                         >
                           <Text

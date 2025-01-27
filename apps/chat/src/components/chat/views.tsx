@@ -54,8 +54,26 @@ export function renderStandardMessage(msg: any, index: number, AVATARS: Record<s
         py={2}
         borderRadius="md"
       >
-        {msg.text}
-        <Markdown>{msg.text.toString()}</Markdown>
+        <Box
+          bg={msg.from === 'me' ? 'blue.700' : 'gray.700'}
+          color="white"
+          px={4}
+          py={2}
+          borderRadius="md"
+        >
+          <Markdown
+            components={{
+              // Force Chakra’s <Link> with a visible color
+              a: ({ node, children, ...props }) => (
+                <Link color="blue.300" textDecoration="underline" {...props}>
+                  {children}
+                </Link>
+              ),
+            }}
+          >
+            {msg.text.toString()}
+          </Markdown>
+        </Box>
       </Box>
       {msg.from === 'me' && (
         <Box ml={2}>
