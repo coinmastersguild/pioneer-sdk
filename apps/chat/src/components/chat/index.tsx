@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, Button as ChakraButton, Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
+import { Button as ChakraButton, Box, Flex, Text, Input, Icon, Badge, HStack, Image, Link } from '@chakra-ui/react';
 import { Button } from "@/components/ui/button"
 
 import { toaster } from '@/components/ui/toaster';
@@ -60,7 +60,6 @@ const Chat = ({ usePioneer }: any) => {
     return (
       <Flex flex="1" flexDir="column" p={4} overflowY="auto">
         {messages.map((msg, index) => {
-          console.log(TAG,' pre: message: ',msg)
           switch (msg.type) {
             case 'event':
               return renderEventMessage(msg, index);
@@ -68,74 +67,6 @@ const Chat = ({ usePioneer }: any) => {
               return renderStandardMessage(msg, index, AVATARS);
             case 'view':
               return renderViewMessage(msg, index);
-            case 'article':
-              return (
-                <HStack justify="center" mt={4}>
-                <Card.Root
-                  key={index}
-                  width="320px"
-                  variant="outline"
-                  mb={4}
-                  borderRadius="md"
-                  boxShadow="md"
-                >
-                  <Card.Body gap="2">
-                    {/* Title */}
-                    <Card.Title fontSize="lg" mb="2">
-                      {msg.view.article.title}
-                    </Card.Title>
-
-                    {/* Description */}
-                    <Card.Description mb="4">
-                      <Text whiteSpace="pre-wrap">
-                        {msg.view.article.description}
-                      </Text>
-                    </Card.Description>
-
-                    {/* Fields (Links) */}
-                    {msg.view.article.fields.map((field:any, fieldIndex:any) => (
-                      <Box key={fieldIndex} mb={2}>
-                        <Text fontWeight="semibold" as="span">
-                          {field.name}
-                        </Text>
-                        <Link
-                          href={field.value}
-                          ml={1}
-                          color="blue.400"
-                          _hover={{ color: "blue.200", textDecoration: "underline" }}
-                          display="inline-block"
-                        >
-                          <Text
-                            as="span"
-                            borderBottom="1px solid"
-                            borderColor="blue.400"
-                            _hover={{ borderColor: "blue.200" }}
-                          >
-                            {field.value}
-                          </Text>
-                        </Link>
-                      </Box>
-                    ))}
-                  </Card.Body>
-
-                  {/* Footer */}
-                  {msg.view.article.footer && (
-                    <Card.Footer justifyContent="space-between" alignItems="center">
-                      <Text fontWeight="medium">{msg.view.article.footer.text}</Text>
-                      {msg.view.article.footer.iconURL && (
-                        <Box as="img"
-                             //@ts-ignore
-                             src={msg.view.article.footer.iconURL}
-                             alt="icon"
-                             width="24px"
-                             height="24px"
-                        />
-                      )}
-                    </Card.Footer>
-                  )}
-                </Card.Root>
-                </HStack>
-              );
             default:
               // If a message has no 'type', or an unknown type, show this fallback:
               return (
@@ -198,7 +129,8 @@ const Chat = ({ usePioneer }: any) => {
               from: 'computer',
               text: message,
             }
-            setMessages([...messages, messageNew]);
+            messages.push(messageNew)
+            setMessages(messages);
             console.log('**** Event views:', views);
 
             // 3) If there are views, handle them
@@ -207,7 +139,8 @@ const Chat = ({ usePioneer }: any) => {
                 let view = views[i];
                 console.log(tag,'view:', view);
                 console.log(tag,'view:', view.type);
-                setMessages([...messages, {type:'view',view}]);
+                messages.push({type:'view',view})
+                setMessages(messages);
               }
             }
           } catch (e) {

@@ -63,9 +63,9 @@ export function renderStandardMessage(msg: any, index: number, AVATARS: Record<s
         >
           <Markdown
             components={{
-              // Force Chakra’s <Link> with a visible color
+              // Force Chakra's <Link> with a visible color
               a: ({ node, children, ...props }) => (
-                <Link color="blue.300" textDecoration="underline" {...props}>
+                <Link color="blue.300" textDecoration="underline" target="_blank" rel="noopener noreferrer" {...props}>
                   {children}
                 </Link>
               ),
