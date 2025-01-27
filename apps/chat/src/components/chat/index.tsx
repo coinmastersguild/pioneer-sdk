@@ -129,8 +129,7 @@ const Chat = ({ usePioneer }: any) => {
               from: 'computer',
               text: message,
             }
-            messages.push(messageNew)
-            setMessages(messages);
+            setMessages((prevMessages: Array<any>) => [...prevMessages, messageNew]);
             console.log('**** Event views:', views);
 
             // 3) If there are views, handle them
@@ -139,8 +138,7 @@ const Chat = ({ usePioneer }: any) => {
                 let view = views[i];
                 console.log(tag,'view:', view);
                 console.log(tag,'view:', view.type);
-                messages.push({type:'view',view})
-                setMessages(messages);
+                setMessages((prevMessages: Array<any>) => [...prevMessages, {type:'view', view}]);
               }
             }
           } catch (e) {
