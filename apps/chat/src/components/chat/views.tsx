@@ -1,6 +1,7 @@
 import { Box, Flex, HStack, Icon, Link, Text, VStack, Card } from '@chakra-ui/react';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import Markdown from 'react-markdown';
 import React from 'react';
 const TAG = " | views | "
 
@@ -54,6 +55,7 @@ export function renderStandardMessage(msg: any, index: number, AVATARS: Record<s
         borderRadius="md"
       >
         {msg.text}
+        <Markdown>{msg.text.toString()}</Markdown>
       </Box>
       {msg.from === 'me' && (
         <Box ml={2}>

@@ -8,6 +8,7 @@ import { toaster } from '@/components/ui/toaster';
 import { Avatar } from "@/components/ui/avatar"
 import { HiHeart } from "react-icons/hi"
 import {renderEventMessage,renderStandardMessage,renderViewMessage} from './views'
+import { Card } from "@/components/ui/card"
 
 const AVATARS: Record<string, typeof HiHeart | string> = {
   user: HiHeart,
@@ -68,6 +69,75 @@ const Chat = ({ usePioneer }: any) => {
               return renderStandardMessage(msg, index, AVATARS);
             case 'view':
               return renderViewMessage(msg, index);
+            case 'article':
+              return (
+                <HStack justify="center" mt={4}>
+                <Card.Root
+                  key={index}
+                  width="320px"
+                  variant="outline"
+                  mb={4}
+                  borderRadius="md"
+                  boxShadow="md"
+                >
+                  <Card.Body gap="2">
+                    {/* Title */}
+                    <Card.Title fontSize="lg" mb="2">
+                      {msg.view.article.title}
+                    </Card.Title>
+
+                    {/* Description */}
+                    <Card.Description mb="4">
+                      <Text whiteSpace="pre-wrap">
+                        {msg.view.article.description}
+                      </Text>
+                    </Card.Description>
+
+                    {/* Fields (Links) */}
+                    {msg.view.article.fields.map((field:any, fieldIndex:any) => (
+                      <Box key={fieldIndex} mb={2}>
+                        <Text fontWeight="semibold" as="span">
+                          {field.name}
+                        </Text>
+                        <Link
+                          href={field.value}
+                          ml={1}
+                          color="blue.400"
+                          _hover={{ color: "blue.200", textDecoration: "underline" }}
+                          isExternal
+                          display="inline-block"
+                        >
+                          <Text
+                            as="span"
+                            borderBottom="1px solid"
+                            borderColor="blue.400"
+                            _hover={{ borderColor: "blue.200" }}
+                          >
+                            {field.value}
+                          </Text>
+                        </Link>
+                      </Box>
+                    ))}
+                  </Card.Body>
+
+                  {/* Footer */}
+                  {msg.view.article.footer && (
+                    <Card.Footer justifyContent="space-between" alignItems="center">
+                      <Text fontWeight="medium">{msg.view.article.footer.text}</Text>
+                      {msg.view.article.footer.iconURL && (
+                        <Box as="img"
+                             //@ts-ignore
+                             src={msg.view.article.footer.iconURL}
+                             alt="icon"
+                             width="24px"
+                             height="24px"
+                        />
+                      )}
+                    </Card.Footer>
+                  )}
+                </Card.Root>
+                </HStack>
+              );
             default:
               // If a message has no 'type', or an unknown type, show this fallback:
               return (
@@ -92,12 +162,12 @@ const Chat = ({ usePioneer }: any) => {
         setRoomId(existingRoomId);
         setMessages([...messages, {
           type: 'event',
-          message: app.username+' has joined the room '+existingRoomId
+          message: app?.username+' has joined the room '+existingRoomId
         }]);
       } else {
         // If no existing roomId, create one. Replace with real logic as needed.
         let response = await app.pioneer.CreateRoom({
-          username:app.username,
+          username:app?.username,
           auth: app.queryKey,
         })
         let roomId = response.data.roomId
@@ -105,7 +175,7 @@ const Chat = ({ usePioneer }: any) => {
         localStorage.setItem('myRoomId', roomId);
         setMessages([...messages, {
           type: 'event',
-          message: app.username+' has joined the room '+roomId
+          message: app?.username+' has joined the room '+roomId
         }]);
 
         console.log(tag, 'No roomId found, created new:', roomId);
