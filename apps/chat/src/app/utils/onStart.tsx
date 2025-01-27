@@ -8,6 +8,7 @@ export const useOnStartApp = () => {
     const onStartApp = async () => {
       let tag = TAG+" | onStartApp | "
       try {
+        //
             const pioneerSetup = {
                 appName: 'KeepKey Portfolio',
                 appIcon: 'https://pioneers.dev/coins/keepkey.png',
