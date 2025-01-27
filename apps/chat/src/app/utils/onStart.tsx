@@ -11,10 +11,10 @@ export const useOnStartApp = () => {
             const pioneerSetup = {
                 appName: 'KeepKey Portfolio',
                 appIcon: 'https://pioneers.dev/coins/keepkey.png',
-                // spec:"https://pioneers.dev/spec/swagger.json",
-                // wss:"wss://pioneers.dev",
-                spec:"http://127.0.0.1:9001/spec/swagger.json",
-                wss:"ws://127.0.0.1:9001"
+                spec:"https://pioneers.dev/spec/swagger.json",
+                wss:"wss://pioneers.dev",
+                // spec:"http://127.0.0.1:9001/spec/swagger.json",
+                // wss:"ws://127.0.0.1:9001"
             };
             console.log('OnStart App');
             const events = await onStart([], pioneerSetup);
