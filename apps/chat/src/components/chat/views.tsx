@@ -1,16 +1,10 @@
-import { Box, Flex, HStack, Icon, Link, Text, VStack, Card } from '@chakra-ui/react';
-import { Avatar } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Box, Flex, HStack, Icon, Link, Text, VStack, Card, Input, Stack } from '@chakra-ui/react';
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Avatar } from "@/components/ui/avatar";
 import Markdown from 'react-markdown';
-import React from 'react';
+import React, { useState } from 'react';
 const TAG = " | views | "
-
-// This function will handle what happens when a user clicks an inquiry option.
-const handleInquiryOptionClick = (option: string) => {
-  console.log("Inquiry option clicked: ", option);
-  // TODO: Trigger your next steps or calls here.
-  //
-};
 
 export function renderEventMessage(eventMessage: any, index: number) {
   return (
@@ -26,6 +20,7 @@ export function renderEventMessage(eventMessage: any, index: number) {
     </Text>
   );
 }
+
 
 export function renderStandardMessage(msg: any, index: number, AVATARS: Record<string, any>) {
   const avatar = msg.icon || AVATARS[msg.from] || '';
@@ -90,9 +85,12 @@ export function renderStandardMessage(msg: any, index: number, AVATARS: Record<s
   );
 }
 
-export function renderViewMessage(viewMessage: any, index: number) {
+export function renderViewMessage(viewMessage: any, index: number, app: any) {
   let tag = TAG + " | renderViewMessage | "
+
   const { view } = viewMessage;
+  let username = app.username
+  if(!username) throw Error('username not set!')
   console.log(tag,'view: ',view)
   console.log(tag,'view: ',view.type)
   switch (view?.type) {
@@ -121,14 +119,40 @@ export function renderViewMessage(viewMessage: any, index: number) {
           <br />
 
           {/* Fields */}
-          <VStack align="start" >
+          <Stack gap={4}>
             {question.fields.map((field:any, index:any) => (
-              <Box key={index}>
-                <Text fontWeight="bold">{field.name}</Text>
-                <Text>{field.value}</Text>
+              <Box key={index} width="100%">
+                {field.type === 'email' ? (
+                  <Field 
+                    invalid={field.invalid} 
+                    label={field.name}
+                    errorText={field.errorText}
+                  >
+                    <Input
+                      type="email"
+                      placeholder={field.placeholder || 'Enter your email'}
+                      required={field.required}
+                      bg="gray.700"
+                      border="1px"
+                      borderColor={field.invalid ? "red.500" : "gray.600"}
+                      _hover={{ borderColor: field.invalid ? "red.400" : "gray.500" }}
+                      _focus={{ 
+                        borderColor: field.invalid ? "red.400" : "blue.400", 
+                        boxShadow: 'none',
+                        "--focus-color": field.invalid ? "red" : "blue" 
+                      }}
+                      css={{ 
+                        "--error-color": "red",
+                        "--focus-color": field.invalid ? "red" : "blue"
+                      }}
+                    />
+                  </Field>
+                ) : (
+                  <Text>{field.value}</Text>
+                )}
               </Box>
             ))}
-          </VStack>
+          </Stack>
 
           <br />
 
@@ -138,7 +162,7 @@ export function renderViewMessage(viewMessage: any, index: number) {
               <Button
                 key={index}
                 colorScheme={option.style === 3 ? "green" : "red"}
-                onClick={() => handleInquiryOptionClick(option.customId)}
+                onClick={() => question.app.handleInquiryOptionClick(option.customId)}
               >
                 {option.label}
               </Button>

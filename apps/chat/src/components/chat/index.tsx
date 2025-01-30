@@ -21,37 +21,25 @@ const Chat = ({ usePioneer }: any) => {
   const { app } = state;
   const [isDesktopRunning, setIsDesktopRunning] = useState(false);
   const [isBrowserExtensionInstalled, setIsBrowserExtensionInstalled] = useState(false);
-
-  const [messages, setMessages] = useState<any>([
-    // {
-    //   type: 'view',
-    //   view:{
-    //     type:'inquiry',
-    //     payload:{
-    //       id: 1,
-    //       inquiry: 'Have you installed KeepKey Desktop?',
-    //       topics: [],
-    //       importance: 5,
-    //       isDone: false,
-    //       isSkipped: false,
-    //       options: [
-    //         'Yes I have',
-    //         'Give me more information on KeepKey Desktop',
-    //         'Im not a keepkey customer'
-    //       ],
-    //       createdAt: 1737265353814
-    //     }
-    //   }
-    // }
-  ]);
-
+  const [messages, setMessages] = useState<any>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [showInput, setShowInput] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const Messages = ({
-                      messages,
-                    }: {
+    messages,
+  }: {
     messages: Array<{
       type?: string;
       message?: string;
@@ -62,7 +50,25 @@ const Chat = ({ usePioneer }: any) => {
     }>;
   }) => {
     return (
-      <Flex flex="1" flexDir="column" p={4} overflowY="auto">
+      <Flex 
+        flex="1" 
+        flexDir="column" 
+        p={4} 
+        overflowY="auto" 
+        css={{
+          '&::-webkit-scrollbar': {
+            width: '4px',
+          },
+          '&::-webkit-scrollbar-track': {
+            width: '6px',
+            background: 'gray.800',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'gray.600',
+            borderRadius: '24px',
+          },
+        }}
+      >
         {messages.map((msg, index) => {
           switch (msg.type) {
             case 'event':
@@ -70,9 +76,8 @@ const Chat = ({ usePioneer }: any) => {
             case 'message':
               return renderStandardMessage(msg, index, AVATARS);
             case 'view':
-              return renderViewMessage(msg, index);
+              return renderViewMessage(msg, index, app);
             default:
-              // If a message has no 'type', or an unknown type, show this fallback:
               return (
                 <Box key={index} mb={2}>
                   <Text>Unknown message type</Text>
@@ -80,6 +85,10 @@ const Chat = ({ usePioneer }: any) => {
               );
           }
         })}
+        {/* Extra padding at bottom */}
+        <Box h="120px" />
+        {/* Invisible element for scrolling */}
+        <div ref={messagesEndRef} />
       </Flex>
     );
   };
@@ -105,7 +114,14 @@ const Chat = ({ usePioneer }: any) => {
   let onStart = async function(){
     let tag = TAG + " | onStart | "
     try{
-      if(app && app.events){
+      if(app && app.events && app.username){
+        setUsername(app.username);
+        // Get user info first to set username
+        let userinfo = await app.pioneer.User()
+        console.log("userinfo: ", userinfo.data)
+        if(userinfo?.data?.email) {
+        }
+
         // First handle room connection
         const existingRoomId = localStorage.getItem('myRoomId');
         if (existingRoomId) {
@@ -114,7 +130,7 @@ const Chat = ({ usePioneer }: any) => {
           // Set join message first
           setMessages((prevMessages: Array<any>) => [...prevMessages, {
             type: 'event',
-            message: app?.username+' has joined the room '
+            message: app.username+' has joined the room '
           }]);
           //get room info
           let response = await app.pioneer.JoinRoom({roomId:existingRoomId})
@@ -122,7 +138,7 @@ const Chat = ({ usePioneer }: any) => {
         } else {
           // If no existing roomId, create one
           let response = await app.pioneer.CreateRoom({
-            username:app?.username,
+            username: app.username,
           })
           let roomId = response.data.roomId
           setRoomId(roomId);
@@ -130,14 +146,10 @@ const Chat = ({ usePioneer }: any) => {
           // Set join message first
           setMessages((prevMessages: Array<any>) => [...prevMessages, {
             type: 'event',
-            message: app?.username+' has joined the room '
+            message: app.username+' has joined the room '
           }]);
           console.log(tag, 'No roomId found, created new:', roomId);
         }
-
-        // Then check user info and handle email setup if needed
-        let userinfo = await app.pioneer.User()
-        console.log("userinfo: ", userinfo.data)
 
         if(!userinfo.data.email){
           console.log(tag,"user has no email configured!")
@@ -168,6 +180,12 @@ const Chat = ({ usePioneer }: any) => {
               footer: {
                 text: 'Your privacy is important to us',
                 iconURL: 'https://pioneers.dev/coins/keepkey.png'
+              },
+              app: {
+                ...state,
+                pioneer: app.pioneer,
+                setMessages,
+                handleInquiryOptionClick
               }
             }
           };
@@ -251,6 +269,240 @@ const Chat = ({ usePioneer }: any) => {
     }
   }
 
+  // This function will handle what happens when a user clicks an inquiry option.
+  const handleInquiryOptionClick = async (option: string) => {
+    console.log("Inquiry option clicked: ", option);
+    let username = app.username
+    console.log("username: ", username);
+
+    switch(option) {
+      case 'setup_email':
+        // Create an email input view
+        const emailInputView = {
+          type: 'question',
+          question: {
+            title: 'Enter Email Address',
+            description: 'Please enter your email address for support communications.',
+            color: 'blue.400',
+            fields: [
+              {
+                name: 'Email',
+                type: 'email',
+                placeholder: 'your@email.com',
+                required: true
+              }
+            ],
+            options: [
+              {
+                label: 'Submit',
+                customId: 'submit_email',
+                style: 3
+              },
+              {
+                label: 'Cancel',
+                customId: 'cancel_email',
+                style: 1
+              }
+            ],
+            footer: {
+              text: 'Your email will be used only for support purposes',
+              iconURL: 'https://pioneers.dev/coins/keepkey.png'
+            },
+            app: {
+              ...app,
+              pioneer: app.pioneer,
+              setMessages,
+              handleInquiryOptionClick
+            }
+          }
+        };
+
+        try {
+          // Remove the previous email setup view and add the new input view
+          setMessages((prevMessages: Array<any>) => {
+            const filteredMessages = prevMessages.filter(msg =>
+              !(msg.type === 'view' && msg.view?.question?.title === 'Email Support Setup')
+            );
+            return [...filteredMessages,
+              {
+                type: 'message',
+                from: 'computer',
+                text: 'Please enter your email address below:'
+              },
+              { type: 'view', view: emailInputView }
+            ];
+          });
+        } catch (e) {
+          console.error("Failed to set email input view:", e);
+        }
+        break;
+
+      case 'skip_email':
+        try {
+          // Remove the email setup view and add the skip message
+          setMessages((prevMessages: Array<any>) => {
+            const filteredMessages = prevMessages.filter(msg =>
+              !(msg.type === 'view' && msg.view?.question?.title === 'Email Support Setup')
+            );
+            return [...filteredMessages,
+              {
+                type: 'message',
+                from: 'computer',
+                text: 'No problem! You can always set up email support later if you change your mind.'
+              }
+            ];
+          });
+        } catch (e) {
+          console.error("Failed to set skip message:", e);
+        }
+        break;
+
+      case 'submit_email':
+        // Handle email submission
+        const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+        console.log("Submit email clicked, app context:", app);
+        if (emailInput) {
+          const email = emailInput.value.trim();
+          console.log("Email value:", email);
+          if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            try {
+              if(!username) throw new Error("Username is required");
+              const ticketNumber = localStorage.getItem('myRoomId');
+
+              console.log("Username:", username);
+              console.log("TicketNumber (from localStorage):", ticketNumber);
+
+              if (!ticketNumber) {
+                throw new Error("TicketNumber missing");
+              }
+
+              console.log("Creating email with:", {
+                username,
+                email,
+                ticketNumber
+              });
+
+              // Call the API to create email
+              const response = await app.pioneer.CreateEmail({
+                username,
+                email,
+                ticketNumber
+              });
+              console.log("Email creation response:", response);
+
+              if (response?.data?.success) {
+                // Remove the email input view and add success message
+                setMessages((prevMessages: Array<any>) => {
+                  const filteredMessages = prevMessages.filter(msg => 
+                    !(msg.type === 'view' && msg.view?.question?.title === 'Enter Email Address')
+                  );
+                  return [...filteredMessages, 
+                    {
+                      type: 'message',
+                      from: 'computer',
+                      text: `Great! Your email ${email} has been set up successfully. You'll receive support updates at this address.`
+                    }
+                  ];
+                });
+              } else {
+                // Show error but keep the view
+                setMessages((prevMessages: Array<any>) => [...prevMessages, 
+                  {
+                    type: 'message',
+                    from: 'computer',
+                    text: 'There was an error registering your email. Please try again or contact support.'
+                  }
+                ]);
+              }
+            } catch (e: any) {
+              console.error("Failed to create email:", e);
+              // Show more specific error message
+              const errorMessage = e.message === "Username or ticketNumber missing" 
+                ? "Sorry, we couldn't verify your account details. Please try again later."
+                : "Sorry, there was an error setting up your email. Please try again later.";
+              
+              setMessages((prevMessages: Array<any>) => [...prevMessages, 
+                {
+                  type: 'message',
+                  from: 'computer',
+                  text: errorMessage
+                }
+              ]);
+            }
+          } else {
+            // Invalid email format - update the view to show error
+            const emailView = {
+              type: 'question',
+              question: {
+                title: 'Enter Email Address',
+                description: 'Please enter your email address for support communications.',
+                color: 'blue.400',
+                fields: [
+                  {
+                    name: 'Email',
+                    type: 'email',
+                    placeholder: 'your@email.com',
+                    required: true,
+                    invalid: true,
+                    errorText: 'Please enter a valid email address'
+                  }
+                ],
+                options: [
+                  {
+                    label: 'Submit',
+                    customId: 'submit_email',
+                    style: 3
+                  },
+                  {
+                    label: 'Cancel',
+                    customId: 'cancel_email',
+                    style: 1
+                  }
+                ],
+                footer: {
+                  text: 'Your email will be used only for support purposes',
+                  iconURL: 'https://pioneers.dev/coins/keepkey.png'
+                },
+                app: {
+                  ...app,
+                  pioneer: app.pioneer,
+                  setMessages,
+                  handleInquiryOptionClick
+                }
+              }
+            };
+
+            setMessages((prevMessages: Array<any>) => {
+              const filteredMessages = prevMessages.filter(msg => 
+                !(msg.type === 'view' && msg.view?.question?.title === 'Enter Email Address')
+              );
+              return [...filteredMessages, { type: 'view', view: emailView }];
+            });
+          }
+        } else {
+          console.error("Email input field not found or app context missing");
+        }
+        break;
+
+      case 'cancel_email':
+        if (app?.pioneer) {
+          // Remove the email input view and add cancel message
+          setMessages((prevMessages: Array<any>) => {
+            const filteredMessages = prevMessages.filter(msg => 
+              !(msg.type === 'view' && msg.view?.question?.title === 'Enter Email Address')
+            );
+            return [...filteredMessages, 
+              {
+                type: 'message',
+                from: 'computer',
+                text: 'Email setup cancelled. You can always set up email support later if you change your mind.'
+              }
+            ];
+          });
+        }
+        break;
+    }
+  };
 
   return (
     <>
@@ -273,19 +525,33 @@ const Chat = ({ usePioneer }: any) => {
           </Text>
         </Flex>
       ) : (
-        <Box bg="gray.900" color="white" minH="120vh" position="relative">
+        <Box 
+          bg="gray.900" 
+          color="white" 
+          height="100vh" 
+          position="relative" 
+          display="flex" 
+          flexDirection="column"
+        >
           <Box 
-            position="fixed" 
-            top="0" 
-            left="0" 
-            right="0" 
-            bottom={showInput ? "80px" : "0"}
+            flex="1"
             overflowY="auto"
-            bg="gray.900"
+            position="relative"
+            css={{
+              '&::-webkit-scrollbar': {
+                width: '4px',
+              },
+              '&::-webkit-scrollbar-track': {
+                width: '6px',
+                background: 'gray.800',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'gray.600',
+                borderRadius: '24px',
+              },
+            }}
           >
-            <br />
             <Messages messages={messages} />
-            <br />
           </Box>
           {showInput && (
             <Flex 
@@ -299,6 +565,7 @@ const Chat = ({ usePioneer }: any) => {
               borderTop="1px"
               borderColor="gray.700"
               height="80px"
+              backdropFilter="blur(10px)"
             >
               <Input
                 flex="1"
@@ -306,8 +573,13 @@ const Chat = ({ usePioneer }: any) => {
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type your message..."
                 mr={2}
+                bg="gray.700"
+                border="1px"
+                borderColor="gray.600"
+                _hover={{ borderColor: 'gray.500' }}
+                _focus={{ borderColor: 'blue.400', boxShadow: 'none' }}
               />
-              <Button colorPalette={'green'} variant="surface" onClick={handleSendMessage}>
+              <Button colorScheme="green" variant="solid" onClick={handleSendMessage}>
                 Send
               </Button>
             </Flex>
