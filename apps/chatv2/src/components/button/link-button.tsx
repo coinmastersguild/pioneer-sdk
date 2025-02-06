@@ -1,48 +1,31 @@
 import * as React from 'react'
 
-import { Button, ButtonProps } from '@saas-ui/react'
-import Link, { LinkProps } from 'next/link'
+import { Button } from '@chakra-ui/react'
+import Link from 'next/link'
 
-export interface LinkButtonProps
-  extends Omit<LinkProps, 'legacyBehavior'>,
-    Omit<ButtonProps, keyof LinkProps> {}
+export interface LinkButtonProps {
+  href: string
+  as?: string
+  children?: React.ReactNode
+  variant?: string
+  colorScheme?: string
+}
 
-export const LinkButton = React.forwardRef<HTMLAnchorElement, LinkButtonProps>(
-  function LinkButton(props, ref) {
-    const {
-      as,
-      href,
-      prefetch,
-      replace,
-      scroll,
-      shallow,
-      passHref,
-      locale,
-      onMouseEnter,
-      onTouchStart,
-      onClick,
-      children,
-      ...buttonProps
-    } = props
-    return (
-      <Button {...buttonProps} _hover={{ textDecoration: 'none' }} asChild>
-        <Link
-          as={as}
-          ref={ref}
-          href={href}
-          prefetch={prefetch}
-          replace={replace}
-          scroll={scroll}
-          shallow={shallow}
-          passHref={passHref}
-          locale={locale}
-          onMouseEnter={onMouseEnter}
-          onTouchStart={onTouchStart}
-          onClick={onClick}
-        >
-          {children}
-        </Link>
+export const LinkButton: React.FC<LinkButtonProps> = ({
+  href,
+  as,
+  children,
+  variant = 'solid',
+  colorScheme = 'primary',
+  ...rest
+}) => {
+  // @ts-ignore
+  return (
+    <Link href={href} as={as} passHref>
+      {/* @ts-ignore */}
+      <Button variant={variant} colorScheme={colorScheme} {...rest}>
+        {children}
       </Button>
-    )
-  },
-)
+    </Link>
+  )
+}

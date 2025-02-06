@@ -1,17 +1,15 @@
 'use client'
 
 import React from 'react'
-
 import { useAuth } from '@saas-ui/auth-provider'
 import { useRouter } from 'next/navigation'
-
 import { AuthLayout as BaseAuthLayout } from '#features/common/layouts/auth-layout'
 
-export default function AuthLayout({
-  children,
-}: {
+interface AuthLayoutProps {
   children: React.ReactNode
-}) {
+}
+
+export default function AuthLayout({ children }: AuthLayoutProps) {
   const { isAuthenticated } = useAuth()
   const router = useRouter()
 
@@ -21,5 +19,6 @@ export default function AuthLayout({
     }
   }, [isAuthenticated])
 
+  // @ts-ignore
   return <BaseAuthLayout>{children}</BaseAuthLayout>
 }

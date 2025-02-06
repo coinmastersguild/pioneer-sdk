@@ -18,13 +18,15 @@ export const metadata: Metadata = {
   },
 }
 
+type ColorMode = 'light' | 'dark'
+
 export default async function AppRootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const cookieStore = await cookies()
-  const colorMode = cookieStore.get('chakra-ui-color-mode')?.value ?? 'dark'
+  const colorMode = (cookieStore.get('chakra-ui-color-mode')?.value ?? 'dark') as ColorMode
 
   return (
     <html lang="en" data-theme={colorMode}>

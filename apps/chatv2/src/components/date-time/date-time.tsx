@@ -1,6 +1,6 @@
 import { Box, BoxProps } from '@chakra-ui/react'
-import { useLocalStorage } from '@saas-ui/hooks'
 import { Tooltip } from '@saas-ui/react'
+import { useState } from 'react'
 import { useIntl } from 'react-intl'
 
 import {
@@ -18,14 +18,17 @@ export interface DateTimeSinceProps extends BoxProps {
  */
 export const DateTimeSince: React.FC<DateTimeSinceProps> = (props) => {
   const { date, format, ...rest } = props
-  const [type, setType] = useLocalStorage('date-time-type', 'relative')
+  const [type, setType] = useState<'relative' | 'absolute'>('relative')
 
   const intl = useIntl()
 
+  const formattedDate = `${intl.formatDate(date)}, ${intl.formatTime(date)}`
+
   return (
-    <Tooltip content={`${intl.formatDate(date)}, ${intl.formatTime(date)}`}>
+    <Tooltip content={formattedDate}>
       <Box
         as="span"
+        cursor="pointer"
         {...rest}
         onClick={(e) => {
           e.stopPropagation()

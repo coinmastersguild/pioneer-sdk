@@ -3,12 +3,12 @@
 import { useStepsContext } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import { usePioneerApp } from '#components/pioneer/pioneer-provider'
 import { FormLayout } from '@saas-ui/forms'
 import { Form } from '#components/form'
 import { useRouter } from 'next/navigation'
-import { Box, Text, VStack, Divider as ChakraDivider } from '@chakra-ui/react'
+import { Box, Text, Stack } from '@chakra-ui/react'
 
 import { OnboardingStep } from './onboarding-step'
 import * as z from 'zod'
@@ -27,7 +27,7 @@ export const CreateTicketStep = () => {
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
-      const ticketId = uuidv4()
+      const ticketId = randomUUID()
       
       // Store the ticket data with keepkey workspace
       console.log('Ticket created:', {
@@ -87,7 +87,7 @@ export const CreateTicketStep = () => {
         >
           <FormLayout>
             <Box p={4} bg="gray.50" borderRadius="md" mb={6}>
-              <VStack align="stretch" spacing={4}>
+              <Stack align="stretch" spacing={4}>
                 <Box>
                   <Text fontWeight="bold" mb={1}>Username:</Text>
                   <Text>{app?.username || 'Not connected'}</Text>
@@ -100,9 +100,9 @@ export const CreateTicketStep = () => {
                   <Text fontWeight="bold" mb={1}>Public Keys:</Text>
                   <Text wordBreak="break-all">{app?.pubkeys?.join(', ') || 'No public keys available'}</Text>
                 </Box>
-              </VStack>
+              </Stack>
             </Box>
-            <ChakraDivider mb={6} />
+            <Box borderBottomWidth="1px" mb={6} />
             <Field
               name="description"
               label="Describe your issue"

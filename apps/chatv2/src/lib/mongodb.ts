@@ -1,10 +1,10 @@
 import mongoose from 'mongoose'
 
-if (!process.env.MONGO_CONNECTION) {
+const MONGODB_URI = process.env.MONGO_CONNECTION || process.env.MONGODB_URI
+
+if (!MONGODB_URI) {
   throw new Error('Please add your MongoDB connection string to .env')
 }
-
-const MONGODB_URI = process.env.MONGO_CONNECTION
 
 let cached = global.mongoose
 

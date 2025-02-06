@@ -1,12 +1,13 @@
 import * as React from 'react'
 
 import { Card, Icon, Spacer, Stack, Text } from '@chakra-ui/react'
-import { BackButton } from '@saas-ui-pro/react'
+// @ts-ignore
 import { Drawer } from '@saas-ui/react'
 import Link from 'next/link'
 import { LuCircleHelp } from 'react-icons/lu'
 
 import { useModals } from '../modals'
+import { BackButton } from './back-button'
 
 const DiscordIcon = () => {
   return (

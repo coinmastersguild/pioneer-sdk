@@ -1,31 +1,49 @@
 import * as React from 'react'
+import { Form, FormLayout, Field } from '@saas-ui/forms'
 
-import { Field, FieldProps, useFormContext } from '@saas-ui/react'
-
-export interface ConfirmPasswordProps extends Omit<FieldProps, 'name'> {
+export interface ConfirmPasswordProps {
   name?: string
-  confirmField?: string
+  label?: string
+  confirmLabel?: string
+  placeholder?: string
+  confirmPlaceholder?: string
+  onChange?: (value: { password: string; passwordConfirm: string }) => void
 }
 
-export const ConfirmPasswordField: React.FC<ConfirmPasswordProps> = (props) => {
-  const form = useFormContext()
-
-  const { name = 'confirmPassword', confirmField = 'password', ...rest } = props
-
-  const validatePassword = React.useCallback(
-    (confirmPassword: string) => {
-      const password = form.getValues(confirmField)
-      return confirmPassword === password
-    },
-    [confirmField],
-  )
+export const ConfirmPasswordField: React.FC<ConfirmPasswordProps> = ({
+  name = 'password',
+  label = 'Password',
+  confirmLabel = 'Confirm password',
+  placeholder = 'Enter password',
+  confirmPlaceholder = 'Confirm password',
+  onChange,
+}) => {
+  const handleSubmit = (data: any) => {
+    onChange?.(data)
+  }
 
   return (
-    <Field
-      {...(rest as any)}
-      name={name}
-      type="password"
-      rules={{ validate: validatePassword }}
-    />
+    <Form onSubmit={handleSubmit}>
+      <FormLayout>
+        <Field
+          name={name}
+          label={label}
+          type="password"
+          placeholder={placeholder}
+          rules={{ required: 'Password is required' }}
+        />
+        <Field
+          name={`${name}Confirm`}
+          label={confirmLabel}
+          type="password"
+          placeholder={confirmPlaceholder}
+          rules={{
+            required: 'Confirm password is required',
+            validate: (value, values) =>
+              value === values[name] || 'Passwords do not match',
+          }}
+        />
+      </FormLayout>
+    </Form>
   )
 }
