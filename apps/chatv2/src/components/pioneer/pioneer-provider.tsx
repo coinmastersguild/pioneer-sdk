@@ -27,10 +27,10 @@ interface PioneerProviderProps {
 }
 
 export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) => {
-  const { state, onStart, connectWallet: pioneerConnect } = usePioneer();
+  const { state, onStart, connectWallet } = usePioneer();
   const [isInitialized, setIsInitialized] = useState(false);
 
-  const connectWallet = async () => {
+  const connectWalletPioneer = async () => {
     try {
       if (!isInitialized) {
         await onStart([], {
@@ -41,7 +41,7 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
         });
         setIsInitialized(true);
       }
-      await pioneerConnect();
+      await connectWallet();
     } catch (error) {
       console.error('Failed to connect wallet:', error);
       throw error;
@@ -54,7 +54,7 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
       username: state.username || null,
       isInitialized
     },
-    connectWallet
+    connectWalletPioneer
   };
 
   return (

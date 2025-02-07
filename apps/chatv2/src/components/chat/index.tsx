@@ -210,10 +210,11 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       const roomId = localStorage.getItem('myRoomId');
       console.log(tag,'roomId: ', roomId);
       if (app?.pioneer) {
-        await app.pioneer.Support({
+        let result = await app.pioneer.Support({
           roomId,
           message: inputMessage,
         });
+        console.log(tag,'result: ',result)
       } else {
         console.error(tag,'Missing Pioneer: ', app)
       }
