@@ -36,8 +36,8 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
         await onStart([], {
           appName: 'KeepKey Support',
           appIcon: 'https://keepkey.com/logo.png',
-          spec: process.env.NEXT_PUBLIC_PIONEER_URL || 'https://pioneers.dev/spec/swagger.json',
-          wss: 'wss://pioneers.dev'
+          spec: process.env.NEXT_PUBLIC_PIONEER_URL || 'http://127.0.0.1:9001/spec/swagger.json',
+          wss: process.env.NEXT_PUBLIC_PIONEER_WSS || 'ws://127.0.0.1:9001'
         });
         setIsInitialized(true);
       }

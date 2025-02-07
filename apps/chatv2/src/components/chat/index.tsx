@@ -6,17 +6,10 @@ import {
   Flex, 
   Text, 
   Input, 
-  HStack, 
-  Button,
+  HStack,
   VStack,
   IconButton,
-  type BoxProps,
   type FlexProps,
-  type TextProps,
-  type InputProps,
-  type ButtonProps,
-  type StackProps,
-  type SystemStyleObject,
 } from '@chakra-ui/react';
 import { HiHeart, HiOutlinePaperAirplane } from "react-icons/hi";
 const TAG = " | chat | "
@@ -117,7 +110,7 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, ...props }) =>
 Messages.displayName = 'Messages';
 
 export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatProps>(({ usePioneer, ...rest }, ref) => {
-  const { state } = usePioneer;
+  const { state, connectWallet } = usePioneer;
   const { app } = state;
   const [messages, setMessages] = React.useState<Message[]>([
     {
@@ -130,11 +123,24 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   ]);
   const [inputMessage, setInputMessage] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
-
+  const [isConnecting, setIsConnecting] = React.useState(false);
 
   const onStart = async () => {
     let tag = TAG + " | onStart | "
     try {
+      // If pioneer is not available, try to connect wallet
+      if (!app?.pioneer && !isConnecting) {
+        console.log(tag, 'Pioneer not available, attempting to connect wallet');
+        setIsConnecting(true);
+        try {
+          await connectWallet();
+        } catch (e) {
+          console.error(tag, 'Failed to connect wallet:', e);
+        }
+        setIsConnecting(false);
+        return; // Exit and let the useEffect trigger again with updated app state
+      }
+
       if (app && app.events && app.pioneer) {
         const roomId = localStorage.getItem('myRoomId');
         if (roomId) {
@@ -145,12 +151,15 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
 
           setMessages(prev => [...prev, {
             id: Date.now().toString(),
-            type: 'event',
-            from: 'system',
+            type: 'message',
+            from: 'computer',
             text: `Connected to support session ${roomId}`,
             timestamp: new Date(),
           }]);
         }
+
+        // Remove any existing message listener to prevent duplicates
+        app.events.removeAllListeners('message');
 
         app.events.on('message', (action: string, data: any) => {
           try {
@@ -169,15 +178,17 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
             console.error(e);
           }
         });
+      } else {
+        console.log(tag, 'App not fully initialized yet:', { app, events: app?.events, pioneer: app?.pioneer });
       }
     } catch (e) {
-      console.error(e);
+      console.error(tag, 'Error in onStart:', e);
     }
   };
 
   React.useEffect(() => {
     onStart();
-  }, [app, app?.events, app?.pioneer]);
+  }, [app]);
 
   const handleSendMessage = async () => {
     let tag = TAG + " | handleSendMessage | "
@@ -197,7 +208,8 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       setIsTyping(true);
 
       const roomId = localStorage.getItem('myRoomId');
-      if (app?.pioneer && roomId) {
+      console.log(tag,'roomId: ', roomId);
+      if (app?.pioneer) {
         await app.pioneer.Support({
           roomId,
           message: inputMessage,
