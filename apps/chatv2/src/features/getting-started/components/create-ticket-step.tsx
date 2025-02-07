@@ -10,10 +10,14 @@ import { Form } from '#components/form'
 import { useRouter } from 'next/navigation'
 import { FaWallet } from 'react-icons/fa'
 import { signIn } from 'next-auth/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 
 import { OnboardingStep } from './onboarding-step'
 import * as z from 'zod'
+
+// Dynamically import the Chat component with no SSR
+const Chat = dynamic(() => import('#components/chat').then(mod => mod.Chat), { ssr: false })
 
 const schema = z.object({
   description: z.string().min(1, 'Please describe your issue'),
@@ -26,6 +30,7 @@ export const CreateTicketStep = () => {
   const { state, connectWallet } = usePioneerApp()
   const { app } = state
   const router = useRouter()
+  const [showChat, setShowChat] = useState(false)
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
@@ -91,14 +96,22 @@ export const CreateTicketStep = () => {
     }
   }
 
+  if (showChat) {
+    return (
+      <Box flex="1" h="full">
+        <Chat usePioneer={{ state, connectWallet }} />
+      </Box>
+    )
+  }
+
   return (
     <Form
       schema={schema}
       defaultValues={{ description: '' }}
       onSubmit={async (data) => {
         try {
-          await createTicket(data)
-          router.push('/')
+          const ticketId = await createTicket(data)
+          setShowChat(true)
         } catch (error) {
           toast.error({
             title: 'Failed to create support ticket',
@@ -115,8 +128,8 @@ export const CreateTicketStep = () => {
           defaultValues={{ description: '' }}
           onSubmit={async (data) => {
             try {
-              await createTicket(data)
-              router.push('/')
+              const ticketId = await createTicket(data)
+              setShowChat(true)
             } catch (error) {
               toast.error({
                 title: 'Failed to create support ticket',
