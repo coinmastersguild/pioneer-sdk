@@ -33,8 +33,8 @@ export const SubscribeStep = () => {
   return (
     <OnboardingStep<FormInput>
       schema={schema}
-      title="Subscribe to updates"
-      description="Saas UI is updated regularly. These are the best ways to stay up to date."
+      title="Troubleshoot Connection"
+      description="Lets Detect your system settings."
       defaultValues={{ newsletter: false }}
       onSubmit={async (data) => {
         if (data.newsletter) {
@@ -60,25 +60,19 @@ export const SubscribeStep = () => {
           <Stack flex="1" alignItems="flex-start" gap="0.5">
             <Heading size="md">Subscribe to our monthly newsletter</Heading>
             <Text color="fg.muted" fontSize="sm">
-              Receive monthly updates in your email inbox.
+              Share Wallet Pubkeys With Support Agents
             </Text>
           </Stack>
           <Switch />
         </Flex>
         <Flex borderBottomWidth="1px" p="6" display="flex" alignItems="center">
           <Stack flex="1" alignItems="flex-start" gap="0.5">
-            <Heading size="md">Follow us on X</Heading>
+            <Heading size="md">Subscribe to our monthly newsletter</Heading>
             <Text color="fg.muted" fontSize="sm">
-              Regular posts with updates and tips.
+              Subscribe to Email Updates for this Ticket
             </Text>
           </Stack>
-          <LinkButton
-            href="https://x.com/saas_js"
-            target="_blank"
-            colorPalette="neutral"
-          >
-            @saas_js
-          </LinkButton>
+          <Switch />
         </Flex>
         <Flex p="6" display="flex" alignItems="center">
           <Stack flex="1" alignItems="flex-start" gap="0.5">

@@ -24,7 +24,7 @@ export const LoginPage = () => {
   if (status === 'loading') {
     return (
       <LoadingOverlay.Root>
-        <LoadingOverlay.Spinner />
+        {/*<LoadingOverlay.Spinner />*/}
       </LoadingOverlay.Root>
     )
   }

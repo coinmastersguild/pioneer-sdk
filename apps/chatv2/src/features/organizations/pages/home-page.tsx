@@ -22,9 +22,11 @@ export const HomePage: React.FC = () => {
   React.useEffect(() => {
     if (workspace) {
       router.push(`/${workspace}/tickets`)
-    } else if (!isLoading && data?.currentUser?.organizations?.[0]) {
-      router.push(`/${data.currentUser.organizations[0].slug}/tickets`)
-    } else if (!isLoading) {
+    }
+    // else if (!isLoading && data?.currentUser?.organizations?.[0]) {
+    //   router.push(`/${data.currentUser.organizations[0].slug}/tickets`)
+    // }
+    else if (!isLoading) {
       router.push('/getting-started')
     }
   }, [router, isLoading, data, workspace])

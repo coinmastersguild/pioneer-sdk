@@ -146,51 +146,51 @@ export const CreateTicketStep = () => {
       maxW={{ base: '100%', md: 'lg' }}
     >
       <FormLayout>
-        <Box 
-          p={6} 
-          bg="whiteAlpha.100" 
-          borderRadius="lg" 
-          borderWidth="1px" 
-          borderColor="whiteAlpha.200" 
-          mb={6}
-        >
-          {!isWalletConnected ? (
-            <Stack direction="column" spacing={6} align="center">
-              <Text fontSize="lg" fontWeight="medium" textAlign="center">
-                Connecting Your Wallet
-              </Text>
-              <Text color="gray.500" textAlign="center">
-                Please wait while we connect to your wallet
-              </Text>
-              <Box display="flex" justifyContent="center">
-                <Spinner size="xl" color="blue.500" />
-              </Box>
-            </Stack>
-          ) : (
-            <Stack direction="column" spacing={4}>
-              <Box>
-                <Text fontWeight="medium" mb={1}>Username</Text>
-                <Text>{app?.username}</Text>
-              </Box>
-              {app?.queryKey && (
-                <Box>
-                  <Text fontWeight="medium" mb={1}>Query Key</Text>
-                  <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">
-                    {app.queryKey}
-                  </Text>
-                </Box>
-              )}
-              {app?.pubkeys?.length > 0 && (
-                <Box>
-                  <Text fontWeight="medium" mb={1}>Public Keys</Text>
-                  <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">
-                    {app.pubkeys.join(', ')}
-                  </Text>
-                </Box>
-              )}
-            </Stack>
-          )}
-        </Box>
+        {/*<Box */}
+        {/*  p={6} */}
+        {/*  bg="whiteAlpha.100" */}
+        {/*  borderRadius="lg" */}
+        {/*  borderWidth="1px" */}
+        {/*  borderColor="whiteAlpha.200" */}
+        {/*  mb={6}*/}
+        {/*>*/}
+        {/*  {!isWalletConnected ? (*/}
+        {/*    <Stack direction="column" spacing={6} align="center">*/}
+        {/*      <Text fontSize="lg" fontWeight="medium" textAlign="center">*/}
+        {/*        Connecting Your Wallet*/}
+        {/*      </Text>*/}
+        {/*      <Text color="gray.500" textAlign="center">*/}
+        {/*        Please wait while we connect to your wallet*/}
+        {/*      </Text>*/}
+        {/*      <Box display="flex" justifyContent="center">*/}
+        {/*        <Spinner size="xl" color="blue.500" />*/}
+        {/*      </Box>*/}
+        {/*    </Stack>*/}
+        {/*  ) : (*/}
+        {/*    <Stack direction="column" spacing={4}>*/}
+        {/*      <Box>*/}
+        {/*        <Text fontWeight="medium" mb={1}>Username</Text>*/}
+        {/*        <Text>{app?.username}</Text>*/}
+        {/*      </Box>*/}
+        {/*      {app?.queryKey && (*/}
+        {/*        <Box>*/}
+        {/*          <Text fontWeight="medium" mb={1}>Query Key</Text>*/}
+        {/*          <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">*/}
+        {/*            {app.queryKey}*/}
+        {/*          </Text>*/}
+        {/*        </Box>*/}
+        {/*      )}*/}
+        {/*      {app?.pubkeys?.length > 0 && (*/}
+        {/*        <Box>*/}
+        {/*          <Text fontWeight="medium" mb={1}>Public Keys</Text>*/}
+        {/*          <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">*/}
+        {/*            {app.pubkeys.join(', ')}*/}
+        {/*          </Text>*/}
+        {/*        </Box>*/}
+        {/*      )}*/}
+        {/*    </Stack>*/}
+        {/*  )}*/}
+        {/*</Box>*/}
         <Field
           name="description"
           label="Describe your issue"

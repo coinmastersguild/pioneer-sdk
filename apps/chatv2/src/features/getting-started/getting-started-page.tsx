@@ -21,6 +21,7 @@ import {
 } from './components'
 import { AppearanceStep } from './components/appearance'
 import { SubscribeStep } from './components/subscribe'
+import { ConnectWalletStep } from '#features/getting-started/components/connect-wallet-step.tsx';
 
 const recipe = defineSlotRecipe({
   className: 'steps',
@@ -90,17 +91,17 @@ function OnboardingSteps() {
 
   return (
     <>
-      <Steps.Content index={0} title="Create Support Ticket">
-        {stepper.value === 0 && <CreateTicketStep />}
+      {/*<Steps.Content index={0} title="Choose your style">*/}
+      {/*  {stepper.value === 0 && <AppearanceStep />}*/}
+      {/*</Steps.Content>*/}
+      <Steps.Content index={0} title="Troubleshoot Connection">
+        {stepper.value === 0 && <ConnectWalletStep />}
       </Steps.Content>
-      <Steps.Content index={1} title="Choose your style">
-        {stepper.value === 1 && <AppearanceStep />}
+      <Steps.Content index={1} title="Create Support Ticket">
+        {stepper.value === 1 && <CreateTicketStep />}
       </Steps.Content>
-      <Steps.Content index={2} title="Invite team members">
-        {stepper.value === 2 && <InviteTeamMembersStep />}
-      </Steps.Content>
-      <Steps.Content index={3} title="Subscribe to updates">
-        {stepper.value === 3 && <SubscribeStep />}
+      <Steps.Content index={2} title="Share Settings">
+        {stepper.value === 2 && <SubscribeStep />}
       </Steps.Content>
 
       <Steps.CompletedContent>
