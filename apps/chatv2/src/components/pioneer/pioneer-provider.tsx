@@ -1,12 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { PioneerProvider as BasePioneerProvider, usePioneer } from '@coinmasters/pioneer-react';
 
 interface PioneerContextType {
   state: {
     app: any;
     username: string | null;
+    isInitialized: boolean;
   };
   connectWallet: () => Promise<void>;
 }
@@ -26,34 +27,32 @@ interface PioneerProviderProps {
 }
 
 export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) => {
-  const { state, onStart } = usePioneer();
-  
-  useEffect(() => {
-    const initPioneer = async () => {
-      try {
+  const { state, onStart, connectWallet: pioneerConnect } = usePioneer();
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  const connectWallet = async () => {
+    try {
+      if (!isInitialized) {
         await onStart([], {
           appName: 'KeepKey Support',
           appIcon: 'https://keepkey.com/logo.png',
           spec: process.env.NEXT_PUBLIC_PIONEER_URL || 'https://pioneers.dev/spec/swagger.json',
           wss: 'wss://pioneers.dev'
         });
-      } catch (error) {
-        console.error('Failed to initialize Pioneer:', error);
+        setIsInitialized(true);
       }
-    };
-
-    initPioneer();
-  }, [onStart]);
-
-  const connectWallet = async () => {
-    // Implement wallet connection logic here
-    console.log('Connecting wallet...');
+      await pioneerConnect();
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      throw error;
+    }
   };
 
   const contextValue = {
     state: {
       app: state.app,
-      username: state.username || null
+      username: state.username || null,
+      isInitialized
     },
     connectWallet
   };
