@@ -94,9 +94,7 @@ export const CreateTicketStep = () => {
       console.log('Creating ticket...');
       const ticketId = await createTicket(data);
       console.log('Ticket created successfully with ID:', ticketId);
-      console.log('Setting showChat to true');
-      setShowChat(true);
-      console.log('ShowChat state updated to true');
+      router.push(`/ticket/${ticketId}`);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
       toast.error({
@@ -111,8 +109,28 @@ export const CreateTicketStep = () => {
   if (showChat) {
     console.log('Rendering chat component with props:', { state, connectWallet });
     return (
-      <Box display="flex" flex="1" h="full">
-        <Chat usePioneer={{ state, connectWallet }} />
+      <Box 
+        position="fixed"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        bg="gray.900"
+        zIndex={9999}
+      >
+        <Box 
+          width="90vw" 
+          height="90vh" 
+          maxWidth="1200px"
+          borderRadius="xl"
+          overflow="hidden"
+          boxShadow="2xl"
+        >
+          <Chat usePioneer={{ state, connectWallet }} />
+        </Box>
       </Box>
     )
   }
