@@ -180,9 +180,10 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   }, [app, app?.events, app?.pioneer]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    console.log('')
+    let tag = TAG + " | handleSendMessage | "
     try {
+      if (!inputMessage.trim()) return;
+      console.log('Sending Message: ', inputMessage);
       const newMessage = {
         id: Date.now().toString(),
         type: 'message' as const,
@@ -190,7 +191,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         text: inputMessage,
         timestamp: new Date(),
       };
-
+      console.log('newMessage: ', newMessage);
       setMessages(prev => [...prev, newMessage]);
       setInputMessage('');
       setIsTyping(true);
@@ -201,6 +202,8 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
           roomId,
           message: inputMessage,
         });
+      } else {
+        console.error(tag,'Missing Pioneer: ', app)
       }
     } catch (error) {
       console.error('Failed to send message:', error);
