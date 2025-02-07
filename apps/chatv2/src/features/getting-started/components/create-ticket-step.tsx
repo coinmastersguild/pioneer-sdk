@@ -1,23 +1,39 @@
 'use client'
 
-import { useStepsContext, Box, Text, Stack, Button, Spinner, Center } from '@chakra-ui/react'
+import { useStepsContext, Box, Text, Stack, Button, Spinner } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
-import { randomUUID } from 'crypto'
 import { usePioneerApp } from '#components/pioneer/pioneer-provider'
-import { FormLayout } from '@saas-ui/forms'
+import { FormLayout, Field } from '@saas-ui/forms'
 import { Form } from '#components/form'
 import { useRouter } from 'next/navigation'
 import { FaWallet } from 'react-icons/fa'
 import { signIn } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import type { ComponentType } from 'react'
+import type { FlexProps } from '@chakra-ui/react'
 
 import { OnboardingStep } from './onboarding-step'
 import * as z from 'zod'
 
-// Dynamically import the Chat component with no SSR
-const Chat = dynamic(() => import('#components/chat').then(mod => mod.Chat), { ssr: false })
+interface ChatProps extends Omit<FlexProps, 'children'> {
+  usePioneer: {
+    state: {
+      app: any
+      username: string
+      isInitialized: boolean
+    }
+    connectWallet: () => Promise<void>
+  }
+}
+
+const Chat = dynamic<ComponentType<ChatProps>>(
+  () => import('#components/chat').then((mod) => mod.Chat),
+  {
+    ssr: false,
+  }
+)
 
 const schema = z.object({
   description: z.string().min(1, 'Please describe your issue'),
@@ -34,7 +50,7 @@ export const CreateTicketStep = () => {
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
-      const ticketId = randomUUID()
+      const ticketId = crypto.randomUUID()
       
       console.log('Ticket created:', {
         id: ticketId,
@@ -73,118 +89,98 @@ export const CreateTicketStep = () => {
     attemptConnection()
   }, [isWalletConnected, connectWallet])
 
-  const handleGoogleSignIn = async () => {
+  const handleSubmit = async (data: FormInput) => {
     try {
-      const result = await signIn('google', {
-        callbackUrl: '/getting-started',
-        redirect: false,
-      })
-      
-      if (result?.error) {
-        toast.error({
-          title: 'Sign in Failed',
-          description: result.error,
-        })
-      } else if (result?.url) {
-        router.push(result.url)
-      }
+      console.log('Creating ticket...');
+      const ticketId = await createTicket(data);
+      console.log('Ticket created successfully with ID:', ticketId);
+      console.log('Setting showChat to true');
+      setShowChat(true);
+      console.log('ShowChat state updated to true');
     } catch (error) {
+      console.error('Error in handleSubmit:', error);
       toast.error({
-        title: 'Sign in Failed',
-        description: 'Failed to sign in with Google. Please try again.',
-      })
+        title: 'Failed to create support ticket',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
     }
   }
 
+  console.log('Current showChat state:', showChat);
+  
   if (showChat) {
+    console.log('Rendering chat component with props:', { state, connectWallet });
     return (
-      <Box flex="1" h="full">
+      <Box display="flex" flex="1" h="full">
         <Chat usePioneer={{ state, connectWallet }} />
       </Box>
     )
   }
 
   return (
-    <Form
+    <OnboardingStep
       schema={schema}
+      title="Create Support Ticket"
+      description="Let us know what's going on and we'll help you out."
       defaultValues={{ description: '' }}
-      onSubmit={async (data) => {
-        try {
-          const ticketId = await createTicket(data)
-          setShowChat(true)
-        } catch (error) {
-          toast.error({
-            title: 'Failed to create support ticket',
-            description: error instanceof Error ? error.message : 'Please try again.',
-          })
-        }
-      }}
+      onSubmit={handleSubmit}
+      submitLabel="Create Ticket"
+      maxW={{ base: '100%', md: 'lg' }}
     >
-      {({ Field }) => (
-        <OnboardingStep
-          schema={schema}
-          title="Create Support Ticket"
-          description="Let us know what's going on and we'll help you out."
-          defaultValues={{ description: '' }}
-          onSubmit={async (data) => {
-            try {
-              const ticketId = await createTicket(data)
-              setShowChat(true)
-            } catch (error) {
-              toast.error({
-                title: 'Failed to create support ticket',
-                description: error instanceof Error ? error.message : 'Please try again.',
-              })
-            }
-          }}
-          submitLabel="Create Ticket"
-          maxW={{ base: '100%', md: 'lg' }}
+      <FormLayout>
+        <Box 
+          p={6} 
+          bg="whiteAlpha.100" 
+          borderRadius="lg" 
+          borderWidth="1px" 
+          borderColor="whiteAlpha.200" 
+          mb={6}
         >
-          <FormLayout>
-            <Box p={6} bg="whiteAlpha.100" borderRadius="lg" borderWidth="1px" borderColor="whiteAlpha.200" mb={6}>
-              {!isWalletConnected ? (
-                <Stack spacing={6} align="center">
-                  <Text fontSize="lg" fontWeight="medium" textAlign="center">Connecting Your Wallet</Text>
-                  <Text color="gray.500" textAlign="center">
-                    Please wait while we connect to your wallet
+          {!isWalletConnected ? (
+            <Stack direction="column" spacing={6} align="center">
+              <Text fontSize="lg" fontWeight="medium" textAlign="center">
+                Connecting Your Wallet
+              </Text>
+              <Text color="gray.500" textAlign="center">
+                Please wait while we connect to your wallet
+              </Text>
+              <Box display="flex" justifyContent="center">
+                <Spinner size="xl" color="blue.500" />
+              </Box>
+            </Stack>
+          ) : (
+            <Stack direction="column" spacing={4}>
+              <Box>
+                <Text fontWeight="medium" mb={1}>Username</Text>
+                <Text>{app?.username}</Text>
+              </Box>
+              {app?.queryKey && (
+                <Box>
+                  <Text fontWeight="medium" mb={1}>Query Key</Text>
+                  <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">
+                    {app.queryKey}
                   </Text>
-                  <Center>
-                    <Spinner size="xl" color="blue.500" thickness="4px" />
-                  </Center>
-                </Stack>
-              ) : (
-                <Stack spacing={4}>
-                  <Box>
-                    <Text fontWeight="medium" mb={1}>Username</Text>
-                    <Text>{app?.username}</Text>
-                  </Box>
-                  {app?.queryKey && (
-                    <Box>
-                      <Text fontWeight="medium" mb={1}>Query Key</Text>
-                      <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">{app.queryKey}</Text>
-                    </Box>
-                  )}
-                  {app?.pubkeys?.length > 0 && (
-                    <Box>
-                      <Text fontWeight="medium" mb={1}>Public Keys</Text>
-                      <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">
-                        {app.pubkeys.join(', ')}
-                      </Text>
-                    </Box>
-                  )}
-                </Stack>
+                </Box>
               )}
-            </Box>
-            <Field
-              name="description"
-              label="Describe your issue"
-              help="Tell us what's going on"
-              type="textarea"
-              required
-            />
-          </FormLayout>
-        </OnboardingStep>
-      )}
-    </Form>
+              {app?.pubkeys?.length > 0 && (
+                <Box>
+                  <Text fontWeight="medium" mb={1}>Public Keys</Text>
+                  <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">
+                    {app.pubkeys.join(', ')}
+                  </Text>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </Box>
+        <Field
+          name="description"
+          label="Describe your issue"
+          help="Tell us what's going on"
+          type="textarea"
+          required
+        />
+      </FormLayout>
+    </OnboardingStep>
   )
 } 
