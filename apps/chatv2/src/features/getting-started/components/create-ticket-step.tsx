@@ -1,6 +1,6 @@
 'use client'
 
-import { useStepsContext } from '@chakra-ui/react'
+import { useStepsContext, Box, Text, Stack, Button, Spinner, Center } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
 import { randomUUID } from 'crypto'
@@ -8,9 +8,9 @@ import { usePioneerApp } from '#components/pioneer/pioneer-provider'
 import { FormLayout } from '@saas-ui/forms'
 import { Form } from '#components/form'
 import { useRouter } from 'next/navigation'
-import { Box, Text, Stack, Button, SimpleGrid } from '@chakra-ui/react'
-import { FaWallet, FaGoogle } from 'react-icons/fa'
+import { FaWallet } from 'react-icons/fa'
 import { signIn } from 'next-auth/react'
+import { useEffect } from 'react'
 
 import { OnboardingStep } from './onboarding-step'
 import * as z from 'zod'
@@ -47,20 +47,26 @@ export const CreateTicketStep = () => {
 
   const isWalletConnected = !!app?.username
 
-  const handleWalletConnect = async () => {
-    try {
-      await connectWallet()
-      toast.success({
-        title: 'Wallet Connected',
-        description: 'Your wallet has been successfully connected.',
-      })
-    } catch (error) {
-      toast.error({
-        title: 'Connection Failed',
-        description: error instanceof Error ? error.message : 'Failed to connect wallet. Please try again.',
-      })
+  useEffect(() => {
+    const attemptConnection = async () => {
+      if (!isWalletConnected) {
+        try {
+          await connectWallet()
+          toast.success({
+            title: 'Wallet Connected',
+            description: 'Your wallet has been successfully connected.',
+          })
+        } catch (error) {
+          toast.error({
+            title: 'Connection Failed',
+            description: error instanceof Error ? error.message : 'Failed to connect wallet. Please try again.',
+          })
+        }
+      }
     }
-  }
+    
+    attemptConnection()
+  }, [isWalletConnected, connectWallet])
 
   const handleGoogleSignIn = async () => {
     try {
@@ -125,30 +131,13 @@ export const CreateTicketStep = () => {
             <Box p={6} bg="whiteAlpha.100" borderRadius="lg" borderWidth="1px" borderColor="whiteAlpha.200" mb={6}>
               {!isWalletConnected ? (
                 <Stack spacing={6} align="center">
-                  <Text fontSize="lg" fontWeight="medium" textAlign="center">Choose Your Sign In Method</Text>
+                  <Text fontSize="lg" fontWeight="medium" textAlign="center">Connecting Your Wallet</Text>
                   <Text color="gray.500" textAlign="center">
-                    Sign in with your preferred method to create a support ticket
+                    Please wait while we connect to your wallet
                   </Text>
-                  <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4} width="100%">
-                    <Button
-                      leftIcon={<FaWallet />}
-                      colorScheme="blue"
-                      onClick={handleWalletConnect}
-                      size="lg"
-                      variant="outline"
-                    >
-                      Connect Wallet
-                    </Button>
-                    <Button
-                      leftIcon={<FaGoogle />}
-                      colorScheme="red"
-                      onClick={handleGoogleSignIn}
-                      size="lg"
-                      variant="outline"
-                    >
-                      Sign in with Google
-                    </Button>
-                  </SimpleGrid>
+                  <Center>
+                    <Spinner size="xl" color="blue.500" thickness="4px" />
+                  </Center>
                 </Stack>
               ) : (
                 <Stack spacing={4}>
