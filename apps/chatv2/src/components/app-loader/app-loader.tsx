@@ -27,15 +27,6 @@ export const AppLoader: React.FC = () => {
           animation={`5s ease-out ${scale}`}
           opacity="0.8"
         />
-        {/* @ts-ignore */}
-        <Spinner
-          position="absolute"
-          top="50%"
-          left="50%"
-          transform="translate(-50%, -50%)"
-          size="xl"
-          color="white"
-        />
       </Box>
     </Box>
   )
