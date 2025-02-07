@@ -10,15 +10,16 @@ interface AuthLayoutProps {
 }
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoggingIn } = useAuth()
   const router = useRouter()
 
   React.useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/')
+    // Only redirect if user is authenticated and not in the process of logging in
+    if (isAuthenticated && !isLoggingIn) {
+      router.replace('/')
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, isLoggingIn])
 
-  // @ts-ignore
+  // Show children while checking auth status
   return <BaseAuthLayout>{children}</BaseAuthLayout>
 }

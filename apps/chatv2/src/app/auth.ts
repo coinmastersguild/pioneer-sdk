@@ -42,10 +42,8 @@ if (!process.env.AUTH_SECRET) {
   throw new Error('AUTH_SECRET is not set')
 }
 
-const prodUrl = 'https://keepkey-template-v8.vercel.app'
-
 export const authConfig: NextAuthOptions = {
-  debug: true, // Enable debug logs
+  debug: true,
   secret: process.env.AUTH_SECRET,
   providers: [
     GoogleProvider({
@@ -66,7 +64,6 @@ export const authConfig: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // Mock authentication - replace with your actual auth logic
         if (credentials?.email === "user@keepkey.com" && credentials?.password === "123345") {
           return {
             id: "1",
@@ -80,7 +77,6 @@ export const authConfig: NextAuthOptions = {
   ],
   pages: {
     signIn: '/login',
-    newUser: '/signup',
     error: '/auth/error'
   },
   callbacks: {
@@ -90,7 +86,6 @@ export const authConfig: NextAuthOptions = {
         token.email = user.email
         token.name = user.name
         
-        // Add Google-specific profile data if available
         if (account?.provider === 'google' && profile) {
           token.picture = profile.picture
           token.given_name = profile.given_name
@@ -105,9 +100,8 @@ export const authConfig: NextAuthOptions = {
         session.user.id = token.id
         session.user.email = token.email
         session.user.name = token.name
-        session.user.image = token.picture || null // Use Google profile picture if available
+        session.user.image = token.picture || null
         
-        // Add additional Google profile data to the session
         if (token.given_name) {
           session.user.firstName = token.given_name
         }
@@ -119,25 +113,17 @@ export const authConfig: NextAuthOptions = {
         }
       }
       return session
+    },
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url
+      return baseUrl
     }
   },
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  useSecureCookies: process.env.NODE_ENV === 'production',
-  cookies: {
-    sessionToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production'
-      }
-    }
   }
 } 

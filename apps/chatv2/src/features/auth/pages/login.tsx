@@ -1,7 +1,6 @@
 'use client'
 
-import { Button, Container, HStack, Stack, Text } from '@chakra-ui/react'
-import { useAuth } from '@saas-ui/auth-provider'
+import { Button, Container, Stack, Text } from '@chakra-ui/react'
 import { FormLayout, SubmitButton } from '@saas-ui/forms'
 import { LoadingOverlay } from '@saas-ui/react/loading-overlay'
 import { signIn, useSession } from 'next-auth/react'
@@ -11,7 +10,6 @@ import { z } from 'zod'
 import { toast } from '@saas-ui/react'
 
 import { Form } from '#components/form/form.tsx'
-import { Link } from '#components/link'
 import { Logo } from '#components/logo'
 
 const schema = z.object({
@@ -38,10 +36,8 @@ export const LoginPage = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      console.log('Starting Google sign-in...')
-      const result = await signIn('google', { 
+      const result = await signIn('google', {
         callbackUrl: '/getting-started',
-        redirect: false
       })
       
       if (result?.error) {
@@ -49,8 +45,6 @@ export const LoginPage = () => {
           title: "Authentication failed",
           description: result.error,
         })
-      } else if (result?.url) {
-        router.push(result.url)
       }
     } catch (error) {
       console.error('Failed to sign in with Google:', error)
@@ -87,9 +81,7 @@ export const LoginPage = () => {
 
           <Stack direction="row" gap={4} align="center" my="4">
             <Stack flex="1" h="1px" bg="gray.200" />
-            <Text color="fg.muted">
-              or
-            </Text>
+            <Text color="fg.muted">or</Text>
             <Stack flex="1" h="1px" bg="gray.200" />
           </Stack>
 
@@ -100,19 +92,25 @@ export const LoginPage = () => {
               password: '123345',
             }}
             onSubmit={async (values) => {
-              const result = await signIn('credentials', {
-                ...values,
-                redirect: false,
-              })
-              
-              if (result?.error) {
+              try {
+                const result = await signIn('credentials', {
+                  ...values,
+                  callbackUrl: '/getting-started',
+                })
+                
+                if (result?.error) {
+                  toast.error({
+                    title: "Authentication failed",
+                    description: result.error,
+                  })
+                  return { error: result.error }
+                }
+              } catch (error) {
+                console.error('Failed to sign in:', error)
                 toast.error({
                   title: "Authentication failed",
-                  description: result.error,
+                  description: "An unexpected error occurred",
                 })
-                return { error: result.error }
-              } else if (result?.url) {
-                router.push(result.url)
               }
             }}
           >
@@ -125,14 +123,6 @@ export const LoginPage = () => {
             )}
           </Form>
         </Container>
-
-        <Text color="fg.muted" textStyle="sm">
-          Don&apos;t have an account yet?{' '}
-          <Link href="/signup" color="fg">
-            Sign up
-          </Link>
-          .
-        </Text>
       </Stack>
     </Stack>
   )

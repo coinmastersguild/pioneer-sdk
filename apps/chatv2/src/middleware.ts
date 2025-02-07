@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 // List of paths that are accessible without authentication
-const publicPaths = ['/login', '/signup', '/forgot_password', '/reset_password', '/auth/error']
+const publicPaths = ['/login', '/signup', '/auth', '/api/auth']
 
 // List of paths that should redirect to dashboard if authenticated
 const authPaths = ['/login', '/signup']
@@ -14,8 +14,10 @@ const onboardingPaths = ['/', '/dashboard', '/settings']
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Check if the path is public
-  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
+  // Skip middleware for public paths and API routes
+  if (publicPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
 
   // Get the token
   const token = await getToken({
@@ -26,16 +28,16 @@ export async function middleware(request: NextRequest) {
   // Check if user has completed onboarding
   const hasCompletedOnboarding = request.cookies.get('onboarding_complete')?.value === 'true'
 
-  // Redirect authenticated users trying to access auth pages to getting-started
-  if (token && authPaths.some((path) => pathname.startsWith(path))) {
-    return NextResponse.redirect(new URL('/getting-started', request.url))
-  }
-
-  // Redirect unauthenticated users trying to access protected pages to login
-  if (!token && !isPublicPath) {
+  // If no token and not on a public path, redirect to login
+  if (!token) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // If has token and trying to access auth pages, redirect to home
+  if (token && (pathname === '/login' || pathname === '/signup')) {
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   // Redirect authenticated users who haven't completed onboarding
