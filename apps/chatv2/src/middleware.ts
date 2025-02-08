@@ -12,7 +12,7 @@ const authPaths = ['/login', '/signup']
 const onboardingPaths = ['/', '/dashboard', '/settings']
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, search } = request.nextUrl
 
   // Skip middleware for static files and api routes
   if (
@@ -43,15 +43,20 @@ export async function middleware(request: NextRequest) {
     // If no token and not on a public path, redirect to login
     if (!token) {
       const loginUrl = new URL('/login', request.url)
-      if (pathname !== '/') {
-        loginUrl.searchParams.set('callbackUrl', pathname)
+      
+      // Only set callback if it's not already the login page
+      if (pathname !== '/login' && pathname !== '/') {
+        const callbackUrl = `${pathname}${search}`
+        loginUrl.searchParams.set('callbackUrl', callbackUrl)
       }
+      
+      console.log('Redirecting to login with URL:', loginUrl.toString())
       return NextResponse.redirect(loginUrl)
     }
 
-    // If has token and trying to access auth pages, redirect to home
+    // If has token and trying to access auth pages, redirect to getting-started
     if (token && (pathname === '/login' || pathname === '/signup')) {
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL('/getting-started', request.url))
     }
 
     // Redirect authenticated users who haven't completed onboarding

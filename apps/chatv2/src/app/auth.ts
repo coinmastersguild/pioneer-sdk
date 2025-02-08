@@ -42,6 +42,8 @@ if (!process.env.AUTH_SECRET) {
   throw new Error('AUTH_SECRET is not set')
 }
 
+const prodUrl = 'https://support.keepkey.info'
+
 export const authConfig: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
   secret: process.env.AUTH_SECRET,
@@ -119,16 +121,36 @@ export const authConfig: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
-      // Handle relative URLs
-      if (url.startsWith("/")) {
-        return `${baseUrl}${url}`
+      // Always use HTTPS in production
+      if (process.env.NODE_ENV === 'production') {
+        baseUrl = prodUrl
       }
-      // Only allow redirects to the same host
-      const urlObj = new URL(url)
-      const baseUrlObj = new URL(baseUrl)
-      if (urlObj.hostname === baseUrlObj.hostname) {
+
+      // Handle callback URLs
+      if (url.startsWith('/')) {
+        const fullUrl = `${baseUrl}${url}`
+        console.log('Redirecting to:', fullUrl)
+        return fullUrl
+      }
+
+      // Handle getting-started redirect
+      if (url.includes('getting-started')) {
+        const fullUrl = `${baseUrl}/getting-started`
+        console.log('Redirecting to getting-started:', fullUrl)
+        return fullUrl
+      }
+
+      // Handle other URLs
+      const urlObject = new URL(url)
+      const baseUrlObject = new URL(baseUrl)
+      
+      if (urlObject.hostname === baseUrlObject.hostname) {
+        console.log('Redirecting to same host:', url)
         return url
       }
+
+      // Default redirect
+      console.log('Default redirect to:', baseUrl)
       return baseUrl
     }
   },
