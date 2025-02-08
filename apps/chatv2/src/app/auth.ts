@@ -126,31 +126,26 @@ export const authConfig: NextAuthOptions = {
         baseUrl = prodUrl
       }
 
-      // Handle callback URLs
-      if (url.startsWith('/')) {
-        const fullUrl = `${baseUrl}${url}`
-        console.log('Redirecting to:', fullUrl)
-        return fullUrl
-      }
-
-      // Handle getting-started redirect
-      if (url.includes('getting-started')) {
-        const fullUrl = `${baseUrl}/getting-started`
-        console.log('Redirecting to getting-started:', fullUrl)
-        return fullUrl
-      }
-
-      // Handle other URLs
-      const urlObject = new URL(url)
-      const baseUrlObject = new URL(baseUrl)
-      
-      if (urlObject.hostname === baseUrlObject.hostname) {
-        console.log('Redirecting to same host:', url)
+      // If the url is absolute, make sure it's to our domain
+      if (url.startsWith('http')) {
+        const urlObj = new URL(url)
+        const baseUrlObj = new URL(baseUrl)
+        if (urlObj.hostname !== baseUrlObj.hostname) {
+          return baseUrl
+        }
         return url
       }
 
-      // Default redirect
-      console.log('Default redirect to:', baseUrl)
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        // Special case for getting-started
+        if (url.includes('getting-started')) {
+          return `${baseUrl}/getting-started`
+        }
+        return `${baseUrl}${url}`
+      }
+
+      // Default to base URL
       return baseUrl
     }
   },
@@ -167,6 +162,14 @@ export const authConfig: NextAuthOptions = {
         path: '/',
         secure: process.env.NODE_ENV === 'production'
       }
+    }
+  },
+  events: {
+    async signIn({ user, account, profile, isNewUser }) {
+      console.log('Sign in event:', { user, account, isNewUser })
+    },
+    async signOut({ session, token }) {
+      console.log('Sign out event:', { session, token })
     }
   }
 } 

@@ -26,8 +26,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check if the path is public
-  if (publicPaths.some(path => pathname.startsWith(path))) {
+  // Check if the current path is the login page
+  const isLoginPage = pathname === '/login'
+
+  // If it's the login page, allow access
+  if (isLoginPage) {
     return NextResponse.next()
   }
 
@@ -41,11 +44,11 @@ export async function middleware(request: NextRequest) {
     const hasCompletedOnboarding = request.cookies.get('onboarding_complete')?.value === 'true'
 
     // If no token and not on a public path, redirect to login
-    if (!token) {
+    if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
       const loginUrl = new URL('/login', request.url)
       
-      // Only set callback if it's not already the login page
-      if (pathname !== '/login' && pathname !== '/') {
+      // Only set callback for non-public paths
+      if (!publicPaths.includes(pathname)) {
         const callbackUrl = `${pathname}${search}`
         loginUrl.searchParams.set('callbackUrl', callbackUrl)
       }
@@ -54,8 +57,9 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // If has token and trying to access auth pages, redirect to getting-started
-    if (token && (pathname === '/login' || pathname === '/signup')) {
+    // If has token and on login/signup, redirect to getting-started
+    if (token && publicPaths.includes(pathname)) {
+      console.log('Authenticated user on public path, redirecting to getting-started')
       return NextResponse.redirect(new URL('/getting-started', request.url))
     }
 
