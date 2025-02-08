@@ -38,13 +38,21 @@ export async function middleware(request: NextRequest) {
     // If on login page and already authenticated, redirect to appropriate page
     if (pathname === '/login' && token) {
       console.log('Authenticated user on login page, redirecting to appropriate page')
-      return NextResponse.redirect(new URL(hasCompletedOnboarding ? '/' : '/getting-started', request.url))
+      const redirectUrl = hasCompletedOnboarding ? '/' : '/getting-started'
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
+    }
+
+    // If on getting-started page and authenticated, allow access
+    if (pathname === '/getting-started' && token) {
+      console.log('Authenticated user accessing getting-started page')
+      return NextResponse.next()
     }
 
     // If no token and not on a public path, redirect to login
     if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
       const loginUrl = new URL('/login', request.url)
-      if (pathname !== '/') {
+      // Only set callback for non-public paths and not getting-started
+      if (pathname !== '/' && pathname !== '/getting-started') {
         loginUrl.searchParams.set('callbackUrl', pathname + search)
       }
       console.log('Unauthenticated user, redirecting to login:', loginUrl.toString())
