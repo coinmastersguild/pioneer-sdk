@@ -1,6 +1,6 @@
 {
   "name": "keepkey-template-v8",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "preinstall": "node -e \"if(process.env.npm_execpath.indexOf('pnpm') === -1) throw new Error('Use pnpm for installing dependencies')\"",
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^3.4.0",
-    "@coinmasters/pioneer-react": "^1.0.0",
+    "@coinmasters/pioneer-react": "workspace:*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@emotion/react": "^11.14.0",
