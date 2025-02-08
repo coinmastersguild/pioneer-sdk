@@ -2,6 +2,10 @@
   "name": "keepkey-template-v8",
   "version": "0.1.1",
   "private": true,
+  "engines": {
+    "node": "^20.11.1",
+    "pnpm": ">=9.0.0"
+  },
   "scripts": {
     "preinstall": "node -e \"if(process.env.npm_execpath.indexOf('pnpm') === -1) throw new Error('Use pnpm for installing dependencies')\"",
     "setup": "pnpm login --registry=https://npm.saas-ui.dev/ --scope=@saas-ui-pro && pnpm install",
