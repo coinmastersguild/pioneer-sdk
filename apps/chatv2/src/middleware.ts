@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 // List of paths that are accessible without authentication
-const publicPaths = ['/login', '/signup', '/api/auth']
+const publicPaths = ['/login', '/signup', '/api/auth', '/getting-started']
 
 // List of paths that should redirect to getting-started if not completed onboarding
 const onboardingPaths = ['/', '/dashboard', '/settings']
@@ -35,6 +35,16 @@ export async function middleware(request: NextRequest) {
     // Check if user has completed onboarding
     const hasCompletedOnboarding = request.cookies.get('onboarding_complete')?.value === 'true'
 
+    // Special handling for getting-started page
+    if (pathname === '/getting-started') {
+      if (!token) {
+        console.log('Unauthenticated user on getting-started, redirecting to login')
+        const loginUrl = new URL('/login', request.url)
+        return NextResponse.redirect(loginUrl)
+      }
+      return NextResponse.next()
+    }
+
     // If on login page and already authenticated, redirect to appropriate page
     if (pathname === '/login' && token) {
       console.log('Authenticated user on login page, redirecting to appropriate page')
@@ -42,17 +52,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
-    // If on getting-started page and authenticated, allow access
-    if (pathname === '/getting-started' && token) {
-      console.log('Authenticated user accessing getting-started page')
-      return NextResponse.next()
-    }
-
     // If no token and not on a public path, redirect to login
     if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
       const loginUrl = new URL('/login', request.url)
-      // Only set callback for non-public paths and not getting-started
-      if (pathname !== '/' && pathname !== '/getting-started') {
+      if (pathname !== '/') {
         loginUrl.searchParams.set('callbackUrl', pathname + search)
       }
       console.log('Unauthenticated user, redirecting to login:', loginUrl.toString())
