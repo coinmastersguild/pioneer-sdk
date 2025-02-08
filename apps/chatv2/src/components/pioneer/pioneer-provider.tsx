@@ -54,7 +54,7 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
       username: state.username || null,
       isInitialized
     },
-    connectWalletPioneer
+    connectWallet: connectWalletPioneer
   };
 
   return (
