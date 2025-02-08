@@ -3,10 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 // List of paths that are accessible without authentication
-const publicPaths = ['/login', '/signup', '/api/auth', '/auth', '/auth/error']
-
-// List of paths that should redirect to dashboard if authenticated
-const authPaths = ['/login', '/signup']
+const publicPaths = ['/login', '/signup', '/api/auth']
 
 // List of paths that should redirect to getting-started if not completed onboarding
 const onboardingPaths = ['/', '/dashboard', '/settings']
@@ -23,14 +20,7 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     pathname.startsWith('/auth/')
   ) {
-    return NextResponse.next()
-  }
-
-  // Check if the current path is the login page
-  const isLoginPage = pathname === '/login'
-
-  // If it's the login page, allow access
-  if (isLoginPage) {
+    console.log('Skipping middleware for static/api path:', pathname)
     return NextResponse.next()
   }
 
@@ -40,34 +30,34 @@ export async function middleware(request: NextRequest) {
       secret: process.env.AUTH_SECRET,
     })
 
+    console.log('Auth token status:', token ? 'present' : 'missing', 'for path:', pathname)
+
     // Check if user has completed onboarding
     const hasCompletedOnboarding = request.cookies.get('onboarding_complete')?.value === 'true'
+
+    // If on login page and already authenticated, redirect to appropriate page
+    if (pathname === '/login' && token) {
+      console.log('Authenticated user on login page, redirecting to appropriate page')
+      return NextResponse.redirect(new URL(hasCompletedOnboarding ? '/' : '/getting-started', request.url))
+    }
 
     // If no token and not on a public path, redirect to login
     if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
       const loginUrl = new URL('/login', request.url)
-      
-      // Only set callback for non-public paths
-      if (!publicPaths.includes(pathname)) {
-        const callbackUrl = `${pathname}${search}`
-        loginUrl.searchParams.set('callbackUrl', callbackUrl)
+      if (pathname !== '/') {
+        loginUrl.searchParams.set('callbackUrl', pathname + search)
       }
-      
-      console.log('Redirecting to login with URL:', loginUrl.toString())
+      console.log('Unauthenticated user, redirecting to login:', loginUrl.toString())
       return NextResponse.redirect(loginUrl)
     }
 
-    // If has token and on login/signup, redirect to getting-started
-    if (token && publicPaths.includes(pathname)) {
-      console.log('Authenticated user on public path, redirecting to getting-started')
-      return NextResponse.redirect(new URL('/getting-started', request.url))
-    }
-
     // Redirect authenticated users who haven't completed onboarding
-    if (token && !hasCompletedOnboarding && onboardingPaths.some(path => pathname.startsWith(path))) {
+    if (token && !hasCompletedOnboarding && onboardingPaths.includes(pathname)) {
+      console.log('User needs to complete onboarding, redirecting to getting-started')
       return NextResponse.redirect(new URL('/getting-started', request.url))
     }
 
+    console.log('Proceeding with request for path:', pathname)
     return NextResponse.next()
   } catch (error) {
     console.error('Middleware error:', error)
