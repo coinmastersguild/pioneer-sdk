@@ -9,9 +9,11 @@ packages/**/.turbo
 internal/**/.turbo
 .turbo/config.json
 .turbo/cookies
-.env.local
-*/.env.local
 .env
+.env.local
+.env.development
+.env.production
+.env.*
 *.mjs
 !*.config.mjs
 coverage/

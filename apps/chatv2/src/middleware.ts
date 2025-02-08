@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 // List of paths that are accessible without authentication
-const publicPaths = ['/login', '/signup', '/api/auth']
+const publicPaths = ['/login', '/signup', '/api/auth', '/auth', '/auth/error']
 
 // List of paths that should redirect to dashboard if authenticated
 const authPaths = ['/login', '/signup']
@@ -14,19 +14,20 @@ const onboardingPaths = ['/', '/dashboard', '/settings']
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Check if the path is public
-  if (publicPaths.some(path => pathname.startsWith(path))) {
+  // Skip middleware for static files and api routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/static') ||
+    pathname.startsWith('/api/') ||
+    pathname.includes('favicon') ||
+    pathname.includes('.') ||
+    pathname.startsWith('/auth/')
+  ) {
     return NextResponse.next()
   }
 
-  // Skip middleware for static files and api routes (except auth)
-  if (
-    pathname.startsWith('/_next') || 
-    pathname.startsWith('/static') || 
-    pathname.startsWith('/api/') ||
-    pathname.includes('/favicon.') ||
-    pathname.includes('.')
-  ) {
+  // Check if the path is public
+  if (publicPaths.some(path => pathname.startsWith(path))) {
     return NextResponse.next()
   }
 
@@ -42,7 +43,9 @@ export async function middleware(request: NextRequest) {
     // If no token and not on a public path, redirect to login
     if (!token) {
       const loginUrl = new URL('/login', request.url)
-      loginUrl.searchParams.set('callbackUrl', pathname)
+      if (pathname !== '/') {
+        loginUrl.searchParams.set('callbackUrl', pathname)
+      }
       return NextResponse.redirect(loginUrl)
     }
 
@@ -59,11 +62,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   } catch (error) {
     console.error('Middleware error:', error)
-    return NextResponse.next()
+    return NextResponse.redirect(new URL('/auth/error', request.url))
   }
 }
 
 // Configure the middleware to run on specific paths
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)',],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - api (API routes)
+     * - auth (authentication routes)
+     */
+    '/((?!_next/static|_next/image|api|auth).*)',
+  ],
 } 

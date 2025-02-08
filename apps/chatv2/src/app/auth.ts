@@ -64,6 +64,10 @@ export const authConfig: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error('Please enter your email and password')
+        }
+
         if (credentials?.email === "user@keepkey.com" && credentials?.password === "123345") {
           return {
             id: "1",
@@ -71,7 +75,7 @@ export const authConfig: NextAuthOptions = {
             email: credentials.email,
           }
         }
-        return null
+        throw new Error('Invalid email or password')
       }
     }),
   ],
@@ -115,9 +119,14 @@ export const authConfig: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
+      // Handle relative URLs
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`
-      } else if (new URL(url).origin === baseUrl) {
+      }
+      // Only allow redirects to the same host
+      const urlObj = new URL(url)
+      const baseUrlObj = new URL(baseUrl)
+      if (urlObj.hostname === baseUrlObj.hostname) {
         return url
       }
       return baseUrl
@@ -129,7 +138,7 @@ export const authConfig: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === 'production' ? 'next-auth.session-token' : `__Secure-next-auth.session-token`,
+      name: 'next-auth.session-token',
       options: {
         httpOnly: true,
         sameSite: 'lax',
