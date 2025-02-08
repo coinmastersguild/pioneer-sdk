@@ -10,20 +10,21 @@ import {
   VStack,
   IconButton,
   type FlexProps,
+  type BoxProps,
+  type TextProps,
+  type StackProps,
 } from '@chakra-ui/react';
-import { HiHeart, HiOutlinePaperAirplane } from "react-icons/hi";
-const TAG = " | chat | "
-const AVATARS: Record<string, typeof HiHeart | string> = {
-  user: HiHeart,
-  computer: 'https://pioneers.dev/coins/keepkey.png'
-}
+import { HiHeart } from 'react-icons/hi';
+import { Avatar } from "../ui/avatar"
+import {renderEventMessage,renderStandardMessage,renderViewMessage} from './views'
 
 interface Message {
   id: string;
-  type: 'message' | 'event' | 'system';
+  type: 'message' | 'event' | 'system' | 'view';
   from: 'user' | 'computer';
   text: string;
   timestamp: Date;
+  view?: any; // Add view property for view type messages
 }
 
 export interface ChatProps extends Omit<FlexProps, 'children'> {
@@ -35,8 +36,16 @@ export interface ChatProps extends Omit<FlexProps, 'children'> {
   };
 }
 
-interface MessagesProps extends Omit<FlexProps, 'children'> {
+interface MessagesProps extends StackProps {
   messages: Message[];
+  app: any;
+}
+
+const TAG = " | chat | ";
+
+const AVATARS: Record<string, typeof HiHeart | string> = {
+  user: HiHeart,
+  computer: 'https://pioneers.dev/coins/keepkey.png'
 }
 
 const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
@@ -71,7 +80,7 @@ const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
   );
 };
 
-const Messages: React.FC<MessagesProps> = React.memo(({ messages, ...props }) => {
+const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props }) => {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -99,8 +108,16 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, ...props }) =>
       }}
       {...props}
     >
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+      {messages.map((message, index) => (
+        <React.Fragment key={message.id}>
+          {message.type === 'view' && message.view ? (
+            <Box key={`view-${message.id}`}>
+              {renderViewMessage({ view: message.view }, index, app)}
+            </Box>
+          ) : (
+            <MessageBubble key={`msg-${message.id}`} message={message} />
+          )}
+        </React.Fragment>
       ))}
       <div ref={messagesEndRef} />
     </VStack>
@@ -126,7 +143,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   const [isConnecting, setIsConnecting] = React.useState(false);
 
   const onStart = async () => {
-    let tag = TAG + " | onStart | "
+    let tag = TAG + " | onStart | ";
     try {
       // If pioneer is not available, try to connect wallet
       if (!app?.pioneer && !isConnecting) {
@@ -163,17 +180,38 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
 
         app.events.on('message', (action: string, data: any) => {
           try {
+            // 1) If action is a JSON string, parse it; if object, use it directly.
             let dataObj = JSON.parse(action);
-            let message = dataObj.sentences || data?.sentences || '';
 
-            setMessages(prev => [...prev, {
+            // 2) Pull message/views from dataObj or fallback to data if needed.
+            let message = dataObj.sentences || data?.sentences || '';
+            let views   = dataObj.views   || data?.views   || [];
+
+            console.log('**** Event message:', message);
+            let messageNew = {
               id: Date.now().toString(),
               type: 'message',
               from: 'computer',
               text: message,
               timestamp: new Date(),
-            }]);
-            setIsTyping(false);
+            }
+            setMessages((prevMessages: Array<any>) => [...prevMessages, messageNew]);
+            console.log('**** Event views:', views);
+
+            // 3) If there are views, handle them
+            if (views && views.length > 0) {
+              for (let i = 0; i < views.length; i++) {
+                let view = views[i];
+                console.log(tag,'view:', view);
+                console.log(tag,'view:', view.type);
+                setMessages((prevMessages: Array<any>) => [...prevMessages, {
+                  id: `view-${Date.now()}-${i}`,
+                  type: 'view',
+                  view,
+                  timestamp: new Date(),
+                }]);
+              }
+            }
           } catch (e) {
             console.error(e);
           }
@@ -191,7 +229,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   }, [app]);
 
   const handleSendMessage = async () => {
-    let tag = TAG + " | handleSendMessage | "
+    let tag = TAG + " | handleSendMessage | ";
     try {
       if (!inputMessage.trim()) return;
       console.log('Sending Message: ', inputMessage);
@@ -224,6 +262,241 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
     }
   };
 
+  // This function will handle what happens when a user clicks an inquiry option.
+  const handleInquiryOptionClick = async (option: string) => {
+    console.log("Inquiry option clicked: ", option);
+    let username = app.username
+    console.log("username: ", username);
+
+    switch(option) {
+      case 'setup_email':
+        // Create an email input view
+        const emailInputView = {
+          type: 'question',
+          question: {
+            title: 'Enter Email Address',
+            description: 'Please enter your email address for support communications.',
+            color: 'blue.400',
+            fields: [
+              {
+                name: 'Email',
+                type: 'email',
+                placeholder: 'your@email.com',
+                required: true
+              }
+            ],
+            options: [
+              {
+                label: 'Submit',
+                customId: 'submit_email',
+                style: 3
+              },
+              {
+                label: 'Cancel',
+                customId: 'cancel_email',
+                style: 1
+              }
+            ],
+            footer: {
+              text: 'Your email will be used only for support purposes',
+              iconURL: 'https://pioneers.dev/coins/keepkey.png'
+            },
+            app: {
+              ...app,
+              pioneer: app.pioneer,
+              setMessages,
+              handleInquiryOptionClick
+            }
+          }
+        };
+
+        try {
+          // Remove the previous email setup view and add the new input view
+          setMessages((prevMessages: Array<any>) => {
+            const filteredMessages = prevMessages.filter(msg =>
+              !(msg.type === 'view' && msg.view?.question?.title === 'Email Support Setup')
+            );
+            return [...filteredMessages,
+              {
+                type: 'message',
+                from: 'computer',
+                text: 'Please enter your email address below:'
+              },
+              { type: 'view', view: emailInputView }
+            ];
+          });
+        } catch (e) {
+          console.error("Failed to set email input view:", e);
+        }
+        break;
+
+      case 'skip_email':
+        try {
+          // Remove the email setup view and add the skip message
+          setMessages((prevMessages: Array<any>) => {
+            const filteredMessages = prevMessages.filter(msg =>
+              !(msg.type === 'view' && msg.view?.question?.title === 'Email Support Setup')
+            );
+            return [...filteredMessages,
+              {
+                type: 'message',
+                from: 'computer',
+                text: 'No problem! You can always set up email support later if you change your mind.'
+              }
+            ];
+          });
+        } catch (e) {
+          console.error("Failed to set skip message:", e);
+        }
+        break;
+
+      case 'submit_email':
+        // Handle email submission
+        const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+        console.log("Submit email clicked, app context:", app);
+        if (emailInput) {
+          const email = emailInput.value.trim();
+          console.log("Email value:", email);
+          if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            try {
+              if(!username) throw new Error("Username is required");
+              const ticketNumber = localStorage.getItem('myRoomId');
+
+              console.log("Username:", username);
+              console.log("TicketNumber (from localStorage):", ticketNumber);
+
+              if (!ticketNumber) {
+                throw new Error("TicketNumber missing");
+              }
+
+              console.log("Creating email with:", {
+                username,
+                email,
+                ticketNumber
+              });
+
+              // Call the API to create email
+              const response = await app.pioneer.CreateEmail({
+                username,
+                email,
+                ticketNumber
+              });
+              console.log("Email creation response:", response);
+
+              if (response?.data?.success) {
+                // Remove the email input view and add success message
+                setMessages((prevMessages: Array<any>) => {
+                  const filteredMessages = prevMessages.filter(msg =>
+                    !(msg.type === 'view' && msg.view?.question?.title === 'Enter Email Address')
+                  );
+                  return [...filteredMessages,
+                    {
+                      type: 'message',
+                      from: 'computer',
+                      text: `Great! Your email ${email} has been set up successfully. You'll receive support updates at this address.`
+                    }
+                  ];
+                });
+              } else {
+                // Show error but keep the view
+                setMessages((prevMessages: Array<any>) => [...prevMessages,
+                  {
+                    type: 'message',
+                    from: 'computer',
+                    text: 'There was an error registering your email. Please try again or contact support.'
+                  }
+                ]);
+              }
+            } catch (e: any) {
+              console.error("Failed to create email:", e);
+              // Show more specific error message
+              const errorMessage = e.message === "Username or ticketNumber missing"
+                ? "Sorry, we couldn't verify your account details. Please try again later."
+                : "Sorry, there was an error setting up your email. Please try again later.";
+
+              setMessages((prevMessages: Array<any>) => [...prevMessages,
+                {
+                  type: 'message',
+                  from: 'computer',
+                  text: errorMessage
+                }
+              ]);
+            }
+          } else {
+            // Invalid email format - update the view to show error
+            const emailView = {
+              type: 'question',
+              question: {
+                title: 'Enter Email Address',
+                description: 'Please enter your email address for support communications.',
+                color: 'blue.400',
+                fields: [
+                  {
+                    name: 'Email',
+                    type: 'email',
+                    placeholder: 'your@email.com',
+                    required: true,
+                    invalid: true,
+                    errorText: 'Please enter a valid email address'
+                  }
+                ],
+                options: [
+                  {
+                    label: 'Submit',
+                    customId: 'submit_email',
+                    style: 3
+                  },
+                  {
+                    label: 'Cancel',
+                    customId: 'cancel_email',
+                    style: 1
+                  }
+                ],
+                footer: {
+                  text: 'Your email will be used only for support purposes',
+                  iconURL: 'https://pioneers.dev/coins/keepkey.png'
+                },
+                app: {
+                  ...app,
+                  pioneer: app.pioneer,
+                  setMessages,
+                  handleInquiryOptionClick
+                }
+              }
+            };
+
+            setMessages((prevMessages: Array<any>) => {
+              const filteredMessages = prevMessages.filter(msg =>
+                !(msg.type === 'view' && msg.view?.question?.title === 'Enter Email Address')
+              );
+              return [...filteredMessages, { type: 'view', view: emailView }];
+            });
+          }
+        } else {
+          console.error("Email input field not found or app context missing");
+        }
+        break;
+
+      case 'cancel_email':
+        if (app?.pioneer) {
+          // Remove the email input view and add cancel message
+          setMessages((prevMessages: Array<any>) => {
+            const filteredMessages = prevMessages.filter(msg =>
+              !(msg.type === 'view' && msg.view?.question?.title === 'Enter Email Address')
+            );
+            return [...filteredMessages,
+              {
+                type: 'message',
+                from: 'computer',
+                text: 'Email setup cancelled. You can always set up email support later if you change your mind.'
+              }
+            ];
+          });
+        }
+        break;
+    }
+  };
+
   return (
     <Flex 
       direction="column" 
@@ -245,7 +518,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       </Box>
 
       <Box flex="1" overflowY="auto">
-        <Messages messages={messages} />
+        <Messages messages={messages} app={app} />
       </Box>
 
       {isTyping && (
@@ -282,7 +555,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
           />
           <IconButton
             aria-label="Send message"
-            icon={<HiOutlinePaperAirplane className="rotate-90 transform translate-x-0.5 -translate-y-0.5" />}
+            icon={<HiHeart className="rotate-90 transform translate-x-0.5 -translate-y-0.5" />}
             onClick={handleSendMessage}
             colorScheme="blue"
             size="lg"
