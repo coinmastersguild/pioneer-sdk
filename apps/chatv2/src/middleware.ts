@@ -28,7 +28,19 @@ export async function middleware(request: NextRequest) {
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production',
+      cookieName: 'next-auth.session-token'
     })
+
+    // Add debug logging in production
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Production auth debug:', {
+        path: pathname,
+        hasToken: !!token,
+        cookies: request.cookies.getAll(),
+        headers: Object.fromEntries(request.headers.entries())
+      })
+    }
 
     console.log('Auth token status:', token ? 'present' : 'missing', 'for path:', pathname)
 
