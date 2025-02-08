@@ -51,13 +51,22 @@ export const CreateTicketStep = () => {
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
       const ticketId = crypto.randomUUID()
-      
-      console.log('Ticket created:', {
+
+      let ticket = {
         id: ticketId,
         workspace: 'keepkey',
         email: app?.username || '',
         ...data
-      })
+      }
+
+      console.log('Ticket created:', ticket)
+      let result = await app.pioneer.CreateTicket(ticket)
+      console.log('Ticket created:', result.data)
+      if(result.ticketId){
+        //success
+      } else {
+        //failed to create ticket
+      }
 
       window.sessionStorage.setItem('getting-started.workspace', 'keepkey')
       localStorage.setItem('myRoomId', ticketId)
