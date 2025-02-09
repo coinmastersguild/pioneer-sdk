@@ -3,18 +3,38 @@
 import React from 'react'
 import { Box, Stack, Text, useStepsContext } from '@chakra-ui/react'
 import { usePioneerApp } from '#components/pioneer/pioneer-provider'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { OnboardingStep } from './onboarding-step'
 import { FaCheckCircle } from 'react-icons/fa'
 import { z } from 'zod'
 import { type FieldValues } from '@saas-ui/forms'
+import {Button} from '#components/ui/button'
 
 export const ConnectWalletStep = () => {
   const stepper = useStepsContext()
   const { state, connectWallet } = usePioneerApp()
   const { app } = state
+  const [isDesktopRunning, setIsDesktopRunning] = useState(false);
 
-  const isWalletConnected = !!app?.username
+
+  const isWalletConnected = false
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('http://localhost:1646/docs');
+        if (response.status === 200) {
+          clearInterval(interval);
+          setIsDesktopRunning(true)
+
+        }
+      } catch (error) {
+        console.log('KeepKey endpoint not found, retrying...');
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const attemptConnection = async () => {
@@ -42,6 +62,21 @@ export const ConnectWalletStep = () => {
 
   const schema = z.object({})
 
+  const launchKeepKey = () => {
+    try {
+      console.log('window: ', window);
+      console.log('window.location: ', window.location);
+      if (window) {
+        setTimeout(() => {
+          window.location.assign('keepkey://launch');
+          // window.open('https://keepkey.com/launch', '_blank');
+        }, 100); // Adding a slight delay before launching the URL
+      }
+    } catch (error) {
+      console.error('Failed to launch KeepKey:', error);
+    }
+  };
+
   return (
     <OnboardingStep<FieldValues>
       title="Connect Your Wallet"
@@ -54,7 +89,7 @@ export const ConnectWalletStep = () => {
     >
       <div className="p-8 bg-opacity-10 bg-white rounded-lg border border-opacity-20 border-white">
         <div className="flex flex-col items-center space-y-6">
-          {isWalletConnected ? (
+          {isDesktopRunning ? (
             <div className="text-center">
               <div className="text-4xl text-green-400 mb-4">
                 <FaCheckCircle size={80} />
@@ -65,15 +100,7 @@ export const ConnectWalletStep = () => {
             </div>
           ) : (
             <>
-              <div className="text-lg font-medium">
-                Connecting Your Wallet
-              </div>
-              <div className="text-gray-500">
-                Please approve the connection request in your wallet
-              </div>
-              <div>
-                <img src="/keepkey-icon.svg" alt="KeepKey" className="w-20 h-20" />
-              </div>
+              <Button onClick={launchKeepKey}></Button>
             </>
           )}
         </div>

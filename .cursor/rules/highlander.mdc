@@ -1,0 +1,31 @@
+
+# Tags
+
+the top of every file needs a tag
+
+const TAG = " | filename | "
+
+every function if should have a try catch
+
+
+let demoFunction = async function(){
+    tag = TAG + " | demoFunction | "
+    try{
+        ** code here **
+        return foo
+    }catch(e){
+        console.error(e)
+        throw e
+    }
+}
+
+Notice the tag is the ONLY part out of the try
+notice that tag has both global and function tag
+
+every async function must thow  @rules failfast
+
+
+
+# pref
+
+Always use pnpm (unless bun project)
