@@ -104,7 +104,10 @@ export const ConnectWalletStep = () => {
               <Image 
                 src="/gif/kk.gif" 
                 alt="KeepKey Animation" 
-                boxSize="256px"
+                width="auto"
+                height="auto"
+                maxWidth="100%"
+                objectFit="contain"
               />
             </Flex>
           )}
