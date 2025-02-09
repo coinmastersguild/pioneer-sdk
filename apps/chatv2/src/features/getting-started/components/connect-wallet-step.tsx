@@ -1,7 +1,16 @@
 'use client'
 
 import React from 'react'
-import { useStepsContext } from '@chakra-ui/react'
+import { 
+  useStepsContext,
+  Box,
+  Flex,
+  Stack,
+  Image,
+  Heading,
+  Text,
+  ButtonGroup
+} from '@chakra-ui/react'
 import { usePioneerApp } from '#components/pioneer/pioneer-provider'
 import { useEffect, useState } from 'react'
 import { OnboardingStep } from './onboarding-step'
@@ -47,7 +56,7 @@ export const ConnectWalletStep = () => {
         }
       }
     }
-    
+
     attemptConnection()
   }, [isWalletConnected, connectWallet])
 
@@ -56,7 +65,7 @@ export const ConnectWalletStep = () => {
       const timer = setTimeout(() => {
         stepper.setStep(stepper.value + 1)
       }, 2000)
-      
+
       return () => clearTimeout(timer)
     }
   }, [isWalletConnected, stepper])
@@ -89,61 +98,61 @@ export const ConnectWalletStep = () => {
       onSubmit={() => {}}
       submitLabel=""
     >
-      <div className="p-8 bg-opacity-10 bg-white rounded-lg border border-opacity-20 border-white">
-        <div className="flex flex-col items-center justify-center space-y-6 min-h-[300px]">
+        <Stack spacing={6} minH="300px" justify="center">
           {!hasCheckedEndpoint && (
-            <div className="flex flex-col items-center justify-center">
-              <img 
+            <Flex justify="center">
+              <Image 
                 src="/gif/kk.gif" 
                 alt="KeepKey Animation" 
-                className="w-64 h-64"
+                boxSize="256px"
               />
-            </div>
+            </Flex>
           )}
           {hasCheckedEndpoint && !isDesktopRunning && (
-            <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6">
-              <div className="flex flex-col space-y-4">
-                <div className="flex justify-center">
-                  <img 
-                    src="/images/desktop/pin.png" 
-                    alt="KeepKey Desktop" 
-                    className="w-[200px] h-[200px] object-contain"
-                  />
-                </div>
-                <h2 className="text-xl font-semibold text-center">KeepKey Desktop Required</h2>
-                <p className="text-center text-gray-600">
-                  To set up and configure your KeepKey device, you'll need to install and run KeepKey Desktop. This application provides essential security features and device management capabilities.
-                </p>
-                <div className="flex justify-center space-x-3 pt-4">
-                  <Button 
+            <Stack spacing={6}>
+              <Flex w="200px" h="200px" align="center" justify="center" mx="auto">
+                <Image 
+                  src="/images/desktop/pin.png" 
+                  alt="KeepKey Desktop" 
+                  objectFit="contain"
+                  w="full"
+                  h="full"
+                />
+              </Flex>
+              <Stack spacing={4} textAlign="center">
+                <Heading size="md">KeepKey Desktop Required</Heading>
+                <Text color="gray.500">
+                  To set up and configure your KeepKey device, youll need to install and run KeepKey Desktop. This application provides essential security features and device management capabilities.
+                </Text>
+                <ButtonGroup spacing={3} pt={4} justifyContent="center">
+                  <Button
                     onClick={openInstallPage}
                     variant="outline"
-                    className="bg-transparent border-blue-500 text-blue-500 hover:bg-blue-50"
+                    colorScheme="blue"
                   >
                     Install KeepKey Desktop
                   </Button>
-                  <Button 
+                  <Button
                     onClick={launchKeepKey}
-                    className="bg-blue-500 text-white hover:bg-blue-600"
+                    colorScheme="blue"
                   >
                     Launch KeepKey Desktop
                   </Button>
-                </div>
-              </div>
-            </div>
+                </ButtonGroup>
+              </Stack>
+            </Stack>
           )}
           {isDesktopRunning && (
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="mb-4">
-                <FaCheckCircle className="text-green-400" size={80} />
-              </div>
-              <div className="text-xl font-medium text-green-400">
+            <Stack spacing={4} textAlign="center">
+              <Flex justify="center" color="green.400">
+                <FaCheckCircle size={80} />
+              </Flex>
+              <Heading size="md" color="green.400">
                 Wallet Connected Successfully!
-              </div>
-            </div>
+              </Heading>
+            </Stack>
           )}
-        </div>
-      </div>
+        </Stack>
     </OnboardingStep>
   )
-} 
+}
