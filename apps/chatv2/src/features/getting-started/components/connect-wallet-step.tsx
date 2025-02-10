@@ -26,8 +26,6 @@ export const ConnectWalletStep = () => {
   const [isDesktopRunning, setIsDesktopRunning] = useState(false);
   const [hasCheckedEndpoint, setHasCheckedEndpoint] = useState(false);
 
-  const isWalletConnected = false
-
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -48,7 +46,7 @@ export const ConnectWalletStep = () => {
 
   useEffect(() => {
     const attemptConnection = async () => {
-      if (!isWalletConnected) {
+      if (!isDesktopRunning) {
         try {
           await connectWallet()
         } catch (error) {
@@ -58,17 +56,17 @@ export const ConnectWalletStep = () => {
     }
 
     attemptConnection()
-  }, [isWalletConnected, connectWallet])
+  }, [isDesktopRunning, connectWallet])
 
   useEffect(() => {
-    if (isWalletConnected) {
+    if (isDesktopRunning) {
       const timer = setTimeout(() => {
         stepper.setStep(stepper.value + 1)
       }, 2000)
 
       return () => clearTimeout(timer)
     }
-  }, [isWalletConnected, stepper])
+  }, [isDesktopRunning, stepper])
 
   const launchKeepKey = () => {
     try {
