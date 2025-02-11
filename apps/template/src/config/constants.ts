@@ -1,1 +1,0 @@
-export const DEFAULT_AVATAR = 'https://pioneers.dev/coins/keepkey.png' 
