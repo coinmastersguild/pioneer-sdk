@@ -99,9 +99,9 @@ importers:
       '@chakra-ui/react':
         specifier: ^3.4.0
         version: 3.5.1(@emotion/react@11.14.0(@types/react@19.0.8)(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@coinmasters/pioneer-react':
+      '@coinmasters/pioneer-sdk':
         specifier: workspace:*
-        version: link:../../packages/pioneer/pioneer-react
+        version: link:../../packages/pioneer/pioneer-sdk
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
