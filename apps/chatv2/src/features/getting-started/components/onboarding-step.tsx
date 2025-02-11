@@ -31,6 +31,7 @@ export interface OnboardingStepProps<
   maxW?: SystemStyleObject['maxW']
   children: React.ReactNode
   formRef?: React.RefObject<UseFormReturn<TFieldValues>>
+  hideSubmit?: boolean
 }
 
 const fade = keyframes`
@@ -61,6 +62,7 @@ export const OnboardingStep = <TFieldValues extends FieldValues = FieldValues>(
     formRef,
     maxW = { base: '100%', md: '80%' },
     children,
+    hideSubmit = false,
   } = props
   return (
     <Flex flexDirection="column" alignItems="center" textAlign="center" mb="12">
@@ -91,15 +93,17 @@ export const OnboardingStep = <TFieldValues extends FieldValues = FieldValues>(
           <Card.Body p="6">{children}</Card.Body>
         </Card.Root>
 
-        <SubmitButton
-          size="lg"
-          width="80%"
-          maxW="320px"
-          margin="0 10%"
-          animation={animation(0.3)}
-        >
-          {submitLabel}
-        </SubmitButton>
+        {!hideSubmit && (
+          <SubmitButton
+            size="lg"
+            width="80%"
+            maxW="320px"
+            margin="0 10%"
+            animation={animation(0.3)}
+          >
+            {submitLabel}
+          </SubmitButton>
+        )}
       </Form>
     </Flex>
   )

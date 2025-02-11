@@ -18,6 +18,7 @@ import { FaCheckCircle } from 'react-icons/fa'
 import { z } from 'zod'
 import { type FieldValues } from '@saas-ui/forms'
 import { Button } from '#components/ui/button'
+import { Skeleton } from '#components/ui/skeleton'
 
 export const ConnectWalletStep = () => {
   const stepper = useStepsContext()
@@ -95,6 +96,7 @@ export const ConnectWalletStep = () => {
       defaultValues={{}}
       onSubmit={() => {}}
       submitLabel=""
+      hideSubmit={true}
     >
         <Stack spacing={6} minH="300px" justify="center">
           {!hasCheckedEndpoint && (
@@ -111,13 +113,28 @@ export const ConnectWalletStep = () => {
           )}
           {hasCheckedEndpoint && !isDesktopRunning && (
             <Stack spacing={6}>
-              <Flex w="200px" h="200px" align="center" justify="center" mx="auto">
+              <Flex 
+                w="200px" 
+                h="200px" 
+                align="center" 
+                justify="center" 
+                mx="auto"
+                position="relative"
+              >
                 <Image 
                   src="/images/desktop/pin.png" 
                   alt="KeepKey Desktop" 
                   objectFit="contain"
                   w="full"
                   h="full"
+                  loading="lazy"
+                  fallback={
+                    <Skeleton
+                      w="full"
+                      h="full"
+                      borderRadius="md"
+                    />
+                  }
                 />
               </Flex>
               <Stack spacing={4} textAlign="center">

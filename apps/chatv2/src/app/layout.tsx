@@ -30,6 +30,14 @@ export default async function AppRootLayout({
 
   return (
     <html lang="en" data-theme={colorMode}>
+      <head>
+        <link
+          rel="preload"
+          href="/images/desktop/pin.png"
+          as="image"
+          type="image/png"
+        />
+      </head>
       <body className={`chakra-ui-${colorMode}`}>
         {/*<LemonSqueezyScript />*/}
         <Provider initialColorMode={colorMode}>{children}</Provider>

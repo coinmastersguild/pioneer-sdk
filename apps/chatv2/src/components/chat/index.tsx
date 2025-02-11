@@ -48,7 +48,7 @@ const AVATARS: Record<string, typeof HiHeart | string> = {
   computer: 'https://pioneers.dev/coins/keepkey.png'
 }
 
-const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
+const MessageBubble: React.FC<{ message: Message, app: any }> = ({ message, app }) => {
   const isUser = message.from === 'user';
   return (
     <Box
@@ -72,6 +72,11 @@ const MessageBubble: React.FC<{ message: Message }> = ({ message }) => {
         borderTopColor: isUser ? 'blue.600' : 'gray.700',
       }}
     >
+      {isUser && app?.username && (
+        <Text fontSize="xs" opacity={0.8} mb={1} color="whiteAlpha.800">
+          {app.username}
+        </Text>
+      )}
       <Text fontWeight="medium">{message.text}</Text>
       <Text fontSize="xs" opacity={0.8} mt={1} color="whiteAlpha.800">
         {message.timestamp.toLocaleTimeString()}
@@ -115,7 +120,7 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props 
               {renderViewMessage({ view: message.view }, index, app)}
             </Box>
           ) : (
-            <MessageBubble key={`msg-${message.id}`} message={message} />
+            <MessageBubble key={`msg-${message.id}`} message={message} app={app} />
           )}
         </React.Fragment>
       ))}
@@ -142,91 +147,151 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   const [isTyping, setIsTyping] = React.useState(false);
   const [isConnecting, setIsConnecting] = React.useState(false);
 
-  const onStart = async () => {
+  const onStart = React.useCallback(async () => {
     let tag = TAG + " | onStart | ";
     try {
-      // If pioneer is not available, try to connect wallet
-      if (!app?.pioneer && !isConnecting) {
-        console.log(tag, 'Pioneer not available, attempting to connect wallet');
+      // Check if we have a valid app state first
+      if (!app) {
+        console.log(tag, 'App not initialized yet');
+        return;
+      }
+
+      // Only attempt to connect wallet if we have the function and pioneer is not available
+      if (typeof connectWallet === 'function' && !app?.pioneer && !isConnecting) {
+        console.log(tag, 'Attempting to connect wallet');
         setIsConnecting(true);
         try {
           await connectWallet();
         } catch (e) {
           console.error(tag, 'Failed to connect wallet:', e);
+        } finally {
+          setIsConnecting(false);
         }
-        setIsConnecting(false);
         return; // Exit and let the useEffect trigger again with updated app state
       }
 
-      if (app && app.events && app.pioneer) {
-        const roomId = localStorage.getItem('myRoomId');
-        if (roomId) {
-          console.log(tag,'app.pioneer: ',app.pioneer)
-          console.log(tag,'app.pioneer: ',app.pioneer.pioneer)
-          let response = await app.pioneer.JoinRoom({ roomId });
-          console.log("Joined room ", response);
+      // Verify we have the required components before proceeding
+      if (!app.events || !app.pioneer) {
+        console.log(tag, 'Required components not initialized:', { 
+          events: !!app.events, 
+          pioneer: !!app.pioneer 
+        });
+        return;
+      }
 
-          setMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            type: 'message',
-            from: 'computer',
-            text: `Connected to support session ${roomId}`,
-            timestamp: new Date(),
-          }]);
-        }
+      console.log(tag, 'Initializing chat with app:', app);
+      
+      // Get room ID and validate
+      const roomId = localStorage.getItem('myRoomId');
+      if (!roomId) {
+        console.log(tag, 'No room ID found in localStorage');
+        return;
+      }
 
-        // Remove any existing message listener to prevent duplicates
-        app.events.removeAllListeners('message');
+      // Remove any existing message listeners to prevent duplicates
+      app.events.removeAllListeners('message');
+      app.events.removeAllListeners('pioneer');
 
-        app.events.on('message', (action: string, data: any) => {
-          try {
-            // 1) If action is a JSON string, parse it; if object, use it directly.
-            let dataObj = JSON.parse(action);
+      // Set up event listeners first before joining room
+      app.events.on('pioneer', (event: any) => {
+        console.log(tag, 'Pioneer event received:', event);
+      });
 
-            // 2) Pull message/views from dataObj or fallback to data if needed.
-            let message = dataObj.sentences || data?.sentences || '';
-            let views   = dataObj.views   || data?.views   || [];
-
-            console.log('**** Event message:', message);
-            let messageNew = {
+      app.events.on('message', (action: any) => {
+        try {
+          console.log(tag, 'Raw message event received:', action);
+          
+          // Handle both string and object formats
+          let dataObj = typeof action === 'string' ? JSON.parse(action) : action;
+          console.log(tag, 'Parsed message data:', dataObj);
+          
+          // Extract message from various possible locations
+          let message = '';
+          if (dataObj.text) message = dataObj.text;
+          else if (dataObj.message) message = dataObj.message;
+          else if (dataObj.sentences) message = Array.isArray(dataObj.sentences) ? dataObj.sentences.join(' ') : dataObj.sentences;
+          else if (dataObj.responses?.sentences) message = Array.isArray(dataObj.responses.sentences) ? dataObj.responses.sentences.join(' ') : dataObj.responses.sentences;
+          
+          let views = dataObj.views || dataObj.responses?.views || [];
+          
+          if (message) {
+            console.log(tag, 'Adding message to chat:', message);
+            setMessages((prevMessages: Array<any>) => [...prevMessages, {
               id: Date.now().toString(),
               type: 'message',
               from: 'computer',
               text: message,
               timestamp: new Date(),
-            }
-            setMessages((prevMessages: Array<any>) => [...prevMessages, messageNew]);
-            console.log('**** Event views:', views);
-
-            // 3) If there are views, handle them
-            if (views && views.length > 0) {
-              for (let i = 0; i < views.length; i++) {
-                let view = views[i];
-                console.log(tag,'view:', view);
-                console.log(tag,'view:', view.type);
-                setMessages((prevMessages: Array<any>) => [...prevMessages, {
-                  id: `view-${Date.now()}-${i}`,
-                  type: 'view',
-                  view,
-                  timestamp: new Date(),
-                }]);
-              }
-            }
-          } catch (e) {
-            console.error(e);
+            }]);
           }
+
+          // Handle views if present
+          if (views && views.length > 0) {
+            console.log(tag, 'Adding views to chat:', views);
+            views.forEach((view: any, index: number) => {
+              setMessages((prevMessages: Array<any>) => [...prevMessages, {
+                id: `view-${Date.now()}-${index}`,
+                type: 'view',
+                view,
+                timestamp: new Date(),
+              }]);
+            });
+          }
+        } catch (e) {
+          console.error(tag, 'Error handling message:', e);
+        }
+      });
+
+      try {
+        // Join room with required parameters
+        console.log(tag, 'Attempting to join room:', roomId);
+        let response = await app.pioneer.JoinRoom({ 
+          roomId,
+          username: app.username || '',
+          isSupport: true
         });
-      } else {
-        console.log(tag, 'App not fully initialized yet:', { app, events: app?.events, pioneer: app?.pioneer });
+        console.log(tag, "Room join response:", response);
+
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          type: 'message',
+          from: 'computer',
+          text: `Connected to support session ${roomId}`,
+          timestamp: new Date(),
+        }]);
+
+        console.log(tag, 'Chat initialization complete');
+      } catch (e) {
+        console.error(tag, 'Error joining room:', e);
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          type: 'system',
+          from: 'computer',
+          text: 'Failed to connect to support session. Please try again.',
+          timestamp: new Date(),
+        }]);
       }
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
     }
-  };
+  }, [app, connectWallet, isConnecting]);
 
+  // Separate useEffect for event listener cleanup
   React.useEffect(() => {
+    return () => {
+      if (app?.events) {
+        console.log(TAG, 'Cleaning up event listeners');
+        app.events.removeAllListeners('message');
+        app.events.removeAllListeners('pioneer');
+      }
+    };
+  }, [app?.events]);
+
+  // Separate useEffect for initialization
+  React.useEffect(() => {
+    console.log(TAG, 'Initialization useEffect triggered');
     onStart();
-  }, [app]);
+  }, [onStart]);
 
   const handleSendMessage = async () => {
     let tag = TAG + " | handleSendMessage | ";
