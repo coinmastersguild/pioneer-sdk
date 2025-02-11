@@ -77,6 +77,11 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
   // Initialize SDK
   useEffect(() => {
     const initializeSdk = async () => {
+      if (sdk) {
+        console.log('SDK already initialized, skipping');
+        return;
+      }
+
       try {
         // Generate or retrieve queryKey from localStorage
         const queryKey = localStorage.getItem('queryKey') || `key:${crypto.randomUUID()}`;
@@ -87,6 +92,17 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
         if (!keepkeyApiKey) {
           keepkeyApiKey = '123';
           localStorage.setItem('keepkeyApiKey', keepkeyApiKey);
+        }
+
+        // Check if KeepKey Desktop is running before initializing
+        try {
+          const response = await fetch('http://localhost:1646/docs');
+          if (response.status !== 200) {
+            throw new Error('KeepKey Desktop is not running');
+          }
+        } catch (error) {
+          console.error('Failed to connect to KeepKey Desktop:', error);
+          throw new Error('KeepKey Desktop is not running or not accessible');
         }
 
         const config = {
@@ -201,21 +217,26 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
 
       } catch (error) {
         console.error('Failed to initialize Pioneer SDK:', error);
-        setState(prev => ({ ...prev, error: error as Error }));
+        setState(prev => ({ 
+          ...prev, 
+          error: error as Error,
+          isInitialized: false
+        }));
         addMessage({
           id: Date.now().toString(),
           type: 'system',
           from: 'computer',
-          text: 'Failed to initialize Pioneer SDK',
+          text: error instanceof Error ? error.message : 'Failed to initialize Pioneer SDK',
           data: error,
           timestamp: new Date()
         });
+        throw error; // Re-throw to be caught by the component
       }
     };
 
-    if (!sdk) {
-      initializeSdk();
-    }
+    initializeSdk().catch(error => {
+      console.error('SDK initialization failed:', error);
+    });
 
     return () => {
       // Cleanup event listeners
@@ -223,7 +244,7 @@ export const PioneerProvider: React.FC<PioneerProviderProps> = ({ children }) =>
         sdk.events.removeAllListeners();
       }
     };
-  }, []);
+  }, []); // Only run once on mount
 
   const connectWallet = async () => {
     if (!sdk) {
