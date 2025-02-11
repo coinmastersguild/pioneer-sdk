@@ -1,10 +1,16 @@
-import { redirect } from 'next/navigation'
+'use client'
 
-export default async function Page(props: {
-  params: Promise<{ workspace: string }>
-}) {
-  // const { workspace } = await props.params
+import { Box, Container, Heading, Text, VStack } from '@chakra-ui/react'
 
-  // redirect(`/${workspace}/updates`)
-  redirect(`/KeepKey/tickets`)
+export default function Page() {
+  return (
+    <Container maxW="container.xl" py={10}>
+      <VStack spacing={6} align="center">
+        <Heading size="2xl">Welcome to Pioneer</Heading>
+        <Text fontSize="xl" textAlign="center">
+          Your Web3 journey starts here
+        </Text>
+      </VStack>
+    </Container>
+  )
 }
