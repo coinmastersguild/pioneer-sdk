@@ -4,7 +4,7 @@ import { usePioneer } from '@coinmasters/pioneer-react';
 
 export const useOnStartApp = () => {
     const { onStart } = usePioneer();
-y
+
     const onStartApp = async () => {
         try {
             const pioneerSetup = {

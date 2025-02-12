@@ -1,7 +1,30 @@
+'use client';
 import Image from "next/image";
 import styles from "./page.module.css";
+import { useOnStartApp } from './utils/onStart';
+import { usePioneer } from '@coinmasters/pioneer-react';
+import { useEffect } from 'react';
 
 export default function Home() {
+  const onStartApp = useOnStartApp();
+
+  const initializeApp = async () => {
+    try {
+      await onStartApp(); // Ensure the function resolves or rejects correctly
+
+
+    } catch (e) {
+      console.error('Initialization error:', e);
+      //@ts-ignore
+      setIsError(e.message || 'An unexpected error occurred');
+    }
+  };
+
+  useEffect(() => {
+    initializeApp().catch((error) => console.error('Error during initialization:', error));
+  }, []);
+
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
