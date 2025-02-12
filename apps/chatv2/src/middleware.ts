@@ -6,7 +6,7 @@ import { getToken } from 'next-auth/jwt'
 const publicPaths = ['/login', '/signup', '/api/auth', '/getting-started']
 
 // List of paths that should redirect to getting-started if not completed onboarding
-const onboardingPaths = ['/', '/dashboard', '/settings']
+const onboardingPaths = ['/dashboard', '/settings']
 
 export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
@@ -44,6 +44,19 @@ export async function middleware(request: NextRequest) {
 
     console.log('Auth token status:', token ? 'present' : 'missing', 'for path:', pathname)
 
+    // Allow root path to be handled by page.tsx
+    if (pathname === '/') {
+      return NextResponse.next()
+    }
+
+    // Handle non-public paths
+    if (!publicPaths.includes(pathname)) {
+      if (!token) {
+        // Redirect to login if not authenticated
+        return NextResponse.redirect(new URL('/login', request.url))
+      }
+    }
+
     // Check if user has completed onboarding
     const hasCompletedOnboarding = request.cookies.get('onboarding_complete')?.value === 'true'
 
@@ -62,16 +75,6 @@ export async function middleware(request: NextRequest) {
       console.log('Authenticated user on login page, redirecting to appropriate page')
       const redirectUrl = hasCompletedOnboarding ? '/' : '/getting-started'
       return NextResponse.redirect(new URL(redirectUrl, request.url))
-    }
-
-    // If no token and not on a public path, redirect to login
-    if (!token && !publicPaths.some(path => pathname.startsWith(path))) {
-      const loginUrl = new URL('/login', request.url)
-      if (pathname !== '/') {
-        loginUrl.searchParams.set('callbackUrl', pathname + search)
-      }
-      console.log('Unauthenticated user, redirecting to login:', loginUrl.toString())
-      return NextResponse.redirect(loginUrl)
     }
 
     // Redirect authenticated users who haven't completed onboarding

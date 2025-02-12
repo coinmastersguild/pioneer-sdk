@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { toaster } from '@/components/ui/toaster';
+import { toaster } from '#components/ui/toaster';
 import { usePioneer } from '@coinmasters/pioneer-react';
 
 export const useOnStartApp = () => {
