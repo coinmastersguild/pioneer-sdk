@@ -3,7 +3,7 @@
 import { useStepsContext, Box, Text, Stack, Button, Spinner } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
-import { usePioneerApp } from '#components/pioneer/pioneer-provider'
+import { usePioneerContext } from '#features/common/providers/app'
 import { FormLayout, Field } from '@saas-ui/forms'
 import { Form } from '#components/form'
 import { useRouter } from 'next/navigation'
@@ -43,14 +43,13 @@ type FormInput = z.infer<typeof schema>
 
 export const CreateTicketStep = () => {
   const stepper = useStepsContext()
-  const { state, connectWallet } = usePioneerApp()
-  const { app } = state
+  const pioneer = usePioneerContext()
   const router = useRouter()
   const [showChat, setShowChat] = useState(false)
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
-      if (!app?.pioneer) {
+      if (!pioneer?.pioneer) {
         throw new Error('Please connect your wallet first');
       }
 
@@ -59,12 +58,12 @@ export const CreateTicketStep = () => {
       let ticket = {
         id: ticketId,
         workspace: 'keepkey',
-        email: app?.username || '',
+        email: pioneer?.username || '',
         ...data
       }
 
       console.log('Creating ticket:', ticket)
-      let result = await app.pioneer.CreateTicket(ticket)
+      let result = await pioneer.pioneer.CreateTicket(ticket)
       console.log('Ticket created:', result.data)
       if(result.ticketId){
         //success
@@ -79,13 +78,13 @@ export const CreateTicketStep = () => {
     },
   })
 
-  const isWalletConnected = !!app?.pioneer
+  const isWalletConnected = !!pioneer?.pioneer
 
   useEffect(() => {
     const attemptConnection = async () => {
       if (!isWalletConnected) {
         try {
-          await connectWallet()
+          await pioneer.connectWallet()
           toast.success({
             title: 'Wallet Connected',
             description: 'Your wallet has been successfully connected.',
@@ -100,7 +99,7 @@ export const CreateTicketStep = () => {
     }
     
     attemptConnection()
-  }, [isWalletConnected, connectWallet])
+  }, [isWalletConnected, pioneer.connectWallet])
 
   const handleSubmit = async (data: FormInput) => {
     try {
@@ -120,7 +119,7 @@ export const CreateTicketStep = () => {
   console.log('Current showChat state:', showChat);
   
   if (showChat) {
-    console.log('Rendering chat component with props:', { state, connectWallet });
+    console.log('Rendering chat component with props:', { pioneer });
     return (
       <Box 
         position="fixed"
@@ -142,7 +141,7 @@ export const CreateTicketStep = () => {
           overflow="hidden"
           boxShadow="2xl"
         >
-          <Chat usePioneer={{ state, connectWallet }} />
+          <Chat usePioneer={{ state: pioneer, connectWallet: pioneer.connectWallet }} />
         </Box>
       </Box>
     )
@@ -183,9 +182,9 @@ export const CreateTicketStep = () => {
         {/*    <Stack direction="column" spacing={4}>*/}
         {/*      <Box>*/}
         {/*        <Text fontWeight="medium" mb={1}>Username</Text>*/}
-        {/*        <Text>{app?.username}</Text>*/}
+        {/*        <Text>{pioneer?.username}</Text>*/}
         {/*      </Box>*/}
-        {/*      {app?.queryKey && (*/}
+        {/*      {pioneer?.queryKey && (*/}
         {/*        <Box>*/}
         {/*          <Text fontWeight="medium" mb={1}>Query Key</Text>*/}
         {/*          <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">*/}

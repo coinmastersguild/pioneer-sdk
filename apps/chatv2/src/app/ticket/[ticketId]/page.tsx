@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { ComponentType } from 'react'
 import type { FlexProps } from '@chakra-ui/react'
-import { usePioneerApp } from '#components/pioneer/pioneer-provider'
+import { usePioneerContext } from '#features/common/providers/app'
 import { useEffect } from 'react'
 
 interface ChatProps extends Omit<FlexProps, 'children'> {
@@ -28,7 +28,7 @@ const Chat = dynamic<ComponentType<ChatProps>>(
 
 export default function TicketPage() {
   const params = useParams()
-  const { state, connectWallet } = usePioneerApp()
+  const pioneer = usePioneerContext()
   const ticketId = params.ticketId as string
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function TicketPage() {
         overflow="hidden"
         boxShadow="2xl"
       >
-        <Chat usePioneer={{ state, connectWallet }} />
+        <Chat usePioneer={{ state: pioneer, connectWallet: () => Promise.resolve() }} />
       </Box>
     </Box>
   )

@@ -12,7 +12,6 @@ import {
   ButtonGroup,
   Spinner
 } from '@chakra-ui/react'
-import { usePioneerApp } from '#components/pioneer/pioneer-provider'
 import { useEffect, useState } from 'react'
 import { OnboardingStep } from './onboarding-step'
 import { FaCheckCircle, FaWallet } from 'react-icons/fa'
@@ -21,11 +20,11 @@ import { type FieldValues } from '@saas-ui/forms'
 import { Button } from '#components/ui/button'
 import { Skeleton } from '#components/ui/skeleton'
 import { toaster } from '#components/ui/toaster'
+import { usePioneerContext } from '#features/common/providers/app'
 
 export const ConnectWalletStep = () => {
   const stepper = useStepsContext()
-  const { state, connectWallet } = usePioneerApp()
-  const { app } = state
+  const pioneer = usePioneerContext()
   const [isDesktopRunning, setIsDesktopRunning] = useState(false);
   const [hasCheckedEndpoint, setHasCheckedEndpoint] = useState(false);
   const [isAttemptingConnection, setIsAttemptingConnection] = useState(false);
@@ -56,10 +55,10 @@ export const ConnectWalletStep = () => {
   // Attempt wallet connection only when desktop is running
   useEffect(() => {
     const attemptConnection = async () => {
-      if (isDesktopRunning && !app?.pioneer && !isAttemptingConnection) {
+      if (isDesktopRunning && !pioneer.state.app?.pioneer && !isAttemptingConnection) {
         try {
           setIsAttemptingConnection(true);
-          await connectWallet();
+          await pioneer.connectWallet();
           // Only advance step if connection was successful
           stepper.setStep(stepper.value + 1);
         } catch (error) {
@@ -75,7 +74,7 @@ export const ConnectWalletStep = () => {
     };
 
     attemptConnection();
-  }, [isDesktopRunning, app?.pioneer, connectWallet, stepper, isAttemptingConnection]);
+  }, [isDesktopRunning, pioneer.state.app?.pioneer, pioneer.connectWallet, stepper, isAttemptingConnection]);
 
   const launchKeepKey = () => {
     try {
