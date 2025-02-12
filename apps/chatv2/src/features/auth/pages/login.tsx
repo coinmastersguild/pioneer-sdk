@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Container, Stack, Text } from '@chakra-ui/react'
+import { Button, Container, Stack, Text, Box } from '@chakra-ui/react'
 import { FormLayout, SubmitButton } from '@saas-ui/forms'
 import { LoadingOverlay } from '@saas-ui/react/loading-overlay'
 import { signIn, useSession } from 'next-auth/react'
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { FaGoogle } from 'react-icons/fa'
 import { z } from 'zod'
 import { toast } from '@saas-ui/react'
+import { usePioneerContext } from '#features/common/providers/app'
 
 import { Form } from '#components/form/form.tsx'
 import { Logo } from '#components/logo'
@@ -20,6 +21,7 @@ const schema = z.object({
 export const LoginPage = () => {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const pioneer = usePioneerContext()
 
   if (status === 'loading') {
     return (
@@ -97,7 +99,7 @@ export const LoginPage = () => {
                   ...values,
                   callbackUrl: '/getting-started',
                 })
-                
+
                 if (result?.error) {
                   toast.error({
                     title: "Authentication failed",
