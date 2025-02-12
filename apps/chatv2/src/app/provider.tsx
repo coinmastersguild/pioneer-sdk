@@ -1,6 +1,7 @@
 'use client'
 
 import { ChakraProvider } from '@chakra-ui/react'
+import { PioneerProvider } from "@coinmasters/pioneer-react"
 
 import { AppProvider } from '#features/common/providers/app'
 import { system } from '#theme'
@@ -18,12 +19,14 @@ export function Provider({
 }) {
   return (
     <ChakraProvider value={system}>
-      <AppProvider 
-        onError={(error, info) => console.error(error, info)}
-        initialColorMode={initialColorMode}
-      >
-        {children}
-      </AppProvider>
+      <PioneerProvider>
+        <AppProvider
+          onError={(error, info) => console.error(error, info)}
+          initialColorMode={initialColorMode}
+        >
+          {children}
+        </AppProvider>
+      </PioneerProvider>
     </ChakraProvider>
   )
 }

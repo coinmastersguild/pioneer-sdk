@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation'
 import { getCurrentUser } from '#api'
 import { useWorkspace } from '#features/common/hooks/use-workspace'
 
-export const HomePage: React.FC = () => {
+export const HomePage: React.FC = ({ usePioneer}: any) => {
   const router = useRouter()
 
   const { data, isLoading } = useQuery({

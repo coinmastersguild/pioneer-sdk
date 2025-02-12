@@ -9,7 +9,6 @@ import { SessionProvider } from 'next-auth/react'
 import { ModalsProvider } from '#components/modals'
 import { appHotkeys } from '#config'
 import { ColorModeProvider } from '#components/ui/color-mode'
-import { CombinedPioneerProvider } from '#components/pioneer/pioneer-provider'
 
 import { Hotkeys } from '../components/hotkeys'
 import { getQueryClient } from '../lib/react-query'
@@ -46,11 +45,9 @@ export function AppProvider({
             <I18nProvider>
               <SessionProvider>
                 <AuthProvider>
-                  <CombinedPioneerProvider>
                     <ModalsProvider>
                       <Hotkeys hotkeys={appHotkeys}>{children}</Hotkeys>
                     </ModalsProvider>
-                  </CombinedPioneerProvider>
                 </AuthProvider>
               </SessionProvider>
             </I18nProvider>
