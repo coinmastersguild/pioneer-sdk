@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 
 type ColorMode = 'light' | 'dark'
 
-export default async function AppRootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
-}): Promise<JSX.Element> {
+}) {
   const cookieStore = await cookies()
   const colorMode = (cookieStore.get('chakra-ui-color-mode')?.value ?? 'dark') as ColorMode
 
@@ -31,9 +31,7 @@ export default async function AppRootLayout({
       </head>
       <body className={`chakra-ui-${colorMode}`}>
         <Provider initialColorMode={colorMode}>
-          <React.Fragment>
-            {children}
-          </React.Fragment>
+          {children}
         </Provider>
       </body>
     </html>
