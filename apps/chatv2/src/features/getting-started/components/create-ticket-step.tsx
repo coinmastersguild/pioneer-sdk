@@ -137,6 +137,64 @@ export const CreateTicketStep = () => {
   }
 
   if (showChat) {
+    // Initialize the chat with the proper Pioneer provider structure
+    const chatPioneerState = {
+      state: {
+        ...pioneer.state,
+        pioneer: {
+          ...pioneer.pioneer,
+          initialized: true,
+          sendMessage: async (message: any) => {
+            console.log('Sending message via state.pioneer:', message);
+            return pioneer.pioneer?.sendMessage?.(message);
+          },
+          joinRoom: async (roomId: string) => {
+            console.log('Joining room via state.pioneer:', roomId);
+            return pioneer.pioneer?.joinRoom?.(roomId);
+          },
+          onStart: async () => {
+            console.log('Chat onStart called via state.pioneer');
+            const appSetup = {
+              appName: 'KeepKey Portfolio',
+              appIcon: 'https://pioneers.dev/coins/keepkey.png',
+            };
+            return pioneer.pioneer?.onStart([], appSetup);
+          }
+        },
+        messages: [],
+        isConnecting: false,
+        context: {
+          ...pioneer.state?.context,
+          username: pioneer.username,
+          queryKey: pioneer.state?.queryKey,
+          initialized: true
+        }
+      },
+      // These methods should match the state.pioneer structure
+      pioneer: pioneer.pioneer,
+      dispatch: pioneer.dispatch,
+      sendMessage: async (message: any) => {
+        console.log('Top level sendMessage redirecting to state.pioneer:', message);
+        return pioneer.pioneer?.sendMessage?.(message);
+      },
+      joinRoom: async (roomId: string) => {
+        console.log('Top level joinRoom redirecting to state.pioneer:', roomId);
+        return pioneer.pioneer?.joinRoom?.(roomId);
+      },
+      onStart: async () => {
+        console.log('Top level onStart redirecting to state.pioneer');
+        const appSetup = {
+          appName: 'KeepKey Portfolio',
+          appIcon: 'https://pioneers.dev/coins/keepkey.png',
+        };
+        return pioneer.pioneer?.onStart([], appSetup);
+      },
+      connectWallet: pioneer.connectWallet
+    }
+
+    // Log the state to verify initialization
+    console.log('Chat pioneer state:', chatPioneerState);
+
     return (
       <Box 
         position="fixed"
@@ -158,7 +216,7 @@ export const CreateTicketStep = () => {
           overflow="hidden"
           boxShadow="2xl"
         >
-          <DynamicChat usePioneer={{ ...pioneer, messages: [] }} />
+          <DynamicChat usePioneer={chatPioneerState} />
         </Box>
       </Box>
     )
