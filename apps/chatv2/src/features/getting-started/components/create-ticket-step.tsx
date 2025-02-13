@@ -1,6 +1,6 @@
 'use client'
 
-import { useStepsContext, Box, Text, Stack, Button, Spinner } from '@chakra-ui/react'
+import { useStepsContext, Box, Text, Stack, Button, VStack, Spinner } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
 import { usePioneerContext } from '#features/common/providers/app'
@@ -12,28 +12,21 @@ import { signIn } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { ComponentType } from 'react'
-import type { FlexProps } from '@chakra-ui/react'
 
 import { OnboardingStep } from './onboarding-step'
 import * as z from 'zod'
 
-interface ChatProps extends Omit<FlexProps, 'children'> {
-  usePioneer: {
-    state: {
-      app: any
-      username: string
-      isInitialized: boolean
-    }
-    connectWallet: () => Promise<void>
-  }
-}
+// Import the Chat component type from the module
+import type { Chat as ChatComponent } from '#components/chat'
 
-const Chat = dynamic<ComponentType<ChatProps>>(
-  () => import('#components/chat').then((mod) => mod.Chat),
-  {
-    ssr: false,
-  }
-)
+const DynamicChat = dynamic(() => import('#components/chat').then(mod => mod.Chat), {
+  ssr: false,
+  loading: () => (
+    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+      <Spinner />
+    </Box>
+  ),
+}) as ComponentType<Parameters<typeof ChatComponent>[0]>
 
 const schema = z.object({
   description: z.string().min(1, 'Please describe your issue'),
@@ -46,6 +39,7 @@ export const CreateTicketStep = () => {
   const pioneer = usePioneerContext()
   const router = useRouter()
   const [showChat, setShowChat] = useState(false)
+  const [showTicketForm, setShowTicketForm] = useState(false)
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
@@ -116,10 +110,15 @@ export const CreateTicketStep = () => {
     }
   }
 
-  console.log('Current showChat state:', showChat);
-  
+  const handleStartChat = () => {
+    setShowChat(true);
+  }
+
+  const handleCreateTicket = () => {
+    setShowTicketForm(true);
+  }
+
   if (showChat) {
-    console.log('Rendering chat component with props:', { pioneer });
     return (
       <Box 
         position="fixed"
@@ -141,76 +140,70 @@ export const CreateTicketStep = () => {
           overflow="hidden"
           boxShadow="2xl"
         >
-          <Chat usePioneer={{ state: pioneer, connectWallet: pioneer.connectWallet }} />
+          <DynamicChat usePioneer={pioneer} />
         </Box>
       </Box>
     )
   }
 
+  if (showTicketForm) {
+    return (
+      <Box>
+        <OnboardingStep
+          schema={schema}
+          title="Create Support Ticket"
+          description="Let us know what's going on and we'll help you out."
+          defaultValues={{ description: '' }}
+          onSubmit={handleSubmit}
+          submitLabel="Create Ticket"
+          maxW={{ base: '100%', md: 'lg' }}
+        >
+          <FormLayout>
+            <Field
+              name="description"
+              label="How can we help?"
+              help="You will be connected with a human support agent"
+              type="textarea"
+              required
+            />
+          </FormLayout>
+        </OnboardingStep>
+      </Box>
+    )
+  }
+
   return (
-    <OnboardingStep
-      schema={schema}
-      title="Create Support Ticket"
-      description="Let us know what's going on and we'll help you out."
-      defaultValues={{ description: '' }}
-      onSubmit={handleSubmit}
-      submitLabel="Create Ticket"
-      maxW={{ base: '100%', md: 'lg' }}
-    >
-      <FormLayout>
-        {/*<Box */}
-        {/*  p={6} */}
-        {/*  bg="whiteAlpha.100" */}
-        {/*  borderRadius="lg" */}
-        {/*  borderWidth="1px" */}
-        {/*  borderColor="whiteAlpha.200" */}
-        {/*  mb={6}*/}
-        {/*>*/}
-        {/*  {!isWalletConnected ? (*/}
-        {/*    <Stack direction="column" spacing={6} align="center">*/}
-        {/*      <Text fontSize="lg" fontWeight="medium" textAlign="center">*/}
-        {/*        Connecting Your Wallet*/}
-        {/*      </Text>*/}
-        {/*      <Text color="gray.500" textAlign="center">*/}
-        {/*        Please wait while we connect to your wallet*/}
-        {/*      </Text>*/}
-        {/*      <Box display="flex" justifyContent="center">*/}
-        {/*        <Spinner size="xl" color="blue.500" />*/}
-        {/*      </Box>*/}
-        {/*    </Stack>*/}
-        {/*  ) : (*/}
-        {/*    <Stack direction="column" spacing={4}>*/}
-        {/*      <Box>*/}
-        {/*        <Text fontWeight="medium" mb={1}>Username</Text>*/}
-        {/*        <Text>{pioneer?.username}</Text>*/}
-        {/*      </Box>*/}
-        {/*      {pioneer?.queryKey && (*/}
-        {/*        <Box>*/}
-        {/*          <Text fontWeight="medium" mb={1}>Query Key</Text>*/}
-        {/*          <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">*/}
-        {/*            {app.queryKey}*/}
-        {/*          </Text>*/}
-        {/*        </Box>*/}
-        {/*      )}*/}
-        {/*      {app?.pubkeys?.length > 0 && (*/}
-        {/*        <Box>*/}
-        {/*          <Text fontWeight="medium" mb={1}>Public Keys</Text>*/}
-        {/*          <Text fontSize="sm" fontFamily="mono" wordBreak="break-all">*/}
-        {/*            {app.pubkeys.join(', ')}*/}
-        {/*          </Text>*/}
-        {/*        </Box>*/}
-        {/*      )}*/}
-        {/*    </Stack>*/}
-        {/*  )}*/}
-        {/*</Box>*/}
-        <Field
-          name="description"
-          label="Describe your issue"
-          help="Tell us what's going on"
-          type="textarea"
-          required
-        />
-      </FormLayout>
-    </OnboardingStep>
+    <Box>
+      <OnboardingStep
+        title="How would you like to get help?"
+        description="Choose how you'd like to connect with our support team"
+        maxW={{ base: '100%', md: 'lg' }}
+      >
+        <VStack spacing={4} width="100%">
+          <Button
+            width="100%"
+            size="lg"
+            colorScheme="blue"
+            onClick={handleCreateTicket}
+          >
+            Create Support Ticket
+            <Text fontSize="sm" color="whiteAlpha.800" ml={2}>
+              (Track and manage your support request)
+            </Text>
+          </Button>
+          <Button
+            width="100%"
+            size="lg"
+            variant="outline"
+            onClick={handleStartChat}
+          >
+            Just Chat
+            <Text fontSize="sm" color="whiteAlpha.800" ml={2}>
+              (Quick help from a human agent)
+            </Text>
+          </Button>
+        </VStack>
+      </OnboardingStep>
+    </Box>
   )
 } 
