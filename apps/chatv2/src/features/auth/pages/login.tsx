@@ -81,6 +81,84 @@ export const LoginPage = () => {
             </Stack>
           </Button>
 
+          <Button
+            w="100%"
+            mb="4"
+            onClick={() => {
+              console.log('🔍 Button clicked, checking Pioneer state:', {
+                queryKey: pioneer?.state?.app?.queryKey,
+                username: pioneer?.state?.app?.username,
+                context: pioneer?.state?.app?.context
+              })
+
+              if (!pioneer?.state?.app) {
+                console.log('❌ Pioneer app is not available')
+                toast.error({
+                  title: "Pioneer not initialized",
+                  description: "Please wait for Pioneer to initialize"
+                })
+                return
+              }
+
+              if (!pioneer.state.app.queryKey) {
+                console.log('❌ QueryKey not found in Pioneer state')
+                toast.error({
+                  title: "KeepKey not ready",
+                  description: "Please connect your KeepKey first"
+                })
+                return
+              }
+
+              console.log('🔑 Attempting KeepKey login with queryKey:', pioneer.state.app.queryKey)
+              
+              const payload = {
+                username: pioneer.state.app.username || 'keepkey-user',
+                queryKey: pioneer.state.app.queryKey,
+                address: pioneer.state.app.context?.selectedWallet?.address || '0xplaceholderAddress'
+              }
+              console.log('📦 Auth payload:', payload)
+
+              fetch('/api/auth/kkauth', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+              })
+              .then(response => {
+                console.log('🔄 Auth response status:', response.status)
+                return response.json()
+              })
+              .then(data => {
+                console.log('📡 Auth response data:', data)
+                if (data.success) {
+                  console.log('✅ KeepKey auth successful')
+                  router.push('/getting-started')
+                } else {
+                  console.error('❌ Auth failed:', data.error)
+                  toast.error({
+                    title: "Authentication failed",
+                    description: data.error || "Failed to authenticate with KeepKey"
+                  })
+                }
+              })
+              .catch(error => {
+                console.error('❌ Auth request failed:', error)
+                toast.error({
+                  title: "Authentication failed",
+                  description: "An unexpected error occurred"
+                })
+              })
+            }}
+            variant="outline"
+            colorScheme="blue"
+          >
+            <Stack direction="row" gap={2} align="center">
+              <img src="https://pioneers.dev/coins/keepkey.png" alt="KeepKey" style={{ width: '20px', height: '20px' }} />
+              <Text>Continue with KeepKey</Text>
+            </Stack>
+          </Button>
+
           <Stack direction="row" gap={4} align="center" my="4">
             <Stack flex="1" h="1px" bg="gray.200" />
             <Text color="fg.muted">or</Text>
