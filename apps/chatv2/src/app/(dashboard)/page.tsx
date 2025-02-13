@@ -1,11 +1,14 @@
-import { createPage } from '#lib/create-page'
+import { Suspense } from 'react'
+import { DashboardContent } from './dashboard-page-content'
 
-import { IndexPage } from './index'
-
-const { Page, metadata } = createPage({
+export const metadata = {
   title: 'Home',
-  renderComponent: IndexPage,
-})
+}
 
-export { metadata }
-export default Page
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
+  )
+}

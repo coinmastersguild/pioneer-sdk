@@ -2,6 +2,6 @@
 
 import { IndexPage } from './index'
 
-export function DashboardPageContent() {
+export function DashboardContent() {
   return <IndexPage />
 } 
