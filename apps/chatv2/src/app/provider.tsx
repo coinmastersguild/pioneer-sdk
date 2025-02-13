@@ -5,8 +5,8 @@ import { ChakraProvider } from '@chakra-ui/react'
 import { PioneerProvider, usePioneer } from "@coinmasters/pioneer-react"
 import { AppProvider } from '#features/common/providers/app'
 import { system } from '#theme'
-import { Box } from '@chakra-ui/react'
-import { signIn } from 'next-auth/react'
+// import { Box } from '@chakra-ui/react'
+// import { signIn } from 'next-auth/react'
 import { AppLoader } from '#components/app-loader/app-loader'
 
 // Create a wrapper component to handle Pioneer initialization
