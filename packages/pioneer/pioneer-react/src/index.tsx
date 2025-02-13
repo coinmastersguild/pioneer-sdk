@@ -1,5 +1,3 @@
-'use client';
-
 import { SDK } from '@coinmasters/pioneer-sdk';
 import { availableChainsByWallet, getChainEnumValue, WalletOption } from '@coinmasters/types';
 //@ts-ignore
@@ -99,13 +97,12 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
         (chainStr: any) => ChainToNetworkId[getChainEnumValue(chainStr)],
       );
       const paths = getPaths(blockchains);
-      // const spec = localStorage.getItem('pioneerUrl') || 'http://127.0.0.1:9001/spec/swagger.json';
       const spec =
         setup.spec ||
         localStorage.getItem('pioneerUrl') ||
         'https://pioneers.dev/spec/swagger.json';
       const wss = setup.wss || 'wss://pioneers.dev';
-      // const wss = setup.wss || 'ws://127.0.0.1:9001';
+
       //@ts-ignore
       const appInit = new SDK(spec, {
         spec,

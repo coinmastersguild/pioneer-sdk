@@ -1,10 +1,10 @@
-import { AccountNotificationsPage } from '#features/settings/pages/account/notifications.tsx'
-import { createPage } from '#lib/create-page'
+import React from 'react';
 
-const { Page, metadata } = createPage({
-  title: 'Notifications',
-  renderComponent: AccountNotificationsPage,
-})
-
-export { metadata }
-export default Page
+export default function NotificationsSettingsPage() {
+  return (
+    <div>
+      <h1>Notification Settings</h1>
+      <p>This page is under construction.</p>
+    </div>
+  );
+}

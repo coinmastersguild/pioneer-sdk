@@ -10,14 +10,24 @@ const viteConfig = defineConfig({
     lib: {
       name,
       entry: resolve(__dirname, 'src/index.tsx'),
-      formats: ['es'],
+      formats: ['es', 'cjs'],
       fileName: (format) => `index.${format}.js`,
     },
+    sourcemap: false,
     rollupOptions: {
-      external: ['react', 'uuid'],
+      external: ['react', 'uuid', '@chakra-ui/react', '@tanstack/react-query'],
+      output: {
+        preserveModules: true,
+        exports: 'named'
+      }
     },
   },
-  plugins: [dts()],
+  plugins: [
+    dts({
+      rollupTypes: true,
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+    })
+  ],
 });
 
 export default viteConfig;
