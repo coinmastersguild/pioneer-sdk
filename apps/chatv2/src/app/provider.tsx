@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChakraProvider, extendTheme } from '@chakra-ui/react'
+import { ChakraProvider } from '@chakra-ui/react'
 import { PioneerProvider, usePioneer } from "@coinmasters/pioneer-react"
 import { AppProvider } from '#features/common/providers/app'
 import { AppLoader } from '#components/app-loader/app-loader'
+import { system } from '#theme'
 
 // Create a wrapper component to handle Pioneer initialization
 function PioneerInitializer({ children, onPioneerReady }: { 
@@ -57,15 +58,8 @@ export function Provider({ children, initialColorMode = 'dark' }: ProviderProps)
     setPioneerInstance(pioneer)
   }
 
-  const theme = extendTheme({
-    config: {
-      initialColorMode,
-      useSystemColorMode: false,
-    },
-  })
-
   return (
-    <ChakraProvider value={theme}>
+    <ChakraProvider value={system}>
       <PioneerProvider>
         <PioneerInitializer onPioneerReady={handlePioneerReady}>
           <AppProvider onError={(error, info) => console.error(error, info)} initialColorMode={initialColorMode} pioneer={pioneerInstance}>
