@@ -9,6 +9,7 @@ import { FaGoogle } from 'react-icons/fa'
 import { z } from 'zod'
 import { toast } from '@saas-ui/react'
 import { usePioneerContext } from '#features/common/providers/app'
+import { useState } from 'react'
 
 import { Form } from '#components/form/form.tsx'
 import { Logo } from '#components/logo'
@@ -22,6 +23,7 @@ export const LoginPage = () => {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pioneer = usePioneerContext()
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
 
   if (status === 'loading') {
     return (
@@ -84,56 +86,80 @@ export const LoginPage = () => {
           <Button
             w="100%"
             mb="4"
-            onClick={() => {
-              console.log('🔍 Button clicked, checking Pioneer state:', {
-                queryKey: pioneer?.state?.app?.queryKey,
-                username: pioneer?.state?.app?.username,
-                context: pioneer?.state?.app?.context
-              })
-
-              if (!pioneer?.state?.app) {
-                console.log('❌ Pioneer app is not available')
-                toast.error({
-                  title: "Pioneer not initialized",
-                  description: "Please wait for Pioneer to initialize"
+            onClick={async () => {
+              try {
+                setIsAuthenticating(true)
+                console.log('🔍 Button clicked, checking Pioneer state:', {
+                  queryKey: pioneer?.state?.app?.queryKey,
+                  username: pioneer?.state?.app?.username,
+                  context: pioneer?.state?.app?.context
                 })
-                return
-              }
 
-              if (!pioneer.state.app.queryKey) {
-                console.log('❌ QueryKey not found in Pioneer state')
-                toast.error({
-                  title: "KeepKey not ready",
-                  description: "Please connect your KeepKey first"
+                if (!pioneer?.state?.app) {
+                  console.log('❌ Pioneer app is not available')
+                  toast.error({
+                    title: "Pioneer not initialized",
+                    description: "Please wait for Pioneer to initialize"
+                  })
+                  return
+                }
+
+                if (!pioneer.state.app.queryKey) {
+                  console.log('❌ QueryKey not found in Pioneer state')
+                  toast.error({
+                    title: "KeepKey not ready",
+                    description: "Please connect your KeepKey first"
+                  })
+                  return
+                }
+
+                console.log('🔑 Attempting KeepKey login with queryKey:', pioneer.state.app.queryKey)
+                
+                const payload = {
+                  username: pioneer.state.app.username || 'keepkey-user',
+                  queryKey: pioneer.state.app.queryKey,
+                  address: pioneer.state.app.context?.selectedWallet?.address || '0xplaceholderAddress'
+                }
+                console.log('📦 Auth payload:', payload)
+
+                const response = await fetch('/api/auth/kkauth', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(payload)
                 })
-                return
-              }
 
-              console.log('🔑 Attempting KeepKey login with queryKey:', pioneer.state.app.queryKey)
-              
-              const payload = {
-                username: pioneer.state.app.username || 'keepkey-user',
-                queryKey: pioneer.state.app.queryKey,
-                address: pioneer.state.app.context?.selectedWallet?.address || '0xplaceholderAddress'
-              }
-              console.log('📦 Auth payload:', payload)
-
-              fetch('/api/auth/kkauth', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload)
-              })
-              .then(response => {
                 console.log('🔄 Auth response status:', response.status)
-                return response.json()
-              })
-              .then(data => {
+                const data = await response.json()
                 console.log('📡 Auth response data:', data)
+
                 if (data.success) {
                   console.log('✅ KeepKey auth successful')
-                  router.push('/getting-started')
+                  toast.success({
+                    title: "Authentication successful",
+                    description: "Setting up session..."
+                  })
+                  
+                  // Use signIn to establish the session
+                  const result = await signIn('credentials', {
+                    username: data.username,
+                    address: data.address,
+                    queryKey: data.queryKey,
+                    redirect: false
+                  })
+
+                  if (result?.error) {
+                    console.error('❌ Session setup failed:', result.error)
+                    toast.error({
+                      title: "Session setup failed",
+                      description: result.error
+                    })
+                    return
+                  }
+
+                  console.log('✅ Session established successfully')
+                  await router.push('/getting-started')
                 } else {
                   console.error('❌ Auth failed:', data.error)
                   toast.error({
@@ -141,17 +167,21 @@ export const LoginPage = () => {
                     description: data.error || "Failed to authenticate with KeepKey"
                   })
                 }
-              })
-              .catch(error => {
+              } catch (error) {
                 console.error('❌ Auth request failed:', error)
                 toast.error({
                   title: "Authentication failed",
                   description: "An unexpected error occurred"
                 })
-              })
+              } finally {
+                setIsAuthenticating(false)
+              }
             }}
             variant="outline"
             colorScheme="blue"
+            isLoading={isAuthenticating}
+            loadingText="Authenticating..."
+            disabled={isAuthenticating}
           >
             <Stack direction="row" gap={2} align="center">
               <img src="https://pioneers.dev/coins/keepkey.png" alt="KeepKey" style={{ width: '20px', height: '20px' }} />
