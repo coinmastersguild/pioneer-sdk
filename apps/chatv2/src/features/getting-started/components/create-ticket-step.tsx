@@ -1,17 +1,18 @@
 'use client'
 
-import { useStepsContext, Box, Text, Stack, Button, VStack, Spinner } from '@chakra-ui/react'
+import { useStepsContext, Box, Text, Stack, Button, VStack, Icon, HStack } from '@chakra-ui/react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
 import { usePioneerContext } from '#features/common/providers/app'
 import { FormLayout, Field } from '@saas-ui/forms'
 import { Form } from '#components/form'
 import { useRouter } from 'next/navigation'
-import { FaWallet } from 'react-icons/fa'
+import { FaHeadset, FaRobot } from 'react-icons/fa'
 import { signIn } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { ComponentType } from 'react'
+import { AppLoader } from '#components/app-loader/app-loader'
 
 import { OnboardingStep } from './onboarding-step'
 import * as z from 'zod'
@@ -21,11 +22,7 @@ import type { Chat as ChatComponent } from '#components/chat'
 
 const DynamicChat = dynamic(() => import('#components/chat').then(mod => mod.Chat), {
   ssr: false,
-  loading: () => (
-    <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-      <Spinner />
-    </Box>
-  ),
+  loading: () => <AppLoader />,
 }) as ComponentType<Parameters<typeof ChatComponent>[0]>
 
 const schema = z.object({
@@ -40,11 +37,42 @@ export const CreateTicketStep = () => {
   const router = useRouter()
   const [showChat, setShowChat] = useState(false)
   const [showTicketForm, setShowTicketForm] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
+
+  const isWalletConnected = !!pioneer?.pioneer
+
+  // Ensure wallet is connected before proceeding
+  const ensureWalletConnected = async () => {
+    if (!isWalletConnected && !isConnecting) {
+      setIsConnecting(true)
+      try {
+        await pioneer.connectWallet()
+        toast.success({
+          title: 'Wallet Connected',
+          description: 'Your wallet has been successfully connected.',
+        })
+        return true
+      } catch (error) {
+        toast.error({
+          title: 'Connection Failed',
+          description: error instanceof Error ? error.message : 'Failed to connect wallet. Please try again.',
+        })
+        return false
+      } finally {
+        setIsConnecting(false)
+      }
+    }
+    return isWalletConnected
+  }
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
-      if (!pioneer?.pioneer) {
-        throw new Error('Please connect your wallet first');
+      console.log("Creating ticket with pioneer state:", pioneer)
+      
+      // Double check pioneer connection
+      const isConnected = await ensureWalletConnected()
+      if (!isConnected) {
+        throw new Error('Please connect your wallet first')
       }
 
       const ticketId = crypto.randomUUID()
@@ -72,31 +100,21 @@ export const CreateTicketStep = () => {
     },
   })
 
-  const isWalletConnected = !!pioneer?.pioneer
-
+  // Initial connection attempt
   useEffect(() => {
-    const attemptConnection = async () => {
-      if (!isWalletConnected) {
-        try {
-          await pioneer.connectWallet()
-          toast.success({
-            title: 'Wallet Connected',
-            description: 'Your wallet has been successfully connected.',
-          })
-        } catch (error) {
-          toast.error({
-            title: 'Connection Failed',
-            description: error instanceof Error ? error.message : 'Failed to connect wallet. Please try again.',
-          })
-        }
-      }
+    if (!isWalletConnected && !isConnecting) {
+      ensureWalletConnected()
     }
-    
-    attemptConnection()
-  }, [isWalletConnected, pioneer.connectWallet])
+  }, [isWalletConnected])
 
   const handleSubmit = async (data: FormInput) => {
     try {
+      // Ensure wallet is connected before creating ticket
+      const isConnected = await ensureWalletConnected()
+      if (!isConnected) {
+        return // Don't proceed if wallet connection failed
+      }
+
       console.log('Creating ticket...');
       const ticketId = await createTicket(data);
       console.log('Ticket created successfully with ID:', ticketId);
@@ -140,7 +158,7 @@ export const CreateTicketStep = () => {
           overflow="hidden"
           boxShadow="2xl"
         >
-          <DynamicChat usePioneer={pioneer} />
+          <DynamicChat usePioneer={{ ...pioneer, messages: [] }} />
         </Box>
       </Box>
     )
@@ -157,12 +175,13 @@ export const CreateTicketStep = () => {
           onSubmit={handleSubmit}
           submitLabel="Create Ticket"
           maxW={{ base: '100%', md: 'lg' }}
+          showSkip={false}
         >
           <FormLayout>
             <Field
               name="description"
               label="How can we help?"
-              help="You will be connected with a human support agent"
+              help="A support agent will review your request and get back to you"
               type="textarea"
               required
             />
@@ -176,31 +195,50 @@ export const CreateTicketStep = () => {
     <Box>
       <OnboardingStep
         title="How would you like to get help?"
-        description="Choose how you'd like to connect with our support team"
+        description="Choose your support option"
         maxW={{ base: '100%', md: 'lg' }}
       >
-        <VStack spacing={4} width="100%">
+        <VStack spacing={6} width="100%" py={4}>
           <Button
             width="100%"
+            height="auto"
             size="lg"
             colorScheme="blue"
+            py={6}
             onClick={handleCreateTicket}
+            _hover={{ transform: 'scale(1.02)', bg: 'blue.600' }}
+            transition="all 0.2s"
           >
-            Create Support Ticket
-            <Text fontSize="sm" color="whiteAlpha.800" ml={2}>
-              (Track and manage your support request)
-            </Text>
+            <HStack spacing={4} width="100%" justifyContent="flex-start">
+              <Box as={FaHeadset} boxSize={6} />
+              <VStack align="start" spacing={1}>
+                <Text fontSize="lg" fontWeight="bold">Human Support</Text>
+                <Text fontSize="sm" color="whiteAlpha.800" textAlign="left">
+                  Create a support ticket and get help from our team
+                </Text>
+              </VStack>
+            </HStack>
           </Button>
+
           <Button
             width="100%"
+            height="auto"
             size="lg"
             variant="outline"
+            py={6}
             onClick={handleStartChat}
+            _hover={{ transform: 'scale(1.02)', borderColor: 'whiteAlpha.400' }}
+            transition="all 0.2s"
           >
-            Just Chat
-            <Text fontSize="sm" color="whiteAlpha.800" ml={2}>
-              (Quick help from a human agent)
-            </Text>
+            <HStack spacing={4} width="100%" justifyContent="flex-start">
+              <Box as={FaRobot} boxSize={6} />
+              <VStack align="start" spacing={1}>
+                <Text fontSize="lg" fontWeight="bold">AI Assistant</Text>
+                <Text fontSize="sm" color="whiteAlpha.800" textAlign="left">
+                  Get instant help from our AI assistant
+                </Text>
+              </VStack>
+            </HStack>
           </Button>
         </VStack>
       </OnboardingStep>

@@ -5,8 +5,9 @@ import { ChakraProvider } from '@chakra-ui/react'
 import { PioneerProvider, usePioneer } from "@coinmasters/pioneer-react"
 import { AppProvider } from '#features/common/providers/app'
 import { system } from '#theme'
-import { Box, Center, VStack, Text, Spinner } from '@chakra-ui/react'
+import { Box } from '@chakra-ui/react'
 import { signIn } from 'next-auth/react'
+import { AppLoader } from '#components/app-loader/app-loader'
 
 // Create a wrapper component to handle Pioneer initialization
 function PioneerInitializer({ children, onPioneerReady }: { 
@@ -110,17 +111,7 @@ function PioneerInitializer({ children, onPioneerReady }: {
   }, [pioneer, isInitialized, onPioneerReady])
 
   if (isLoading) {
-    return (
-      <Box position="fixed" top={0} left={0} right={0} bottom={0} bg="black" zIndex={9999}>
-        <Center height="100vh">
-          <VStack spacing={6}>
-            <Spinner size="xl" color="white" />
-            <img src="/images/desktop/pin.png" alt="Loading" style={{ width: '100px', height: '100px' }} />
-            <Text color="white" fontSize="lg">Initializing Pioneer...</Text>
-          </VStack>
-        </Center>
-      </Box>
-    )
+    return <AppLoader />
   }
 
   return <>{children}</>
