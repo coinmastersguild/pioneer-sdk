@@ -29,6 +29,15 @@ export const ConnectWalletStep = () => {
   const [hasCheckedEndpoint, setHasCheckedEndpoint] = useState(false);
   const [isAttemptingConnection, setIsAttemptingConnection] = useState(false);
 
+  // Check if wallet is already connected
+  useEffect(() => {
+    if (pioneer.state.app?.queryKey) {
+      console.log('Wallet already connected from login, advancing step...');
+      stepper.setStep(stepper.value + 1);
+      return;
+    }
+  }, [pioneer.state.app?.queryKey, stepper]);
+
   // Check if KeepKey Desktop is running
   useEffect(() => {
     const checkEndpoint = async () => {
