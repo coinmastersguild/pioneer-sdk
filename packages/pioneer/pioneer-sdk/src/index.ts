@@ -10,6 +10,7 @@ import { caipToNetworkId, networkIdToCaip } from '@pioneer-platform/pioneer-caip
 import Pioneer from '@pioneer-platform/pioneer-client';
 import {
   addressNListToBIP32,
+  getNativeAssetForBlockchain,
   getPaths,
   // @ts-ignore
 } from '@pioneer-platform/pioneer-coins';
@@ -79,12 +80,19 @@ export class SDK {
   public pioneer: any;
   public charts: any[];
   public paths: any[];
-  public pubkeys: any[];
+  public pubkeys: {
+    networks: string[];
+    pubkey: string;
+    pathMaster: string;
+    address?: string;
+    master?: string;
+  }[] = [];
   public wallets: any[];
   public balances: any[];
   public nodes: any[];
   public assets: any[];
   public assetsMap: any;
+  public dashboard: any;
   public nfts: any[];
   public events: any;
   public pairWallet: (options: any) => Promise<any>;
@@ -138,6 +146,9 @@ export class SDK {
   private syncMarket: () => Promise<boolean>;
   private getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
   private search: (query: string, config: any) => Promise<void>;
+  public networkPercentages: { networkId: string; percentage: string | number }[] = [];
+  public assetQuery: { caip: string; pubkey: string }[] = [];
+
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -168,7 +179,15 @@ export class SDK {
     this.wallets = [];
     this.events = new EventEmitter();
     this.transactions = null;
-    // Pass dependencies to the TransactionManager
+    this.ethplorerApiKey = config.ethplorerApiKey;
+    this.covalentApiKey = config.covalentApiKey;
+    this.utxoApiKey = config.utxoApiKey;
+    this.walletConnectProjectId = config.walletConnectProjectId;
+    this.contextType = '';
+    this.pairWallet = async (options: any) => {
+      // Implementation will be added later
+      return Promise.resolve({});
+    };
     this.init = async function (walletsVerbose: any, setup: any) {
       const tag = `${TAG} | init | `;
       try {
@@ -236,27 +255,6 @@ export class SDK {
         throw e;
       }
     };
-    // this.search = async (query: string, config: any) => {
-    //   let tag = TAG + ' | search | ';
-    //   try {
-    //     //
-    //     console.log(tag, 'query: ', query);
-    //     console.log(tag, 'config: ', config);
-    //
-    //     let results = [];
-    //
-    //
-    //     return assetData.filter((item: any) => {
-    //       const combinedFields = [item.symbol, item.name, item.networkName].join(' ').toLowerCase();
-    //       return combinedFields.includes(query.toLowerCase());
-    //     });
-    //
-    //     return results;
-    //   } catch (err) {
-    //     console.error(err.message);
-    //     throw err;
-    //   }
-    // };
     this.syncMarket = async function () {
       const tag = `${TAG} | syncMarket | `;
       try {
@@ -341,11 +339,11 @@ export class SDK {
                 this.context,
               );
               if (!pubkey) throw Error('Unable to get pubkey for network+ ' + networkId);
-              try{
+              try {
                 // await this.keepKeySdk.storage
                 //   .createPubkey(pubkey)
                 //   .catch((error) => console.error('Error creating pubkey:', error));
-              }catch(e){
+              } catch (e) {
                 //no logs
               }
               //if doesnt exist, add
@@ -360,6 +358,68 @@ export class SDK {
         }
         await this.getBalances();
         //console.log(tag, 'balances (Checkpoint4)');
+
+        //we should be fully synced so lets make the dashboard
+        const dashboardData: {
+          networks: any;
+          totalValueUsd: number;
+          networkPercentages: { networkId: string; percentage: number }[];
+        } = {
+          networks: {},
+          totalValueUsd: 0,
+          networkPercentages: [],
+        };
+
+        // Calculate totals for each blockchain
+        for (const blockchain of this.blockchains) {
+          const networkBalances = this.balances.filter((b) => {
+            const networkId = caipToNetworkId(b.caip);
+            return (
+              networkId === blockchain ||
+              (blockchain === 'eip155:*' && networkId.startsWith('eip155:'))
+            );
+          });
+
+          // Ensure we're working with numbers for calculations
+          const networkTotal = networkBalances.reduce((sum, balance) => {
+            const valueUsd =
+              typeof balance.valueUsd === 'string'
+                ? parseFloat(balance.valueUsd)
+                : balance.valueUsd || 0;
+            return sum + valueUsd;
+          }, 0);
+
+          // Get native asset for this blockchain
+          const nativeAssetCaip = networkIdToCaip(blockchain);
+          const gasAsset = networkBalances.find((b) => b.caip === nativeAssetCaip);
+
+          dashboardData.networks[blockchain] = {
+            totalValueUsd: networkTotal,
+            gasAssetCaip: nativeAssetCaip || null,
+            gasAssetSymbol: gasAsset?.symbol || null,
+            // assets: networkBalances.map((b) => ({
+            //   ...b,
+            //   valueUsd: typeof b.valueUsd === 'string' ? parseFloat(b.valueUsd) : b.valueUsd || 0,
+            // })),
+          };
+
+          // Add to total portfolio value
+          dashboardData.totalValueUsd += networkTotal;
+        }
+
+        // Calculate network percentages for pie chart
+        dashboardData.networkPercentages = Object.entries(dashboardData.networks).map(
+          ([networkId, data]) => ({
+            networkId,
+            percentage:
+              dashboardData.totalValueUsd > 0
+                ? Number(((data.totalValueUsd / dashboardData.totalValueUsd) * 100).toFixed(2))
+                : 0,
+          }),
+        );
+
+        this.dashboard = dashboardData;
+
         return true;
       } catch (e) {
         console.error(tag, 'Error in sync:', e);
@@ -714,45 +774,40 @@ export class SDK {
         let txid = await txManager.broadcast(payload);
         console.log(tag, 'txid: ', txid);
         return { txid, events: this.events };
-      } catch (e) {
-        console.error(tag, 'An error occurred during the transfer process:', e.message || e);
-        throw e;
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error(tag, 'An error occurred during the transfer process:', error.message);
+        } else {
+          console.error(tag, 'An unknown error occurred during the transfer process');
+        }
+        throw error;
       }
     };
     this.followTransaction = async function (caip: string, txid: string) {
       let tag = ' | followTransaction | ';
       try {
-        // Define the block confirmation requirements per CAIP
         const finalConfirmationBlocksByCaip = {
-          dogecoin: 3, // Example: wait for 3 blocks on Dogecoin
-          bitcoin: 6, // Example: wait for 6 blocks on Bitcoin
-          // Add other CAIPs as needed
+          dogecoin: 3,
+          bitcoin: 6,
         };
 
-        // Lookup the required number of confirmations for the CAIP
         const requiredConfirmations = finalConfirmationBlocksByCaip[caip] || 1;
-
         let isConfirmed = false;
-        let broadcastTime = Date.now();
-        let detectedTime = null;
-        let confirmTime = null;
+        const broadcastTime = Date.now();
+        let detectedTime: number | null = null;
+        let confirmTime: number | null = null;
 
         while (!isConfirmed) {
           try {
-            console.log(tag, 'txid: ', txid);
-            let response = await this.pioneer.LookupTx({
+            const response = await this.pioneer.LookupTx({
               networkId: caipToNetworkId(caip),
               txid,
             });
-            console.log(tag, 'response: ', response);
 
-            if (response && response.data) {
-              let txInfo = response.data.data;
-              // console.log(tag, 'txInfo: ', txInfo);
-              console.log(tag, 'confirmations: ', txInfo.confirmations);
+            if (response?.data?.data) {
+              const txInfo = response.data.data;
 
-              // Transaction detected
-              if (txInfo.txid && !detectedTime) {
+              if (txInfo.txid && detectedTime === null) {
                 detectedTime = Date.now();
                 console.log(
                   tag,
@@ -760,17 +815,11 @@ export class SDK {
                 );
               }
 
-              // Check if the transaction meets the confirmation threshold
               if (txInfo.confirmations >= requiredConfirmations) {
                 isConfirmed = true;
                 confirmTime = Date.now();
-                console.log(tag, 'Transaction confirmed on network:', caip);
-                console.log(
-                  tag,
-                  `Time from broadcast to confirmation: ${formatTime(confirmTime - broadcastTime)}`,
-                );
 
-                if (detectedTime !== null) {
+                if (detectedTime !== null && confirmTime !== null) {
                   console.log(
                     tag,
                     `Time from detection to confirmation: ${formatTime(
@@ -778,29 +827,17 @@ export class SDK {
                     )}`,
                   );
                 }
-              } else {
-                console.log(tag, 'Transaction detected but not yet confirmed.');
-
-                if (detectedTime) {
-                  const elapsedTime = Date.now() - detectedTime;
-                  console.log(
-                    tag,
-                    `Transaction has been unconfirmed for: ${formatTime(elapsedTime)}`,
-                  );
-                }
               }
-            } else {
-              console.log(tag, 'Transaction not detected yet.');
             }
-          } catch (e) {
-            console.error(tag, e);
+          } catch (error) {
+            console.error(tag, 'Error:', error);
           }
 
-          // Wait before the next check
-          await new Promise((resolve) => setTimeout(resolve, 8000));
+          if (!isConfirmed) {
+            await new Promise((resolve) => setTimeout(resolve, 8000));
+          }
         }
 
-        // Return the tracked times in a structured object
         return {
           caip,
           txid,
@@ -813,8 +850,8 @@ export class SDK {
             detectedTime && confirmTime ? formatTime(confirmTime - detectedTime) : null,
           requiredConfirmations,
         };
-      } catch (e) {
-        console.error(tag, e);
+      } catch (error) {
+        console.error(tag, 'Error:', error);
         throw new Error('Failed to follow transaction');
       }
     };
@@ -955,7 +992,7 @@ export class SDK {
       try {
         if (this.paths.length === 0) throw new Error('No paths found!');
 
-        let pubkeys = [];
+        const pubkeys: any[] = [];
 
         for (let i = 0; i < this.blockchains.length; i++) {
           const blockchain = this.blockchains[i];
@@ -993,19 +1030,15 @@ export class SDK {
     this.getBalancesForNetworks = async function (networkIds: string[]) {
       const tag = `${TAG} | getBalancesForNetworks | `;
       try {
-        let assetQuery = [];
+        const assetQuery: { caip: string; pubkey: string }[] = [];
 
-        // Build a query for each network in networkIds
         for (const networkId of networkIds) {
           let adjustedNetworkId = networkId;
 
-          // If networkId includes 'eip155:', then we consider all EVM networks
-          // as implemented previously in getBalance
           if (adjustedNetworkId.includes('eip155:')) {
             adjustedNetworkId = 'eip155:*';
           }
 
-          // Get pubkeys for this network
           const isEip155 = adjustedNetworkId.includes('eip155');
           const pubkeys = this.pubkeys.filter((pubkey) =>
             pubkey.networks.some((network) => {
@@ -1014,7 +1047,6 @@ export class SDK {
             }),
           );
 
-          // For each pubkey, build assetQuery entries
           const caipNative = await networkIdToCaip(networkId);
           for (const pubkey of pubkeys) {
             assetQuery.push({ caip: caipNative, pubkey: pubkey.pubkey });
@@ -1360,6 +1392,20 @@ export class SDK {
         console.error(tag, 'e: ', e);
         throw e;
       }
+    };
+    this.setContextType = async (contextType: string) => {
+      this.contextType = contextType;
+      return Promise.resolve({ success: true });
+    };
+    this.refresh = async () => {
+      await this.sync();
+      return Promise.resolve({});
+    };
+    this.verifyWallet = async () => {
+      return Promise.resolve();
+    };
+    this.search = async (query: string, config: any) => {
+      return Promise.resolve();
     };
   }
 }

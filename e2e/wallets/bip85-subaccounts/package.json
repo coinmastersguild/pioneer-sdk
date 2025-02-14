@@ -22,7 +22,7 @@
     "@pioneer-platform/helpers": "^4.0.12",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.31",
-    "@pioneer-platform/pioneer-coins": "^9.2.25",
+    "@pioneer-platform/pioneer-coins": "^9.2.26",
     "@types/node": "^20.13.0",
     "assert": "^2.1.0",
     "dotenv": "^6.2.0",

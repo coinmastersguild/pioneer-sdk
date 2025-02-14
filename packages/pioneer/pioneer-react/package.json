@@ -47,7 +47,7 @@
     "@coinmasters/pioneer-sdk": "workspace:*",
     "@coinmasters/types": "workspace:*",
     "@pioneer-platform/pioneer-caip": "^9.2.31",
-    "@pioneer-platform/pioneer-coins": "^9.2.25",
+    "@pioneer-platform/pioneer-coins": "^9.2.26",
     "@types/node": "18.15.13",
     "@vitest/coverage-istanbul": "0.34.6",
     "ethers": "^6.11.1",

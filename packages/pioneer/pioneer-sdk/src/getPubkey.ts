@@ -9,7 +9,7 @@ import {
 export const getPubkey = async (networkId: string, path: any, sdk: any, context: string) => {
   const tag = `| getPubkey | `;
   try {
-    //console.log(tag, 'path:', path);
+    console.log(tag, 'path:', path);
 
     if (!path || !path.addressNList) {
       throw new Error('Invalid or missing path provided for pubkey retrieval');
