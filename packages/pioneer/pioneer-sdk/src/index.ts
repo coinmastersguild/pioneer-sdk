@@ -361,14 +361,24 @@ export class SDK {
 
         //we should be fully synced so lets make the dashboard
         const dashboardData: {
-          networks: any;
+          networks: Array<{
+            networkId: string;
+            totalValueUsd: number;
+            gasAssetCaip: string | null;
+            gasAssetSymbol: string | null;
+            icon: string | null;
+            color: string | null;
+          }>;
           totalValueUsd: number;
           networkPercentages: { networkId: string; percentage: number }[];
         } = {
-          networks: {},
+          networks: [],
           totalValueUsd: 0,
           networkPercentages: [],
         };
+
+        let totalPortfolioValue = 0;
+        const networksTemp = [];
 
         // Calculate totals for each blockchain
         for (const blockchain of this.blockchains) {
@@ -392,33 +402,30 @@ export class SDK {
           // Get native asset for this blockchain
           const nativeAssetCaip = networkIdToCaip(blockchain);
           const gasAsset = networkBalances.find((b) => b.caip === nativeAssetCaip);
-          console.log(tag, 'gasAsset: ', gasAsset);
-          dashboardData.networks[blockchain] = {
+          
+          networksTemp.push({
+            networkId: blockchain,
             totalValueUsd: networkTotal,
             gasAssetCaip: nativeAssetCaip || null,
             gasAssetSymbol: gasAsset?.symbol || null,
             icon: gasAsset?.icon || null,
             color: gasAsset?.color || null,
-            // assets: networkBalances.map((b) => ({
-            //   ...b,
-            //   valueUsd: typeof b.valueUsd === 'string' ? parseFloat(b.valueUsd) : b.valueUsd || 0,
-            // })),
-          };
+          });
 
-          // Add to total portfolio value
-          dashboardData.totalValueUsd += networkTotal;
+          totalPortfolioValue += networkTotal;
         }
 
+        // Sort networks by USD value and assign to dashboard
+        dashboardData.networks = networksTemp.sort((a, b) => b.totalValueUsd - a.totalValueUsd);
+        dashboardData.totalValueUsd = totalPortfolioValue;
+
         // Calculate network percentages for pie chart
-        dashboardData.networkPercentages = Object.entries(dashboardData.networks).map(
-          ([networkId, data]) => ({
-            networkId,
-            percentage:
-              dashboardData.totalValueUsd > 0
-                ? Number(((data.totalValueUsd / dashboardData.totalValueUsd) * 100).toFixed(2))
-                : 0,
-          }),
-        );
+        dashboardData.networkPercentages = dashboardData.networks.map((network) => ({
+          networkId: network.networkId,
+          percentage: totalPortfolioValue > 0
+            ? Number(((network.totalValueUsd / totalPortfolioValue) * 100).toFixed(2))
+            : 0,
+        }));
 
         this.dashboard = dashboardData;
 
