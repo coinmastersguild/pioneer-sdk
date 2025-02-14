@@ -21,7 +21,7 @@
     "@coinmasters/types": "workspace:^",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.31",
-    "@pioneer-platform/pioneer-coins": "^9.2.23",
+    "@pioneer-platform/pioneer-coins": "^9.2.25",
     "@types/node": "^20.10.4",
     "assert": "^2.1.0",
     "dotenv": "^6.2.0",

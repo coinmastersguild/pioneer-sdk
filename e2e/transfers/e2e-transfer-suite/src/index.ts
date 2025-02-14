@@ -49,8 +49,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        let spec = 'https://pioneers.dev/spec/swagger.json'
-        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        // let spec = 'https://pioneers.dev/spec/swagger.json'
+        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
@@ -58,7 +58,7 @@ const test_service = async function (this: any) {
             // 'DASH',
             // 'LTC', //BROKE "Missing inputs
             // 'MATIC',
-            'THOR',
+            // 'THOR',
             // 'GAIA',
             // 'OSMO',
             // 'BASE',
@@ -71,7 +71,7 @@ const test_service = async function (this: any) {
             // 'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
-            // 'BTC',
+            'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {

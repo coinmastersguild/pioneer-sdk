@@ -14,7 +14,7 @@ type ColorMode = 'light' | 'dark'
 export default async function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: any
 }) {
   const cookieStore = await cookies()
   const colorMode = (cookieStore.get('chakra-ui-color-mode')?.value ?? 'dark') as ColorMode

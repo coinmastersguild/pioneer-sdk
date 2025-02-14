@@ -341,9 +341,13 @@ export class SDK {
                 this.context,
               );
               if (!pubkey) throw Error('Unable to get pubkey for network+ ' + networkId);
-              await this.keepKeySdk.storage
-                .createPubkey(pubkey)
-                .catch((error) => console.error('Error creating pubkey:', error));
+              try{
+                // await this.keepKeySdk.storage
+                //   .createPubkey(pubkey)
+                //   .catch((error) => console.error('Error creating pubkey:', error));
+              }catch(e){
+                //no logs
+              }
               //if doesnt exist, add
               let exists = this.pubkeys.filter((e: any) => e.networks.includes(networkId));
               if (!exists || exists.length === 0) {
@@ -964,9 +968,11 @@ export class SDK {
             const path = pathsForChain[j];
             //console.log(tag, `Processing path: ${JSON.stringify(path)}`);
             const pubkey = await getPubkey(blockchain, path, this.keepKeySdk, this.context);
-            await this.keepKeySdk.storage
-              .createPubkey(pubkey)
-              .catch((error) => console.error('Error creating pubkey:', error));
+            // try{
+            //   await this.keepKeySdk.storage
+            //     .createPubkey(pubkey)
+            //     .catch((error) => console.error('Error creating pubkey:', error));
+            // }catch(e){}
             pubkeys.push(pubkey);
           }
         }

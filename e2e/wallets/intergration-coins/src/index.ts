@@ -84,14 +84,14 @@ const test_service = async function (this: any) {
             // 'AVAX',  //fast
             // 'BASE',  //fast
             // 'BSC',   //fast
-            // 'BTC',
+            'BTC',
             // 'BCH',
             // 'GAIA',
             // 'OSMO',
             // 'XRP',
             // 'DOGE',
             // 'DASH',
-            'MAYA',
+            // 'MAYA',
             // 'LTC',
             // 'THOR'
         ]
@@ -129,7 +129,7 @@ const test_service = async function (this: any) {
         // let paths:any = []
 
         let paths = getPaths(blockchains)
-
+        log.info(tag,'paths:',paths)
 
 
         //add custom btc paths
@@ -235,8 +235,8 @@ const test_service = async function (this: any) {
         //     curve: 'secp256k1',
         //     showDisplay: false, // Not supported by TrezorConnect or Ledger, but KeepKey should do it
         // });
-
-
+        //
+        //
         // if(blockchains.includes('bip122:000000000019d6689c085ae165831e93')){
         //     paths.push({
         //         note:"Bitcoin account 0 segwit (p2sh)",
@@ -305,6 +305,9 @@ const test_service = async function (this: any) {
 
         let resultInit = await app.init({ } , {})
         log.info(tag,' ****** Init Complete ******')
+        // log.info('apiKey: ',app);
+        log.info('apiKey: ',app.keepkeyApiKey);
+
         //force verify
         // await app.getGasAssets()
         // await app.getPubkeys()
@@ -318,9 +321,9 @@ const test_service = async function (this: any) {
 
         // // log.info(tag,"resultInit: ",resultInit)
         // console.timeEnd('start2init');
-        // let assets = app.assetsMap
-        // // log.info(tag,"assets: START: ",assets)
-        // assert(assets)
+        let assets = app.assetsMap
+        // log.info(tag,"assets: START: ",assets)
+        assert(assets)
         //
         // // //iterate over each asset
         // for(let [caip,asset] of assets){
@@ -332,7 +335,8 @@ const test_service = async function (this: any) {
         // }
         // log.info(tag,' ****** Validated Assets for caips ******')
         //
-        // let pubkeys
+        let pubkeys
+        pubkeys = await app.getPubkeys()
         // if(app.pubkeys.length === 0){
         //     log.info(tag,'cache is empty refreshing... ')
         //     pubkeys = await app.getPubkeys()
@@ -340,86 +344,87 @@ const test_service = async function (this: any) {
         //     pubkeys = app.pubkeys
         //     log.info(tag,'cache found! ', pubkeys.length)
         // }
-        //
-        // log.info(tag,"pubkeys: ",pubkeys.length)
-        // assert(pubkeys)
-        // assert(pubkeys[0])
-        // for(let i = 0; i < pubkeys.length; i++){
-        //     let pubkey = pubkeys[i]
-        //     log.info(tag,"pubkey: ",pubkey)
-        //     assert(pubkey.pubkey)
-        //     assert(pubkey.type)
-        //     assert(pubkey.path)
-        //     assert(pubkey.scriptType)
-        //     assert(pubkey.networks)
-        //     assert(pubkey.networks[0])
-        // }
-        // assert(app.paths)
-        // for(let i = 0; i < app.paths.length; i++){
-        //     let path = app.paths[i]
-        //     log.info(tag,' path: ',path)
-        //     let pubkey = app.pubkeys.find((pubkey:any) => pubkey.path === addressNListToBIP32(path.addressNList))
-        //     assert(pubkey)
-        // }
-        // log.info(tag,' ****** Validate Path exists for every path * PASS * ******')
-        //
-        // // //validate pubkeys
-        // for(let i = 0; i < app.pubkeys.length; i++){
-        //     let pubkey = app.pubkeys[i]
-        //     log.debug(tag,"pubkey: ",pubkey)
-        //     assert(pubkey)
-        //     assert(pubkey.pubkey)
-        //     // log.info(tag,'pubkey: ',pubkey)
-        //     assert(pubkey.type)
-        // }
-        // log.info(tag,' ****** Validate Pubkeys Properties exist * PASS * ******')
-        //
-        // console.timeEnd('start2Pubkeys');
-        // log.info(tag,'app.pubkeys.length: ',app.pubkeys.length)
-        // log.info(tag,'app.paths.length: ',app.paths.length)
-        // // if(app.pubkeys.length !== app.paths.length) throw Error('Missing pubkeys! failed to sync')
-        //
-        //
-        // tag = tag + " | checkpoint1 | "
-        //
-        // for(let i = 0; i < blockchains.length; i++){
-        //     let blockchain = blockchains[i]
-        //     log.debug(tag,'blockchain: ',blockchain)
-        //
-        //     //
-        //     if(blockchain.indexOf('eip155') >= 0){
-        //         //check for gas asset in asset map
-        //         let caip = blockchain + "/slip44:60"
-        //         // log.info(tag,'caip: ',caip)
-        //         let asset = assets.get(caip)
-        //         // log.info(tag,'asset: ',asset)
-        //         assert(asset)
-        //         assert(app.assetsMap.get(caip))
-        //
-        //         let assetInfo = app.assetsMap.get(caip)
-        //         // console.log(tag,'assetInfo: ',assetInfo)
-        //         assert(assetInfo)
-        //     }
-        //
-        //     let chain = NetworkIdToChain[blockchain]
-        //     assert(chain)
-        //     log.debug(tag, 'chain: ',chain)
-        //     let caip = shortListSymbolToCaip[chain]
-        //     log.debug(tag, 'caip: ',caip)
-        //     assert(caip)
-        //     assert(assets.get(caip))
-        //
-        //     //should be a balance for every gas asset
-        //     const balanceNative = app.balances.find((balance:any) => balance.caip === caip);
-        //     if(!balanceNative) log.error(tag,'Missing Balance for CAIP: ',caip)
-        //     assert(balanceNative)
-        //     log.debug(tag,"balanceNative: ",balanceNative)
-        // }
-        // log.info(tag,' ****** Validated Assets for each chain exist ******')
-        //
-        //
-        // tag = tag + " | checkpoint3 | "
-        // let balances
+
+        log.info(tag,"pubkeys: ",pubkeys.length)
+        assert(pubkeys)
+        assert(pubkeys[0])
+        for(let i = 0; i < pubkeys.length; i++){
+            let pubkey = pubkeys[i]
+            log.info(tag,"pubkey: ",pubkey)
+            assert(pubkey.pubkey)
+            assert(pubkey.type)
+            assert(pubkey.path)
+            assert(pubkey.scriptType)
+            assert(pubkey.networks)
+            assert(pubkey.networks[0])
+        }
+        assert(app.paths)
+        for(let i = 0; i < app.paths.length; i++){
+            let path = app.paths[i]
+            // log.info(tag,' path: ',path)
+            let pubkey = app.pubkeys.find((pubkey:any) => pubkey.path === addressNListToBIP32(path.addressNList))
+            assert(pubkey)
+        }
+        log.info(tag,' ****** Validate Path exists for every path * PASS * ******')
+
+        // //validate pubkeys
+        for(let i = 0; i < app.pubkeys.length; i++){
+            let pubkey = app.pubkeys[i]
+            log.debug(tag,"pubkey: ",pubkey)
+            assert(pubkey)
+            assert(pubkey.pubkey)
+            // log.info(tag,'pubkey: ',pubkey)
+            assert(pubkey.type)
+        }
+        log.info(tag,' ****** Validate Pubkeys Properties exist * PASS * ******')
+
+        console.timeEnd('start2Pubkeys');
+        log.info(tag,'app.pubkeys.length: ',app.pubkeys.length)
+        log.info(tag,'app.paths.length: ',app.paths.length)
+        // if(app.pubkeys.length !== app.paths.length) throw Error('Missing pubkeys! failed to sync')
+
+
+        tag = tag + " | checkpoint1 | "
+
+        for(let i = 0; i < blockchains.length; i++){
+            let blockchain = blockchains[i]
+            log.debug(tag,'blockchain: ',blockchain)
+
+            //
+            if(blockchain.indexOf('eip155') >= 0){
+                //check for gas asset in asset map
+                let caip = blockchain + "/slip44:60"
+                // log.info(tag,'caip: ',caip)
+                let asset = assets.get(caip)
+                // log.info(tag,'asset: ',asset)
+                assert(asset)
+                assert(app.assetsMap.get(caip))
+
+                let assetInfo = app.assetsMap.get(caip)
+                // console.log(tag,'assetInfo: ',assetInfo)
+                assert(assetInfo)
+            }
+
+            let chain = NetworkIdToChain[blockchain]
+            assert(chain)
+            log.debug(tag, 'chain: ',chain)
+            let caip = shortListSymbolToCaip[chain]
+            log.debug(tag, 'caip: ',caip)
+            assert(caip)
+            assert(assets.get(caip))
+
+            //should be a balance for every gas asset
+            const balanceNative = app.balances.find((balance:any) => balance.caip === caip);
+            if(!balanceNative) log.error(tag,'Missing Balance for CAIP: ',caip)
+            assert(balanceNative)
+            log.debug(tag,"balanceNative: ",balanceNative)
+        }
+        log.info(tag,' ****** Validated Assets for each chain exist ******')
+
+
+        tag = tag + " | checkpoint3 | "
+        let balances
+        balances = await app.getBalances()
         // if(app.balances.length === 0){
         //     log.info(tag,'balances cache is empty refreshing... ')
         //     balances = await app.getBalances()
@@ -428,78 +433,78 @@ const test_service = async function (this: any) {
         //     balances = app.balances
         //     log.info(tag,'balances cache found! ', balances.length)
         // }
-        // assert(balances)
-        //
-        // log.info(tag,"balances: ",app.balances.length)
-        // log.info(tag,"balances: ",app.balances.length)
-        //
-        // for(let i = 0; i < app.balances.length; i++){
-        //     let balance = app.balances[i]
-        //     log.info(tag,"balance: ",balance.caip)
-        //     assert(balance)
-        //     assert(balance.balance)
-        //     assert(balance.caip)
-        //     assert(balance.networkId)
-        //     assert(balance.icon)
-        //     if(balance.identifier.includes('keepkey')){
-        //         throw Error('Invalid legacy identifier found: '+balance.identifier)
-        //     }
-        // }
-        // console.timeEnd('start2BalancesGas');
-        //
-        // tag = tag + " | checkpoint3 | "
-        // log.debug(tag,'balances: ',app.balances)
-        //
-        // await app.getCharts()
-        // //expect at least 1 token
-        // log.debug(tag,'balances: ',app.balances)
-        // log.debug(tag,'balances: ',app.balances.length)
-        //
-        // //Analyitics
-        // let totalValueUsd = 0;
-        // let networkTotals:any = {}; // Object to hold totals by networkId
-        //
-        // const seenIdentifiers = new Set<string>(); // Track seen identifiers
-        // for (let i = 0; i < app.balances.length; i++) {
-        //     let balance = app.balances[i];
-        //     // log.info(tag, "balance: ", balance);
-        //     // Check for duplicate identifier
-        //     if (seenIdentifiers.has(balance.identifier)) {
-        //         throw new Error(`Duplicate identifier found: ${balance.identifier}`);
-        //     }
-        //     seenIdentifiers.add(balance.identifier);
-        //
-        //     // Check if balance, caip, and valueUsd are valid
-        //     assert(balance);
-        //     assert(balance.networkId);
-        //     assert(balance.caip);
-        //
-        //     // Parse valueUsd as a float
-        //     let valueUsd = parseFloat(balance.valueUsd);
-        //     if (isNaN(valueUsd)) {
-        //         log.warn(tag, `Skipping balance with invalid valueUsd: ${balance.valueUsd}`);
-        //         continue; // Skip balances with invalid valueUsd
-        //     }
-        //
-        //     // Add to total value
-        //     totalValueUsd += valueUsd;
-        //
-        //     // Log networkId and valueUsd for each balance
-        //     //log.info(tag, `Processing balance with networkId: ${balance.caip}, valueUsd: ${valueUsd}`);
-        //
-        //     // Ensure networkId exists and accumulate by networkId
-        //     if (balance.networkId) {
-        //         if (!networkTotals[balance.networkId]) {
-        //             networkTotals[balance.networkId] = 0; // Initialize if not already present
-        //         }
-        //         networkTotals[balance.networkId] += valueUsd; // Add value to network-specific total
-        //     } else {
-        //         log.warn(tag, `Skipping balance without networkId: ${JSON.stringify(balance)}`);
-        //     }
-        // }
-        //
-        // log.info(tag, 'totalValueUsd: ', totalValueUsd);
-        // log.info(tag, 'networkTotals: ', networkTotals);
+        assert(balances)
+
+        log.info(tag,"balances: ",app.balances.length)
+        log.info(tag,"balances: ",app.balances.length)
+
+        for(let i = 0; i < app.balances.length; i++){
+            let balance = app.balances[i]
+            log.info(tag,"balance: ",balance.caip)
+            assert(balance)
+            assert(balance.balance)
+            assert(balance.caip)
+            assert(balance.networkId)
+            assert(balance.icon)
+            if(balance.identifier.includes('keepkey')){
+                throw Error('Invalid legacy identifier found: '+balance.identifier)
+            }
+        }
+        console.timeEnd('start2BalancesGas');
+
+        tag = tag + " | checkpoint3 | "
+        log.debug(tag,'balances: ',app.balances)
+
+        await app.getCharts()
+        //expect at least 1 token
+        log.debug(tag,'balances: ',app.balances)
+        log.debug(tag,'balances: ',app.balances.length)
+
+        //Analyitics
+        let totalValueUsd = 0;
+        let networkTotals:any = {}; // Object to hold totals by networkId
+
+        const seenIdentifiers = new Set<string>(); // Track seen identifiers
+        for (let i = 0; i < app.balances.length; i++) {
+            let balance = app.balances[i];
+            // log.info(tag, "balance: ", balance);
+            // Check for duplicate identifier
+            if (seenIdentifiers.has(balance.identifier)) {
+                throw new Error(`Duplicate identifier found: ${balance.identifier}`);
+            }
+            seenIdentifiers.add(balance.identifier);
+
+            // Check if balance, caip, and valueUsd are valid
+            assert(balance);
+            assert(balance.networkId);
+            assert(balance.caip);
+
+            // Parse valueUsd as a float
+            let valueUsd = parseFloat(balance.valueUsd);
+            if (isNaN(valueUsd)) {
+                log.warn(tag, `Skipping balance with invalid valueUsd: ${balance.valueUsd}`);
+                continue; // Skip balances with invalid valueUsd
+            }
+
+            // Add to total value
+            totalValueUsd += valueUsd;
+
+            // Log networkId and valueUsd for each balance
+            //log.info(tag, `Processing balance with networkId: ${balance.caip}, valueUsd: ${valueUsd}`);
+
+            // Ensure networkId exists and accumulate by networkId
+            if (balance.networkId) {
+                if (!networkTotals[balance.networkId]) {
+                    networkTotals[balance.networkId] = 0; // Initialize if not already present
+                }
+                networkTotals[balance.networkId] += valueUsd; // Add value to network-specific total
+            } else {
+                log.warn(tag, `Skipping balance without networkId: ${JSON.stringify(balance)}`);
+            }
+        }
+
+        log.info(tag, 'totalValueUsd: ', totalValueUsd);
+        log.info(tag, 'networkTotals: ', networkTotals);
         // await app.clearCache()
 
 
