@@ -368,6 +368,7 @@ export class SDK {
             gasAssetSymbol: string | null;
             icon: string | null;
             color: string | null;
+            totalNativeBalance: string;
           }>;
           totalValueUsd: number;
           networkPercentages: { networkId: string; percentage: number }[];
@@ -403,6 +404,17 @@ export class SDK {
           const nativeAssetCaip = networkIdToCaip(blockchain);
           const gasAsset = networkBalances.find((b) => b.caip === nativeAssetCaip);
           
+          // Calculate total native balance (sum of all balances for the native asset)
+          const totalNativeBalance = networkBalances
+            .filter(b => b.caip === nativeAssetCaip)
+            .reduce((sum, balance) => {
+              const balanceNum = typeof balance.balance === 'string' 
+                ? parseFloat(balance.balance) 
+                : (balance.balance || 0);
+              return sum + balanceNum;
+            }, 0)
+            .toString();
+          
           networksTemp.push({
             networkId: blockchain,
             totalValueUsd: networkTotal,
@@ -410,6 +422,7 @@ export class SDK {
             gasAssetSymbol: gasAsset?.symbol || null,
             icon: gasAsset?.icon || null,
             color: gasAsset?.color || null,
+            totalNativeBalance,
           });
 
           totalPortfolioValue += networkTotal;
@@ -420,12 +433,24 @@ export class SDK {
         dashboardData.totalValueUsd = totalPortfolioValue;
 
         // Calculate network percentages for pie chart
-        dashboardData.networkPercentages = dashboardData.networks.map((network) => ({
-          networkId: network.networkId,
-          percentage: totalPortfolioValue > 0
-            ? Number(((network.totalValueUsd / totalPortfolioValue) * 100).toFixed(2))
-            : 0,
-        }));
+        dashboardData.networkPercentages = dashboardData.networks
+          .map((network) => ({
+            networkId: network.networkId,
+            percentage: totalPortfolioValue > 0
+              ? Number(((network.totalValueUsd / totalPortfolioValue) * 100).toFixed(2))
+              : 0,
+          }))
+          .filter(entry => entry.percentage > 0); // Remove zero percentages
+
+        // Debug logging for Bitcoin balances
+        const btcBalances = this.balances.filter(b => 
+          b.caip === 'bip122:000000000019d6689c085ae165831e93/slip44:0'
+        );
+        console.log('Bitcoin balances:', btcBalances.map(b => ({
+          pubkey: b.pubkey,
+          balance: b.balance,
+          valueUsd: b.valueUsd
+        })));
 
         this.dashboard = dashboardData;
 
