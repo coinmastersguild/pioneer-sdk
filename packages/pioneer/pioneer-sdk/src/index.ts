@@ -392,11 +392,13 @@ export class SDK {
           // Get native asset for this blockchain
           const nativeAssetCaip = networkIdToCaip(blockchain);
           const gasAsset = networkBalances.find((b) => b.caip === nativeAssetCaip);
-
+          console.log(tag, 'gasAsset: ', gasAsset);
           dashboardData.networks[blockchain] = {
             totalValueUsd: networkTotal,
             gasAssetCaip: nativeAssetCaip || null,
             gasAssetSymbol: gasAsset?.symbol || null,
+            icon: gasAsset?.icon || null,
+            color: gasAsset?.color || null,
             // assets: networkBalances.map((b) => ({
             //   ...b,
             //   valueUsd: typeof b.valueUsd === 'string' ? parseFloat(b.valueUsd) : b.valueUsd || 0,
