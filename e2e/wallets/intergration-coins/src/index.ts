@@ -335,8 +335,8 @@ const test_service = async function (this: any) {
         // }
         // log.info(tag,' ****** Validated Assets for caips ******')
         //
-        let pubkeys
-        pubkeys = await app.getPubkeys()
+        // let pubkeys
+        // pubkeys = await app.getPubkeys()
         // if(app.pubkeys.length === 0){
         //     log.info(tag,'cache is empty refreshing... ')
         //     pubkeys = await app.getPubkeys()
@@ -345,6 +345,7 @@ const test_service = async function (this: any) {
         //     log.info(tag,'cache found! ', pubkeys.length)
         // }
 
+        let pubkeys = app.pubkeys
         log.info(tag,"pubkeys: ",pubkeys.length)
         assert(pubkeys)
         assert(pubkeys[0])
@@ -423,17 +424,17 @@ const test_service = async function (this: any) {
 
 
         tag = tag + " | checkpoint3 | "
-        let balances
-        balances = await app.getBalances()
-        // if(app.balances.length === 0){
-        //     log.info(tag,'balances cache is empty refreshing... ')
-        //     balances = await app.getBalances()
-        //     await app.getCharts();
-        // } else {
-        //     balances = app.balances
-        //     log.info(tag,'balances cache found! ', balances.length)
-        // }
-        assert(balances)
+        // let balances
+        // balances = await app.getBalances()
+        // // if(app.balances.length === 0){
+        // //     log.info(tag,'balances cache is empty refreshing... ')
+        // //     balances = await app.getBalances()
+        // //     await app.getCharts();
+        // // } else {
+        // //     balances = app.balances
+        // //     log.info(tag,'balances cache found! ', balances.length)
+        // // }
+        // assert(balances)
 
         log.info(tag,"balances: ",app.balances.length)
         log.info(tag,"balances: ",app.balances.length)

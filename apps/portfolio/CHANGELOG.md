@@ -1,5 +1,12 @@
 # keepkey-portfolio-v6
 
+## 0.1.23
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-react@0.8.28
+
 ## 0.1.22
 
 ### Patch Changes

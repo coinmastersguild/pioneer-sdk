@@ -286,7 +286,7 @@ export class SDK {
       try {
         //console.log(tag, 'Syncing Wallet (Checkpoint1)');
         //at least 1 path per chain
-
+        await this.getPubkeys();
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
