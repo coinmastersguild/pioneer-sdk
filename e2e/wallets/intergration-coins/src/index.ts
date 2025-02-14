@@ -361,12 +361,15 @@ const test_service = async function (this: any) {
 
         log.info(tag, 'totalValueUsd: ', totalValueUsd);
         log.info(tag, 'networkTotals: ', networkTotals);
-        // await app.clearCache()
-
-
-        //app.dashboard
-
         log.info(tag,'dashboard', app.dashboard);
+
+
+        //change blockchains to just bitcoin
+
+        //call sync
+
+        //verify new dashboard
+
 
         console.log("************************* TEST PASS *************************")
         console.timeEnd('start2end');
