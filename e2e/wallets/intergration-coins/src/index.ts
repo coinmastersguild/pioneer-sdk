@@ -364,12 +364,54 @@ const test_service = async function (this: any) {
         log.info(tag,'dashboard', app.dashboard);
 
 
-        //change blockchains to just bitcoin
-
-        //call sync
-
-        //verify new dashboard
-
+        // Test blockchain reconfiguration to Bitcoin only
+        log.info(tag, ' ****** Testing Blockchain Reconfiguration to Bitcoin Only ******')
+        
+        // Save initial state for comparison
+        const initialBlockchains = [...app.blockchains]
+        const initialPubkeys = [...app.pubkeys]
+        const initialBalances = [...app.balances]
+        
+        // Reconfigure to Bitcoin only
+        const bitcoinOnly = ['bip122:000000000019d6689c085ae165831e93']  // Bitcoin mainnet networkId
+        await app.setBlockchains(bitcoinOnly)
+        
+        // Force sync to update all state
+        await app.sync()
+        
+        // Verify blockchain configuration
+        assert.strictEqual(app.blockchains.length, 1, 'Should only have one blockchain configured')
+        assert.strictEqual(app.blockchains[0], bitcoinOnly[0], 'Should be configured for Bitcoin only')
+        
+        // Verify that we have at least one Bitcoin pubkey
+        const bitcoinPubkeys = app.pubkeys.filter((pubkey: { networks: string[] }) => 
+            pubkey.networks.includes(bitcoinOnly[0])
+        );
+        assert(bitcoinPubkeys.length > 0, 'Should have at least one Bitcoin pubkey')
+        
+        // Log pubkey information for debugging
+        log.info(tag, 'Bitcoin pubkeys:', bitcoinPubkeys.map((p: { networks: string[], pubkey: string }) => ({ 
+            networks: p.networks,
+            pubkey: p.pubkey
+        })))
+        
+        // Verify balances are only for Bitcoin
+        const bitcoinBalances = app.balances.filter((balance: { networkId: string; caip: string }) => 
+            balance.networkId === bitcoinOnly[0] || 
+            balance.caip.toLowerCase().startsWith('bip122:000000000019d6689c085ae165831e93')
+        );
+        assert(bitcoinBalances.length > 0, 'Should have at least one Bitcoin balance')
+        
+        // Verify dashboard reflects Bitcoin only
+        assert(app.dashboard.networks.length === 1, 'Dashboard should only show one network')
+        assert(app.dashboard.networks[0].networkId === bitcoinOnly[0], 'Dashboard network should be Bitcoin')
+        
+        log.info(tag, ' ****** Successfully Verified Bitcoin-Only Configuration ******')
+        
+        // Log the changes
+        log.info(tag, 'Blockchains reduced from', initialBlockchains.length, 'to', app.blockchains.length)
+        log.info(tag, 'Bitcoin pubkeys found:', bitcoinPubkeys.length)
+        log.info(tag, 'Bitcoin balances found:', bitcoinBalances.length)
 
         console.log("************************* TEST PASS *************************")
         console.timeEnd('start2end');
