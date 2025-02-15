@@ -51,17 +51,15 @@ export async function createUnsignedRippleTx(
     }
 
     console.log(tag, 'amount:', amount);
-    if(isMax){
+    if (isMax) {
       //balance - 1 (min) - fee
-      amount = (Number(accountInfo.Balance) - 1000000) - 1;
-      amount = amount.toString()
+      amount = Number(accountInfo.Balance) - 1000000 - 1;
+      amount = amount.toString();
     } else {
       //format amount
       amount = amount * 1000000;
       amount = amount.toString();
     }
-
-
 
     let tx = {
       type: 'auth/StdTx',
@@ -75,7 +73,7 @@ export async function createUnsignedRippleTx(
           ],
           gas: '28000',
         },
-        memo: 'KeepKey',
+        memo: memo || '',
         msg: [
           {
             type: 'ripple-sdk/MsgSend',
