@@ -44,28 +44,33 @@ export const LoginPage = () => {
   const handleGoogleSignIn = async () => {
     try {
       setIsAuthenticating(true)
+      
+      console.log('🔄 Starting Google login')
+      
       const result = await signIn('google', {
         callbackUrl: '/getting-started',
-        redirect: false,
+        redirect: false
       })
       
+      console.log('🔑 SignIn result:', result)
+
       if (result?.error) {
-        toast.error({
-          title: "Google Sign In Failed",
-          description: result.error,
-        })
+        console.error('❌ Sign in failed:', result.error)
+        throw new Error(result.error)
+      }
+
+      if (result?.url) {
+        console.log('✅ Sign in successful, redirecting to:', result.url)
+        window.location.href = result.url
       } else {
-        toast.success({
-          title: "Welcome!",
-          description: "Signed in with Google"
-        })
-        router.push('/getting-started')
+        console.log('⚠️ No redirect URL, using fallback')
+        window.location.href = '/getting-started'
       }
     } catch (error) {
-      console.error('Failed to sign in with Google:', error)
+      console.error('❌ Google auth failed:', error)
       toast.error({
         title: "Authentication failed",
-        description: "Failed to sign in with Google",
+        description: error instanceof Error ? error.message : "Failed to sign in with Google"
       })
     } finally {
       setIsAuthenticating(false)
@@ -79,37 +84,56 @@ export const LoginPage = () => {
       const guestUsername = `guest_${Math.random().toString(36).substring(7)}`
       const guestQueryKey = `guest_${Math.random().toString(36).substring(7)}`
       
+      console.log('🔄 Starting guest login with:', { guestUsername, guestQueryKey })
+      
       // Store guest session data immediately
       localStorage.setItem('pioneer_guest_username', guestUsername)
       localStorage.setItem('pioneer_guest_key', guestQueryKey)
       
-      // Use signIn directly with credentials
+      // Create auth token cookie with explicit expiration
+      const authToken = btoa(JSON.stringify({
+        username: guestUsername,
+        queryKey: guestQueryKey,
+        address: '0xguestAddress',
+        provider: 'keepkey',
+        isGuest: true,
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+      }))
+      document.cookie = `auth-token=${authToken}; path=/; max-age=86400; secure; samesite=strict`
+      
+      console.log('🍪 Set auth cookie:', document.cookie)
+      
+      // Use signIn with redirect: false to handle the response
       const result = await signIn('credentials', {
         username: guestUsername,
         address: '0xguestAddress',
         queryKey: guestQueryKey,
         isGuest: true,
         provider: 'keepkey',
+        callbackUrl: '/getting-started',
         redirect: false
       })
 
       console.log('🔑 SignIn result:', result)
 
-      // Always proceed with login
-      toast.success({
-        title: "Welcome!",
-        description: "Signed in as guest"
-      })
+      if (result?.error) {
+        console.error('❌ Sign in failed:', result.error)
+        throw new Error(result.error)
+      }
 
-      // Wait briefly for session to be established
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Redirect to getting started
-      router.push('/getting-started')
+      if (result?.url) {
+        console.log('✅ Sign in successful, redirecting to:', result.url)
+        window.location.href = result.url
+      } else {
+        console.log('⚠️ No redirect URL, using fallback')
+        window.location.href = '/getting-started'
+      }
     } catch (error) {
       console.error('❌ Guest auth request failed:', error)
-      // Even if there's an error, try to proceed
-      router.push('/getting-started')
+      toast.error({
+        title: "Authentication failed",
+        description: error instanceof Error ? error.message : "Failed to sign in as guest"
+      })
     } finally {
       setIsAuthenticating(false)
     }
@@ -125,32 +149,38 @@ export const LoginPage = () => {
       const queryKey = pioneer?.state?.app?.queryKey || `key_${Math.random().toString(36).substring(7)}`
       const address = pioneer?.state?.app?.context?.selectedWallet?.address || '0xkeepkeyAddress'
       
-      // Use signIn directly with credentials
+      console.log('🔄 Starting KeepKey login with:', { username, queryKey, address })
+      
+      // Use signIn with redirect: false to handle the response
       const result = await signIn('credentials', {
         username,
         address,
         queryKey,
         provider: 'keepkey',
+        callbackUrl: '/getting-started',
         redirect: false
       })
 
       console.log('🔑 SignIn result:', result)
-      
-      // Always proceed with login
-      toast.success({
-        title: "Welcome!",
-        description: "Signed in with KeepKey"
-      })
 
-      // Wait briefly for session to be established
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Redirect to getting started
-      router.push('/getting-started')
+      if (result?.error) {
+        console.error('❌ Sign in failed:', result.error)
+        throw new Error(result.error)
+      }
+
+      if (result?.url) {
+        console.log('✅ Sign in successful, redirecting to:', result.url)
+        window.location.href = result.url
+      } else {
+        console.log('⚠️ No redirect URL, using fallback')
+        window.location.href = '/getting-started'
+      }
     } catch (error) {
       console.error('❌ Auth request failed:', error)
-      // Even if there's an error, try to proceed
-      router.push('/getting-started')
+      toast.error({
+        title: "Authentication failed",
+        description: error instanceof Error ? error.message : "Failed to sign in with KeepKey"
+      })
     } finally {
       setIsAuthenticating(false)
     }
@@ -164,36 +194,48 @@ export const LoginPage = () => {
       
       if (guestUsername && guestKey && !session) {
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin
-          const callbackUrl = `${baseUrl}/getting-started`
-          const encodedCallback = encodeURIComponent(callbackUrl)
-          
-          console.log('🔄 Attempting to restore guest session:', {
-            username: guestUsername,
-            key: guestKey,
-            callback: encodedCallback
-          })
+          console.log('🔄 Attempting to restore guest session:', { guestUsername, guestKey })
           
           const result = await signIn('credentials', {
             username: guestUsername,
             queryKey: guestKey,
             address: '0xguestAddress',
             isGuest: true,
-            callbackUrl: encodedCallback,
-            redirect: true
+            provider: 'keepkey',
+            callbackUrl: '/getting-started',
+            redirect: false
           })
           
           console.log('🔑 Session restoration result:', result)
+          
+          if (result?.error) {
+            throw new Error(result.error)
+          }
+
+          if (result?.url) {
+            console.log('✅ Session restored, redirecting to:', result.url)
+            window.location.href = result.url
+          }
         } catch (error) {
-          console.error('Failed to restore guest session:', error)
+          console.error('❌ Failed to restore guest session:', error)
           // Clear invalid session data
           localStorage.removeItem('pioneer_guest_username')
           localStorage.removeItem('pioneer_guest_key')
+          // Clear auth cookie
+          document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
         }
       }
     }
     
     restoreGuestSession()
+  }, [session])
+
+  // Session check effect
+  useEffect(() => {
+    if (session) {
+      console.log('✅ Session found, redirecting to /getting-started')
+      window.location.href = '/getting-started'
+    }
   }, [session])
 
   // Add URL parameter handling
