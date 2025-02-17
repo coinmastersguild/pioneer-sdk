@@ -4,8 +4,7 @@ import { useStepsContext, Box, Text, Stack, Button, VStack, Icon, HStack } from 
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
 import { usePioneerContext } from '#features/common/providers/app'
-import { FormLayout, Field } from '@saas-ui/forms'
-import { Form } from '#components/form'
+import { FormLayout, Field, Form } from '@saas-ui/forms'
 import { useRouter } from 'next/navigation'
 import { FaHeadset, FaRobot } from 'react-icons/fa'
 import { signIn } from 'next-auth/react'
@@ -27,6 +26,8 @@ const DynamicChat = dynamic(() => import('#components/chat').then(mod => mod.Cha
 
 const schema = z.object({
   description: z.string().min(1, 'Please describe your issue'),
+  emailFollowUp: z.boolean().default(false),
+  email: z.string().email('Invalid email address').optional(),
 })
 
 type FormInput = z.infer<typeof schema>
@@ -229,21 +230,42 @@ export const CreateTicketStep = () => {
           schema={schema}
           title="Create Support Ticket"
           description="Let us know what's going on and we'll help you out."
-          defaultValues={{ description: '' }}
+          defaultValues={{ description: '', emailFollowUp: false, email: '' }}
           onSubmit={handleSubmit}
           submitLabel="Create Ticket"
           maxW={{ base: '100%', md: 'lg' }}
-          showSkip={false}
         >
-          <FormLayout>
-            <Field
-              name="description"
-              label="How can we help?"
-              help="A support agent will review your request and get back to you"
-              type="textarea"
-              required
-            />
-          </FormLayout>
+          <Form onSubmit={handleSubmit}>
+            {({ watch }) => {
+              const showEmail = watch('emailFollowUp');
+              
+              return (
+                <FormLayout>
+                  <Field
+                    name="description"
+                    label="How can we help?"
+                    help="A support agent will review your request and get back to you"
+                    type="textarea"
+                    required
+                  />
+                  <Field
+                    name="emailFollowUp"
+                    label="Follow up with email"
+                    type="switch"
+                  />
+                  {showEmail && (
+                    <Field
+                      name="email"
+                      label="Email Address"
+                      type="email"
+                      placeholder="Enter your email address"
+                      required
+                    />
+                  )}
+                </FormLayout>
+              );
+            }}
+          </Form>
         </OnboardingStep>
       </Box>
     )
