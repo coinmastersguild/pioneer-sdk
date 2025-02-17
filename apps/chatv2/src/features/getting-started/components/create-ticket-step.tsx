@@ -4,7 +4,7 @@ import { useStepsContext, Box, Text, Stack, Button, VStack, Icon, HStack } from 
 import { useMutation } from '@tanstack/react-query'
 import { toast } from '@saas-ui/react'
 import { usePioneerContext } from '#features/common/providers/app'
-import { FormLayout, Field, Form } from '@saas-ui/forms'
+import { FormLayout, Field, Form, useFormContext } from '@saas-ui/forms'
 import { useRouter } from 'next/navigation'
 import { FaHeadset, FaRobot } from 'react-icons/fa'
 import { signIn } from 'next-auth/react'
@@ -31,6 +31,37 @@ const schema = z.object({
 })
 
 type FormInput = z.infer<typeof schema>
+
+const FormFields = () => {
+  const { watch } = useFormContext()
+  const showEmail = watch('emailFollowUp')
+  
+  return (
+    <Stack spacing={4}>
+      <Field
+        name="description"
+        label="How can we help?"
+        help="A support agent will review your request and get back to you"
+        type="textarea"
+        required
+      />
+      <Field
+        name="emailFollowUp"
+        label="Follow up with email"
+        type="switch"
+      />
+      {showEmail && (
+        <Field
+          name="email"
+          label="Email Address"
+          type="email"
+          placeholder="Enter your email address"
+          required
+        />
+      )}
+    </Stack>
+  )
+}
 
 export const CreateTicketStep = () => {
   const stepper = useStepsContext()
@@ -68,54 +99,57 @@ export const CreateTicketStep = () => {
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
-      console.log("Creating ticket with pioneer state:", pioneer)
+      console.log("Creating ticket with data:", data)
+      console.log("Pioneer state:", pioneer)
+      console.log("Pioneer instance:", pioneer?.pioneer)
       
-      // Double check pioneer connection
-      const isConnected = await ensureWalletConnected()
-      if (!isConnected) {
-        throw new Error('Please connect your wallet first')
+      if (!pioneer?.state.app.pioneer) {
+        throw new Error('Pioneer service is not initialized. Please try again.');
       }
 
       const ticketId = crypto.randomUUID()
 
-      let ticket = {
+      const ticket :any = {
         id: ticketId,
         workspace: 'keepkey',
+        username: pioneer?.state.app.username,
         email: pioneer?.username || '',
         ...data
       }
 
-      console.log('Creating ticket:', ticket)
-      let result = await pioneer.pioneer.CreateTicket(ticket)
-      console.log('Ticket created:', result.data)
-      if(result.ticketId){
-        //success
-      } else {
-        throw new Error('Failed to create ticket');
+      console.log('Sending ticket to pioneer:', ticket)
+      try {
+        let result = await pioneer?.state.app.pioneer.CreateTicket(ticket)
+        result = result.data
+        console.log('Response from CreateTicket:', result)
+        
+        if(result.ticketId){
+          window.sessionStorage.setItem('getting-started.workspace', 'keepkey')
+          localStorage.setItem('myRoomId', ticketId)
+          return ticketId
+        } else {
+          throw new Error('Failed to create ticket: No ticketId in response');
+        }
+      } catch (error) {
+        console.error('Error calling CreateTicket:', error);
+        throw new Error(error instanceof Error ? error.message : 'Failed to create ticket');
       }
-
-      window.sessionStorage.setItem('getting-started.workspace', 'keepkey')
-      localStorage.setItem('myRoomId', ticketId)
-
-      return ticketId
     },
   })
 
   // Initial connection attempt
   useEffect(() => {
+    console.log('Pioneer state in useEffect:', pioneer);
+    console.log('Is wallet connected:', isWalletConnected);
     if (!isWalletConnected && !isConnecting) {
       ensureWalletConnected()
     }
   }, [isWalletConnected])
 
   const handleSubmit = async (data: FormInput) => {
+    console.log('handleSubmit called with data:', data);
+    console.log('Current pioneer state:', pioneer);
     try {
-      // Ensure wallet is connected before creating ticket
-      const isConnected = await ensureWalletConnected()
-      if (!isConnected) {
-        return // Don't proceed if wallet connection failed
-      }
-
       console.log('Creating ticket...');
       const ticketId = await createTicket(data);
       console.log('Ticket created successfully with ID:', ticketId);
@@ -134,6 +168,7 @@ export const CreateTicketStep = () => {
   }
 
   const handleCreateTicket = () => {
+    console.log('handleCreateTicket clicked');
     setShowTicketForm(true);
   }
 
@@ -224,6 +259,7 @@ export const CreateTicketStep = () => {
   }
 
   if (showTicketForm) {
+    console.log('Rendering ticket form');
     return (
       <Box>
         <OnboardingStep
@@ -231,41 +267,17 @@ export const CreateTicketStep = () => {
           title="Create Support Ticket"
           description="Let us know what's going on and we'll help you out."
           defaultValues={{ description: '', emailFollowUp: false, email: '' }}
-          onSubmit={handleSubmit}
+          onSubmit={(data) => {
+            console.log('OnboardingStep onSubmit called with data:', data);
+            return handleSubmit(data);
+          }}
           submitLabel="Create Ticket"
           maxW={{ base: '100%', md: 'lg' }}
+          onChange={(data) => {
+            console.log('Form data changed:', data);
+          }}
         >
-          <Form onSubmit={handleSubmit}>
-            {({ watch }) => {
-              const showEmail = watch('emailFollowUp');
-              
-              return (
-                <FormLayout>
-                  <Field
-                    name="description"
-                    label="How can we help?"
-                    help="A support agent will review your request and get back to you"
-                    type="textarea"
-                    required
-                  />
-                  <Field
-                    name="emailFollowUp"
-                    label="Follow up with email"
-                    type="switch"
-                  />
-                  {showEmail && (
-                    <Field
-                      name="email"
-                      label="Email Address"
-                      type="email"
-                      placeholder="Enter your email address"
-                      required
-                    />
-                  )}
-                </FormLayout>
-              );
-            }}
-          </Form>
+          <FormFields />
         </OnboardingStep>
       </Box>
     )
