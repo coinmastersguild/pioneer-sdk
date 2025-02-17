@@ -21,11 +21,12 @@ import { useParams } from 'next/navigation';
 
 interface Message {
   id: string;
-  type: 'message' | 'event' | 'system' | 'view';
+  type: 'message' | 'event' | 'system' | 'view' | 'join';
   from: 'user' | 'computer';
   text: string;
   timestamp: Date;
   view?: any; // Add view property for view type messages
+  content?: string;
 }
 
 export interface ChatProps extends Omit<FlexProps, 'children'> {
@@ -120,8 +121,20 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props 
       {...props}
     >
       {messages.map((message, index) => (
-        <React.Fragment key={message.id}>
-          {message.type === 'view' && message.view ? (
+        <React.Fragment key={message.id || index}>
+          {message.type === 'join' ? (
+            <Box 
+              textAlign="center" 
+              py={2}
+            >
+              <Text fontSize="sm" color="gray.400">
+                {message.content}
+              </Text>
+              <Text fontSize="xs" color="gray.500">
+                {new Date(message.timestamp).toLocaleTimeString()}
+              </Text>
+            </Box>
+          ) : message.type === 'view' && message.view ? (
             <Box key={`view-${message.id}`}>
               {renderViewMessage({ view: message.view }, index, app)}
             </Box>
@@ -156,12 +169,26 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       console.log(tag,'app: ',app)
       console.log(tag,'app: ',app.state)
       console.log(tag,'app: ',app.state.app)
-      let results = await app.state.app.pioneer.JoinRoom({ticketId})
-      console.log(tag,'results: ',results.data)
+      let results = await app.state.app.pioneer.JoinRoom({
+        ticketId,
+        username: app.state.app.username || 'anonymous'
+      });
+      console.log(tag,'JoinRoom results: ',results.data)
+      
+      // Update messages with ticket history
+      if (results.data?.ticket?.messages) {
+        // Assuming you have a way to update messages in the app state
+        // This will depend on how your state management is set up
+        if (app.state.app.setMessages) {
+          app.state.app.setMessages(results.data.ticket.messages);
+        } else {
+          console.log(tag, 'No setMessages function available in app state');
+        }
+      }
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
     }
-  }, [app]);
+  }, [app, ticketId]);
 
   // Separate useEffect for initialization
   React.useEffect(() => {

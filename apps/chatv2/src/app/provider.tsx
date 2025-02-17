@@ -7,6 +7,10 @@ import { AppProvider } from '#features/common/providers/app'
 import { AppLoader } from '#components/app-loader/app-loader'
 import { system } from '#theme'
 
+// Get environment variables with fallbacks
+const PIONEER_URL = process.env.NEXT_PUBLIC_PIONEER_URL || 'http://127.0.0.1:9001/spec/swagger.json'
+const PIONEER_WSS = process.env.NEXT_PUBLIC_PIONEER_WSS || 'ws://127.0.0.1:9001'
+
 // Create a wrapper component to handle Pioneer initialization
 function PioneerInitializer({ children, onPioneerReady }: { 
   children: React.ReactNode
@@ -25,6 +29,8 @@ function PioneerInitializer({ children, onPioneerReady }: {
         const pioneerSetup = {
           appName: 'KeepKey Portfolio',
           appIcon: 'https://pioneers.dev/coins/keepkey.png',
+          spec: PIONEER_URL,
+          wss: PIONEER_WSS,
         }
         await pioneer.onStart([], pioneerSetup)
         setIsInitialized(true)
