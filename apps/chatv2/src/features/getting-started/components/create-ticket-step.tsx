@@ -242,9 +242,9 @@ export const CreateTicketStep = () => {
           throw error;
         }
       },
-      joinRoom: async (roomId: string) => {
-        console.log('Top level joinRoom redirecting to state.pioneer:', roomId);
-        return pioneer.state.app.pioneer?.joinRoom?.(roomId);
+      joinRoom: async (ticketId: string) => {
+        console.log('Top level joinRoom redirecting to state.pioneer:', ticketId);
+        return pioneer.state.app.pioneer?.joinRoom?.({ticketId});
       },
       onStart: async () => {
         console.log('Top level onStart redirecting to state.pioneer');

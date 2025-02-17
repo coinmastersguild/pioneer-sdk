@@ -17,6 +17,7 @@ import { IconButton } from '@saas-ui/react';
 import { HiHeart } from 'react-icons/hi';
 import { Avatar } from "../ui/avatar"
 import {renderEventMessage,renderStandardMessage,renderViewMessage} from './views'
+import { useParams } from 'next/navigation';
 
 interface Message {
   id: string;
@@ -137,6 +138,8 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props 
 Messages.displayName = 'Messages';
 
 export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatProps>(({ usePioneer, ...rest }, ref) => {
+  const params = useParams();
+  const ticketId = params?.ticketId as string;
   const { state, connectWallet, sendMessage, joinRoom } = usePioneer;
   const { app, messages, isConnecting } = state;
   const [inputMessage, setInputMessage] = React.useState('');
@@ -162,16 +165,9 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         return; // Exit and let the useEffect trigger again with updated app state
       }
 
-      // Get room ID and validate
-      const roomId = localStorage.getItem('myRoomId');
-      if (!roomId) {
-        console.log(tag, 'No room ID found in localStorage');
-        return;
-      }
-
       // Join the room
-      await joinRoom(roomId);
-
+      let results = await joinRoom(ticketId);
+      console.log(tag,'results: ', results);
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
     }
@@ -214,7 +210,12 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         borderColor="gray.700"
         bg="gray.800"
       >
-        <Text fontSize="lg" fontWeight="bold">KeepKey Support</Text>
+        <VStack align="start" spacing={1}>
+          <Text fontSize="lg" fontWeight="bold">KeepKey Support</Text>
+          {ticketId && (
+            <Text fontSize="sm" color="gray.400">Ticket ID: {ticketId}</Text>
+          )}
+        </VStack>
       </Box>
 
       <Box flex="1" overflowY="auto">
