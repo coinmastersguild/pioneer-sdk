@@ -119,13 +119,26 @@ export const CreateTicketStep = () => {
 
       console.log('Sending ticket to pioneer:', ticket)
       try {
+        // Create the ticket
         let result = await pioneer?.state.app.pioneer.CreateTicket(ticket)
         result = result.data
         console.log('Response from CreateTicket:', result)
         
         if(result.ticketId){
+          // Store the ticket info
           window.sessionStorage.setItem('getting-started.workspace', 'keepkey')
           localStorage.setItem('myRoomId', ticketId)
+
+          // Initialize the chat room
+          console.log('Initializing chat room...');
+          try {
+            await pioneer?.state.app.pioneer.joinRoom?.(ticketId);
+            console.log('Chat room initialized');
+          } catch (error) {
+            console.error('Error initializing chat room:', error);
+            // Continue even if chat room init fails - we can retry on the ticket page
+          }
+
           return ticketId
         } else {
           throw new Error('Failed to create ticket: No ticketId in response');
@@ -153,6 +166,10 @@ export const CreateTicketStep = () => {
       console.log('Creating ticket...');
       const ticketId = await createTicket(data);
       console.log('Ticket created successfully with ID:', ticketId);
+      
+      // Add a small delay to ensure everything is initialized
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       router.push(`/ticket/${ticketId}`);
     } catch (error) {
       console.error('Error in handleSubmit:', error);
@@ -176,46 +193,58 @@ export const CreateTicketStep = () => {
     // Initialize the chat with the proper Pioneer provider structure
     const chatPioneerState = {
       state: {
-        ...pioneer.state,
-        pioneer: {
-          ...pioneer.pioneer,
-          initialized: true,
-          sendMessage: async (message: any) => {
-            console.log('Sending message via state.pioneer:', message);
-            return pioneer.pioneer?.sendMessage?.(message);
-          },
-          joinRoom: async (roomId: string) => {
-            console.log('Joining room via state.pioneer:', roomId);
-            return pioneer.pioneer?.joinRoom?.(roomId);
-          },
-          onStart: async () => {
-            console.log('Chat onStart called via state.pioneer');
-            const appSetup = {
-              appName: 'KeepKey Portfolio',
-              appIcon: 'https://pioneers.dev/coins/keepkey.png',
-            };
-            return pioneer.pioneer?.onStart([], appSetup);
-          }
+        app: {
+          ...pioneer.state.app,
+          pioneer: pioneer.state.app.pioneer,
+          username: pioneer.state.app.username || 'User',
         },
-        messages: [],
+        messages: [
+          {
+            id: crypto.randomUUID(),
+            type: 'system',
+            from: 'computer',
+            text: 'Welcome to KeepKey Support! How can I help you today?',
+            timestamp: new Date(),
+          }
+        ] as Array<{
+          id: string;
+          type: 'message' | 'event' | 'system' | 'view';
+          from: 'user' | 'computer';
+          text: string;
+          timestamp: Date;
+          view?: any;
+        }>,
         isConnecting: false,
         context: {
           ...pioneer.state?.context,
-          username: pioneer.username,
+          username: pioneer.state.app.username,
           queryKey: pioneer.state?.queryKey,
           initialized: true
         }
       },
-      // These methods should match the state.pioneer structure
       pioneer: pioneer.pioneer,
       dispatch: pioneer.dispatch,
-      sendMessage: async (message: any) => {
+      sendMessage: async (message: string) => {
         console.log('Top level sendMessage redirecting to state.pioneer:', message);
-        return pioneer.pioneer?.sendMessage?.(message);
+        try {
+          const response = await pioneer.state.app.pioneer?.sendMessage?.(message);
+          // Add the user's message to the chat
+          chatPioneerState.state.messages.push({
+            id: crypto.randomUUID(),
+            type: 'message',
+            from: 'user',
+            text: message,
+            timestamp: new Date(),
+          });
+          return response;
+        } catch (error) {
+          console.error('Error sending message:', error);
+          throw error;
+        }
       },
       joinRoom: async (roomId: string) => {
         console.log('Top level joinRoom redirecting to state.pioneer:', roomId);
-        return pioneer.pioneer?.joinRoom?.(roomId);
+        return pioneer.state.app.pioneer?.joinRoom?.(roomId);
       },
       onStart: async () => {
         console.log('Top level onStart redirecting to state.pioneer');
@@ -223,13 +252,14 @@ export const CreateTicketStep = () => {
           appName: 'KeepKey Portfolio',
           appIcon: 'https://pioneers.dev/coins/keepkey.png',
         };
-        return pioneer.pioneer?.onStart([], appSetup);
+        return pioneer.state.app.pioneer?.onStart([], appSetup);
       },
       connectWallet: pioneer.connectWallet
     }
 
     // Log the state to verify initialization
     console.log('Chat pioneer state:', chatPioneerState);
+    console.log('Messages array:', chatPioneerState.state.messages);
 
     return (
       <Box 

@@ -91,7 +91,8 @@ const MessageBubble: React.FC<{ message: Message, app: any }> = ({ message, app 
 
 const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props }) => {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
+  console.log('messages: ',messages)
+  if(!messages) messages = []
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
