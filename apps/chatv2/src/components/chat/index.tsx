@@ -199,10 +199,45 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         console.log('Subbing to events!')
         app.state.app.events.on('message', (event: any) => {
           console.log(tag,'event: ', event)
+          event = JSON.parse(event)
+          console.log(tag,'event: ', typeof(event))
+          console.log(tag,'event.type: ', event.type)
+          console.log(tag,'event.content: ', event.content)
+          /*
+
+          { "type":"join","room":"954a5839-aade-4010-bc7e-a47343655811","ticketId":"954a5839-aade-4010-bc7e-a47343655811","user":"user:c4659350","content":"user:c4659350 has joined the room"}
+
+           */
           //push to messages
+          const newMessage: Message = {
+            id: event.id || Math.random().toString(36).substr(2, 9),
+            type: event.type || 'message',
+            from: event.from || (event.user?.username === app.state.app.username ? 'user' : 'computer'),
+            text: event.message || event.text || event.content || '',  // prioritize message field
+            timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
+            content: event.content,
+            view: event.view
+          };
+
+          console.log("Creating new message from event:", newMessage);
+
+          setLocalMessages(prev => {
+            // Check if message already exists
+            if (prev.some(msg => msg.id === newMessage.id)) {
+              return prev;
+            }
+            console.log("Adding new message to local state:", newMessage);
+            return [...prev, newMessage];
+          });
         })
       }
 
+      // Cleanup event listener on unmount
+      return () => {
+        if(app?.state?.app?.events) {
+          app.state.app.events.off('message');
+        }
+      };
 
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
@@ -220,28 +255,36 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
-    
+
     setIsTyping(true);
     try {
-      // Send message through the socket
-      await sendMessage(inputMessage, ticketId);
-      
+      const messageId = Math.random().toString(36).substr(2, 9);
+
       // Add message to local state
-      const newMessage: any = {
-        id: Math.random().toString(36).substr(2, 9),
+      const newMessage: Message = {
+        id: messageId,
         type: 'message',
         from: 'user',
         text: inputMessage,
-        ticket: ticketId,
         timestamp: new Date(),
       };
       setLocalMessages(prev => [...prev, newMessage]);
       setInputMessage('');
 
-      //
-      // Join the room
-      let results = await app.state.app.pioneer.Support(newMessage);
-      console.log('results push message: ', results.data)
+      // Send message to server
+      let results = await app.state.app.pioneer.Support({
+        id: messageId,
+        type: 'message',
+        message: inputMessage,  // use message field to match server format
+        ticketId,
+        room: ticketId,
+        user: {
+          username: app.state.app.username
+        },
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('Message sent to server:', results);
 
     } catch (error) {
       console.error('Failed to send message:', error);
