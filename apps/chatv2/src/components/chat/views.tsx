@@ -90,11 +90,23 @@ export function renderViewMessage(viewMessage: any, index: number, app: any) {
   let tag = TAG + " | renderViewMessage | "
 
   const { view } = viewMessage;
-  let username = app.username
-  if(!username) throw Error('username not set!')
+  let username = app?.username || 'anonymous'
   console.log(tag,'view: ',view)
-  console.log(tag,'view: ',view.type)
-  switch (view?.type) {
+  console.log(tag,'view: ',view?.type)
+  
+  // If view is missing or malformed, show as JSON
+  if (!view || !view.type) {
+    return (
+      <Box key={index} mb={2} p={4} bg="gray.800" borderRadius="md">
+        <Text color="yellow.300" mb={2}>Unformatted View Message:</Text>
+        <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+          {JSON.stringify(viewMessage, null, 2)}
+        </Text>
+      </Box>
+    );
+  }
+
+  switch (view.type) {
     case 'question':
       const question = view.question;
       return (
@@ -180,69 +192,92 @@ export function renderViewMessage(viewMessage: any, index: number, app: any) {
         </Box>
       );
     case 'article':
+      const article = view.article;
+      if (!article) {
+        return (
+          <Box key={index} mb={2} p={4} bg="gray.800" borderRadius="md">
+            <Text color="red.300">Invalid article view format</Text>
+            <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+              {JSON.stringify(view, null, 2)}
+            </Text>
+          </Box>
+        );
+      }
+
       return (
         <HStack justify="center" mt={4}>
-        <Card.Root
-          key={index}
-          width="320px"
-          variant="outline"
-          mb={4}
-          borderRadius="md"
-          boxShadow="md"
-        >
-          <Card.Body gap="2">
-            {/* Title */}
-            <Card.Title fontSize="lg" mb="2">
-              {view.article.title}
-            </Card.Title>
+          <Card.Root
+            key={index}
+            width="320px"
+            variant="outline"
+            mb={4}
+            borderRadius="md"
+            boxShadow="md"
+            bg="gray.800"
+            borderColor="gray.600"
+          >
+            <Card.Body gap="2">
+              {/* Title */}
+              <Card.Title fontSize="lg" mb="2" color={article.color || "white"}>
+                {article.title}
+              </Card.Title>
 
-            {/* Description */}
-            <Card.Description mb="4">
-              {view.article.description}
-            </Card.Description>
+              {/* Description */}
+              <Card.Description mb="4" color="gray.300">
+                {article.description}
+              </Card.Description>
 
-            {/* Fields (Links) */}
-            {view.article.fields.map((field:any, fieldIndex:any) => (
-              <Box key={fieldIndex} mb={2}>
-                <Text fontWeight="semibold" as="span">
-                  {field.name}
+              {/* Fields (Links) */}
+              {article.fields?.map((field:any, fieldIndex:any) => (
+                <Box key={fieldIndex} mb={2}>
+                  <Text fontWeight="semibold" as="span" color="gray.300">
+                    {field.name}
+                  </Text>
+                  <Link
+                    href={field.value}
+                    ml={1}
+                    color="blue.200"
+                    textDecoration="underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {field.value}
+                  </Link>
+                </Box>
+              ))}
+            </Card.Body>
+
+            {/* Footer */}
+            {article.footer && (
+              <Card.Footer 
+                justifyContent="space-between" 
+                alignItems="center"
+                borderTopColor="gray.600"
+              >
+                <Text fontWeight="medium" color="gray.300">
+                  {article.footer.text}
                 </Text>
-                <Link
-                  href={field.value}
-                  ml={1}
-                  color="blue.200"
-                  textDecoration="underline"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {field.value}
-                </Link>
-              </Box>
-            ))}
-          </Card.Body>
-
-          {/* Footer */}
-          {view.article.footer && (
-            <Card.Footer justifyContent="space-between" alignItems="center">
-              <Text fontWeight="medium">{view.article.footer.text}</Text>
-              {view.article.footer.iconURL && (
-                <Box as="img"
-                     //@ts-ignore
-                     src={view.article.footer.iconURL}
-                     alt="icon"
-                     width="24px"
-                     height="24px"
-                />
-              )}
-            </Card.Footer>
-          )}
-        </Card.Root>
+                {article.footer.iconURL && (
+                  <Box 
+                    as="img"
+                    src={article.footer.iconURL}
+                    alt="icon"
+                    width="24px"
+                    height="24px"
+                  />
+                )}
+              </Card.Footer>
+            )}
+          </Card.Root>
         </HStack>
       );
     default:
       return (
-        <Box key={index} mb={2}>
-          <Text>Unhandled view type: {view?.type} {JSON.stringify(view)}</Text>
+        <Box key={index} mb={2} p={4} bg="gray.800" borderRadius="md">
+          <Text color="yellow.300" mb={2}>Unknown View Type: {view.type}</Text>
+          <Text fontFamily="mono" fontSize="sm" whiteSpace="pre-wrap">
+            {JSON.stringify(view, null, 2)}
+          </Text>
         </Box>
       );
   }

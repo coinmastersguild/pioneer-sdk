@@ -154,7 +154,8 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   const params = useParams();
   const ticketId = params?.ticketId as string;
   const { state, sendMessage, joinRoom } = usePioneer;
-  const { app, messages, isConnecting } = state;
+  const { app, messages: globalMessages, isConnecting } = state;
+  const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
   const [inputMessage, setInputMessage] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
 
@@ -177,13 +178,17 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       
       // Update messages with ticket history
       if (results.data?.ticket?.messages) {
-        // Assuming you have a way to update messages in the app state
-        // This will depend on how your state management is set up
-        if (app.state.app.setMessages) {
-          app.state.app.setMessages(results.data.ticket.messages);
-        } else {
-          console.log(tag, 'No setMessages function available in app state');
-        }
+        // Convert server messages to our Message format
+        const formattedMessages = results.data.ticket.messages.map((msg: any) => ({
+          id: msg.id || Math.random().toString(36).substr(2, 9),
+          type: msg.type,
+          from: msg.from || 'computer',
+          text: msg.text || msg.content || '',
+          timestamp: new Date(msg.timestamp),
+          content: msg.content,
+          view: msg.view
+        }));
+        setLocalMessages(formattedMessages);
       }
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
@@ -196,12 +201,24 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
     onStart();
   }, [onStart]);
 
+  // Use local messages or global messages if available
+  const displayMessages = localMessages.length > 0 ? localMessages : globalMessages || [];
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
     
     setIsTyping(true);
     try {
       await sendMessage(inputMessage);
+      // Add the message to local messages
+      const newMessage: Message = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'message',
+        from: 'user',
+        text: inputMessage,
+        timestamp: new Date(),
+      };
+      setLocalMessages(prev => [...prev, newMessage]);
       setInputMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -236,7 +253,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       </Box>
 
       <Box flex="1" overflowY="auto">
-        <Messages messages={messages} app={app} />
+        <Messages messages={displayMessages} app={app} />
       </Box>
 
       {isTyping && (
