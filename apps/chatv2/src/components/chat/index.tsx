@@ -216,11 +216,12 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       await sendMessage(inputMessage, ticketId);
       
       // Add message to local state
-      const newMessage: Message = {
+      const newMessage: any = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'message',
         from: 'user',
         text: inputMessage,
+        ticket: ticketId,
         timestamp: new Date(),
       };
       setLocalMessages(prev => [...prev, newMessage]);
