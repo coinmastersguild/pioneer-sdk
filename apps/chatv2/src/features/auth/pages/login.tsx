@@ -79,17 +79,27 @@ export const LoginPage = () => {
       const guestUsername = `guest_${Math.random().toString(36).substring(7)}`
       const guestQueryKey = `guest_${Math.random().toString(36).substring(7)}`
       
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin
+      const callbackUrl = `${baseUrl}/getting-started`
+      
+      console.log('🌍 Environment:', {
+        baseUrl,
+        callbackUrl,
+        currentUrl: window.location.href,
+        origin: window.location.origin
+      })
+      
       // First authenticate with the backend
       const payload = {
         username: guestUsername,
         queryKey: guestQueryKey,
         address: '0xguestAddress',
-        isGuest: true
+        isGuest: true,
+        callbackUrl // Include callback in auth payload
       }
 
       console.log('🔍 Guest auth payload:', payload)
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || ''
       const response = await fetch(`${baseUrl}/api/auth/kkauth`, {
         method: 'POST',
         headers: {
@@ -110,50 +120,24 @@ export const LoginPage = () => {
         localStorage.setItem('pioneer_guest_username', data.username)
         localStorage.setItem('pioneer_guest_key', data.queryKey)
         
-        // Use signIn with absolute callback URL
-        const callbackUrl = `${window.location.origin}/getting-started`
-        console.log('📍 Using callback URL:', callbackUrl)
+        // Encode the callback URL properly
+        const encodedCallback = encodeURIComponent(callbackUrl)
+        console.log('🔗 Encoded callback URL:', encodedCallback)
         
+        // Use signIn with properly encoded callback
         const result = await signIn('credentials', {
           username: data.username,
           address: data.address || '0xguestAddress',
           queryKey: data.queryKey,
           isGuest: true,
-          callbackUrl,
-          redirect: false
+          callbackUrl: encodedCallback,
+          redirect: true // Change to true to let NextAuth handle redirect
         })
 
         console.log('🔑 SignIn result:', result)
 
-        if (result?.error) {
-          console.error('❌ Guest session setup failed:', result.error)
-          toast.error({
-            title: "Session setup failed",
-            description: result.error
-          })
-          return
-        }
-
-        if (result?.ok) {
-          console.log('✅ Guest session established successfully')
-          
-          // Wait for session to be established
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Check if session is actually set
-          const checkSession = await fetch(`${baseUrl}/api/auth/session`)
-          const sessionData = await checkSession.json()
-          console.log('🔍 Session check:', sessionData)
-          
-          if (sessionData?.user) {
-            // Use window.location for hard redirect
-            window.location.href = callbackUrl
-          } else {
-            throw new Error('Session not established after signin')
-          }
-        } else {
-          throw new Error('Session establishment failed')
-        }
+        // Note: We don't need the manual redirect here since redirect: true
+        // NextAuth will handle it for us
       } else {
         console.error('❌ Guest auth failed:', data.error)
         toast.error({
@@ -180,35 +164,50 @@ export const LoginPage = () => {
       
       if (guestUsername && guestKey && !session) {
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_API_URL || ''
-          const callbackUrl = `${window.location.origin}/getting-started`
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin
+          const callbackUrl = `${baseUrl}/getting-started`
+          const encodedCallback = encodeURIComponent(callbackUrl)
+          
+          console.log('🔄 Attempting to restore guest session:', {
+            username: guestUsername,
+            key: guestKey,
+            callback: encodedCallback
+          })
           
           const result = await signIn('credentials', {
             username: guestUsername,
             queryKey: guestKey,
             address: '0xguestAddress',
             isGuest: true,
-            callbackUrl,
-            redirect: false
+            callbackUrl: encodedCallback,
+            redirect: true
           })
           
-          if (result?.ok) {
-            console.log('✅ Guest session restored')
-            // Check session establishment
-            const checkSession = await fetch(`${baseUrl}/api/auth/session`)
-            const sessionData = await checkSession.json()
-            if (!sessionData?.user) {
-              console.error('Session not established after restoration')
-            }
-          }
+          console.log('🔑 Session restoration result:', result)
         } catch (error) {
           console.error('Failed to restore guest session:', error)
+          // Clear invalid session data
+          localStorage.removeItem('pioneer_guest_username')
+          localStorage.removeItem('pioneer_guest_key')
         }
       }
     }
     
     restoreGuestSession()
   }, [session])
+
+  // Add URL parameter handling
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const error = params.get('error')
+    if (error) {
+      console.error('🚫 Auth error from URL:', error)
+      toast.error({
+        title: "Authentication Error",
+        description: error
+      })
+    }
+  }, [])
 
   return (
     <Stack flex="1" direction="row" minH="100vh">
