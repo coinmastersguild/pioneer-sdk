@@ -11,11 +11,13 @@ import { useEffect } from 'react'
 interface ChatProps extends Omit<FlexProps, 'children'> {
   usePioneer: {
     state: {
-      app: any
-      username: string
-      isInitialized: boolean
-    }
-    connectWallet: () => Promise<void>
+      app: any;
+      messages: any[];
+      isConnecting: boolean;
+    };
+    connectWallet: () => Promise<void>;
+    sendMessage: (message: string, roomId?: string) => Promise<void>;
+    joinRoom: (roomId: string) => Promise<void>;
   }
 }
 
@@ -35,6 +37,13 @@ export default function TicketPage() {
     // Store the ticket ID in localStorage when the component mounts
     localStorage.setItem('myRoomId', ticketId)
   }, [ticketId])
+
+  // Ensure pioneer has all required properties
+  const pioneerState = {
+    app: pioneer?.app || pioneer || {},
+    messages: pioneer?.messages || [],
+    isConnecting: pioneer?.isConnecting || false
+  }
 
   return (
     <Box 
@@ -57,7 +66,14 @@ export default function TicketPage() {
         overflow="hidden"
         boxShadow="2xl"
       >
-        <Chat usePioneer={{ state: pioneer, connectWallet: () => Promise.resolve() }} />
+        <Chat 
+          usePioneer={{
+            state: pioneerState,
+            connectWallet: pioneer?.connectWallet || (() => Promise.resolve()),
+            sendMessage: pioneer?.sendMessage || (() => Promise.resolve()),
+            joinRoom: pioneer?.joinRoom || (() => Promise.resolve())
+          }}
+        />
       </Box>
     </Box>
   )

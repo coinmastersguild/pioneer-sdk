@@ -140,7 +140,7 @@ Messages.displayName = 'Messages';
 export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatProps>(({ usePioneer, ...rest }, ref) => {
   const params = useParams();
   const ticketId = params?.ticketId as string;
-  const { state, connectWallet, sendMessage, joinRoom } = usePioneer;
+  const { state, sendMessage, joinRoom } = usePioneer;
   const { app, messages, isConnecting } = state;
   const [inputMessage, setInputMessage] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
@@ -153,25 +153,15 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         console.log(tag, 'App not initialized yet');
         return;
       }
-
-      // Only attempt to connect wallet if we have the function and pioneer is not available
-      if (typeof connectWallet === 'function' && !app?.pioneer && !isConnecting) {
-        console.log(tag, 'Attempting to connect wallet');
-        try {
-          await connectWallet();
-        } catch (e) {
-          console.error(tag, 'Failed to connect wallet:', e);
-        }
-        return; // Exit and let the useEffect trigger again with updated app state
-      }
-
-      // Join the room
-      let results = await joinRoom(ticketId);
-      console.log(tag,'results: ', results);
+      console.log(tag,'app: ',app)
+      console.log(tag,'app: ',app.state)
+      console.log(tag,'app: ',app.state.app)
+      let results = await app.state.app.pioneer.JoinRoom({ticketId})
+      console.log(tag,'results: ',results.data)
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
     }
-  }, [app, connectWallet, isConnecting, joinRoom]);
+  }, [app]);
 
   // Separate useEffect for initialization
   React.useEffect(() => {
