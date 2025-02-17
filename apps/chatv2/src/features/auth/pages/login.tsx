@@ -1,23 +1,13 @@
 'use client'
 
-import { Button, Container, Stack, Text, Box } from '@chakra-ui/react'
-import { FormLayout, SubmitButton } from '@saas-ui/forms'
-import { LoadingOverlay } from '@saas-ui/react/loading-overlay'
+import { Button, Container, Stack, Text, Box, Spinner } from '@chakra-ui/react'
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { FaGoogle } from 'react-icons/fa'
-import { z } from 'zod'
+import { FaGoogle, FaUser } from 'react-icons/fa'
 import { toast } from '@saas-ui/react'
 import { usePioneerContext } from '#features/common/providers/app'
-import { useState } from 'react'
-
-import { Form } from '#components/form/form.tsx'
+import { useState, useEffect } from 'react'
 import { Logo } from '#components/logo'
-
-const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(4),
-})
 
 export const LoginPage = () => {
   const { data: session, status } = useSession()
@@ -25,30 +15,51 @@ export const LoginPage = () => {
   const pioneer = usePioneerContext()
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
+  // Handle session redirect in useEffect to avoid React state updates during render
+  useEffect(() => {
+    if (session) {
+      router.replace('/getting-started')
+    }
+  }, [session, router])
+
   if (status === 'loading') {
     return (
-      <LoadingOverlay.Root>
-        {/*<LoadingOverlay.Spinner />*/}
-      </LoadingOverlay.Root>
+      <Box 
+        position="fixed"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        bg="gray.900"
+      >
+        <Spinner size="xl" color="blue.500" />
+      </Box>
     )
   }
 
-  if (session) {
-    router.replace('/getting-started')
-    return null
-  }
-
+  // Handle Google Sign In
   const handleGoogleSignIn = async () => {
     try {
+      setIsAuthenticating(true)
       const result = await signIn('google', {
         callbackUrl: '/getting-started',
+        redirect: false,
       })
       
       if (result?.error) {
         toast.error({
-          title: "Authentication failed",
+          title: "Google Sign In Failed",
           description: result.error,
         })
+      } else {
+        toast.success({
+          title: "Welcome!",
+          description: "Signed in with Google"
+        })
+        router.push('/getting-started')
       }
     } catch (error) {
       console.error('Failed to sign in with Google:', error)
@@ -56,6 +67,78 @@ export const LoginPage = () => {
         title: "Authentication failed",
         description: "Failed to sign in with Google",
       })
+    } finally {
+      setIsAuthenticating(false)
+    }
+  }
+
+  // Handle guest login
+  const handleGuestLogin = async () => {
+    try {
+      setIsAuthenticating(true)
+      const guestUsername = `guest_${Math.random().toString(36).substring(7)}`
+      const guestQueryKey = `guest_${Math.random().toString(36).substring(7)}`
+      
+      // First authenticate with the backend
+      const payload = {
+        username: guestUsername,
+        queryKey: guestQueryKey,
+        address: '0xguestAddress',
+        isGuest: true
+      }
+
+      const response = await fetch('/api/auth/kkauth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        console.log('✅ Guest auth successful')
+        toast.success({
+          title: "Authentication successful",
+          description: "Setting up guest session..."
+        })
+        
+        // Use signIn to establish the session with the same structure as KeepKey
+        const result = await signIn('credentials', {
+          username: data.username,
+          address: data.address,
+          queryKey: data.queryKey,
+          isGuest: true,
+          redirect: false
+        })
+
+        if (result?.error) {
+          console.error('❌ Guest session setup failed:', result.error)
+          toast.error({
+            title: "Session setup failed",
+            description: result.error
+          })
+          return
+        }
+
+        console.log('✅ Guest session established successfully')
+        router.push('/getting-started')
+      } else {
+        console.error('❌ Guest auth failed:', data.error)
+        toast.error({
+          title: "Authentication failed",
+          description: data.error || "Failed to authenticate as guest"
+        })
+      }
+    } catch (error) {
+      console.error('❌ Guest auth request failed:', error)
+      toast.error({
+        title: "Authentication failed",
+        description: "Failed to sign in as guest"
+      })
+    } finally {
+      setIsAuthenticating(false)
     }
   }
 
@@ -67,10 +150,12 @@ export const LoginPage = () => {
         justify="center"
         direction="column"
         gap="8"
+        bg="gray.900"
       >
         <Container maxWidth="sm">
           <Logo margin="0 auto" mb="12" />
 
+          {/* Google Login Button */}
           <Button
             w="100%"
             mb="4"
@@ -83,6 +168,7 @@ export const LoginPage = () => {
             </Stack>
           </Button>
 
+          {/* KeepKey Login Button */}
           <Button
             w="100%"
             mb="4"
@@ -159,7 +245,7 @@ export const LoginPage = () => {
                   }
 
                   console.log('✅ Session established successfully')
-                  await router.push('/getting-started')
+                  router.push('/getting-started')
                 } else {
                   console.error('❌ Auth failed:', data.error)
                   toast.error({
@@ -179,7 +265,7 @@ export const LoginPage = () => {
             }}
             variant="outline"
             colorScheme="blue"
-            isLoading={isAuthenticating}
+            isLoading={isAuthenticating && pioneer?.state?.app?.queryKey}
             loadingText="Authenticating..."
             disabled={isAuthenticating}
           >
@@ -195,43 +281,19 @@ export const LoginPage = () => {
             <Stack flex="1" h="1px" bg="gray.200" />
           </Stack>
 
-          <Form
-            schema={schema}
-            defaultValues={{
-              email: 'user@keepkey.com',
-              password: '123345',
-            }}
-            onSubmit={async (values) => {
-              try {
-                const result = await signIn('credentials', {
-                  ...values,
-                  callbackUrl: '/getting-started',
-                })
-
-                if (result?.error) {
-                  toast.error({
-                    title: "Authentication failed",
-                    description: result.error,
-                  })
-                  return { error: result.error }
-                }
-              } catch (error) {
-                console.error('Failed to sign in:', error)
-                toast.error({
-                  title: "Authentication failed",
-                  description: "An unexpected error occurred",
-                })
-              }
-            }}
+          {/* Guest Login Button */}
+          <Button
+            w="100%"
+            onClick={handleGuestLogin}
+            variant="outline"
+            isLoading={isAuthenticating && !pioneer?.state?.app?.queryKey}
+            loadingText="Signing in..."
           >
-            {({ Field }) => (
-              <FormLayout>
-                <Field name="email" label="Email" type="email" />
-                <Field name="password" label="Password" type="password" />
-                <SubmitButton>Log in</SubmitButton>
-              </FormLayout>
-            )}
-          </Form>
+            <Stack direction="row" gap={2} align="center">
+              <FaUser />
+              <Text>Continue as Guest</Text>
+            </Stack>
+          </Button>
         </Container>
       </Stack>
     </Stack>

@@ -8,12 +8,12 @@ import {
   Input, 
   HStack,
   VStack,
+  IconButton,
   type FlexProps,
   type BoxProps,
   type TextProps,
   type StackProps,
 } from '@chakra-ui/react';
-import { IconButton } from '@saas-ui/react';
 import { HiHeart } from 'react-icons/hi';
 import { Avatar } from "../ui/avatar"
 import {renderEventMessage,renderStandardMessage,renderViewMessage} from './views'
@@ -48,6 +48,20 @@ interface MessagesProps extends StackProps {
 }
 
 const TAG = " | chat | ";
+
+// Add deduplication function
+const removeDuplicateMessages = (messages: Message[]): Message[] => {
+  const seen = new Set();
+  return messages.filter((message) => {
+    // Create a unique key based on text, timestamp, and type
+    const key = `${message.text}-${message.timestamp}-${message.type}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+};
 
 const AVATARS: Record<string, typeof HiHeart | string> = {
   user: HiHeart,
@@ -93,11 +107,14 @@ const MessageBubble: React.FC<{ message: Message, app: any }> = ({ message, app 
 
 const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props }) => {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  console.log('messages: ',messages)
   if(!messages) messages = []
+  
+  // Apply deduplication
+  const uniqueMessages = React.useMemo(() => removeDuplicateMessages(messages), [messages]);
+  
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [uniqueMessages]);
 
   return (
     <VStack 
@@ -120,7 +137,7 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props 
       }}
       {...props}
     >
-      {messages.map((message, index) => (
+      {uniqueMessages.map((message, index) => (
         <React.Fragment key={message.id || index}>
           {message.type === 'join' ? (
             <Box 
@@ -150,14 +167,142 @@ const Messages: React.FC<MessagesProps> = React.memo(({ messages, app, ...props 
 
 Messages.displayName = 'Messages';
 
+// Add GuestSignIn component
+const GuestSignIn: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
+  return (
+    <Box
+      as="button"
+      onClick={onSignIn}
+      p={6}
+      bg="gray.700"
+      borderRadius="xl"
+      boxShadow="lg"
+      _hover={{ bg: 'gray.600' }}
+      transition="all 0.2s"
+      width="100%"
+      maxW="400px"
+      mx="auto"
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      gap={4}
+    >
+      <Avatar size="xl" name="Guest User" src="https://pioneers.dev/coins/guest.png" />
+      <Text fontSize="xl" fontWeight="bold" color="white">
+        Sign in as Guest
+      </Text>
+      <Text fontSize="sm" color="gray.300" textAlign="center">
+        Start chatting instantly without registration
+      </Text>
+    </Box>
+  );
+};
+
 export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatProps>(({ usePioneer, ...rest }, ref) => {
   const params = useParams();
   const ticketId = params?.ticketId as string;
-  const { state, sendMessage, joinRoom } = usePioneer;
+  const { state, sendMessage, joinRoom, connectWallet } = usePioneer;
   const { app, messages: globalMessages, isConnecting } = state;
   const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
   const [inputMessage, setInputMessage] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
+
+  // Handle KeepKey login
+  const handleKeepKeyLogin = async () => {
+    try {
+      console.log("🔍 Initiating KeepKey login...");
+      
+      // Store redirect URL before attempting connection
+      const currentUrl = window.location.href;
+      localStorage.setItem('auth_redirect', currentUrl);
+      
+      await connectWallet();
+      
+      // After successful connection, store the state in localStorage
+      if (app?.state?.app?.username && app?.state?.app?.queryKey) {
+        localStorage.setItem('pioneer_username', app.state.app.username);
+        localStorage.setItem('pioneer_queryKey', app.state.app.queryKey);
+        
+        // Use React state update instead of direct window location change
+        if (ticketId) {
+          // Join room after successful auth
+          await joinRoom(ticketId);
+        }
+      }
+    } catch (error) {
+      console.error("❌ KeepKey login failed:", error);
+    }
+  };
+
+  // Handle guest login
+  const handleGuestLogin = async () => {
+    try {
+      const guestUsername = `guest_${Math.random().toString(36).substring(7)}`;
+      
+      // Set guest user state using proper state management
+      if (app?.state?.app) {
+        const guestState = {
+          ...app.state.app,
+          username: guestUsername,
+          isGuest: true,
+          context: 'guest.json'
+        };
+        
+        // Update app state properly
+        if (app.state.dispatch) {
+          app.state.dispatch({ type: 'SET_APP_STATE', payload: guestState });
+        } else {
+          app.state.app = guestState;
+        }
+        
+        // Store guest state
+        localStorage.setItem('pioneer_username', guestUsername);
+        localStorage.setItem('pioneer_is_guest', 'true');
+        
+        // Join room as guest
+        if (ticketId) {
+          await joinRoom(ticketId);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Guest login failed:", error);
+    }
+  };
+
+  // Check for stored auth on mount
+  React.useEffect(() => {
+    const initializeAuth = async () => {
+      const storedUsername = localStorage.getItem('pioneer_username');
+      const storedQueryKey = localStorage.getItem('pioneer_queryKey');
+      const isGuest = localStorage.getItem('pioneer_is_guest');
+      
+      if (!app?.state?.app?.username && storedUsername) {
+        if (app?.state?.app) {
+          const restoredState = {
+            ...app.state.app,
+            username: storedUsername,
+            queryKey: storedQueryKey,
+            isGuest: isGuest === 'true',
+            context: isGuest ? 'guest.json' : app.state.app.context
+          };
+          
+          // Update app state properly
+          if (app.state.dispatch) {
+            app.state.dispatch({ type: 'SET_APP_STATE', payload: restoredState });
+          } else {
+            app.state.app = restoredState;
+          }
+          
+          // Join room if we have a ticket
+          if (ticketId) {
+            await joinRoom(ticketId);
+          }
+        }
+      }
+    };
+    
+    initializeAuth();
+  }, [app, ticketId, joinRoom]);
 
   // Update local messages when global messages change
   React.useEffect(() => {
@@ -292,6 +437,34 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       setIsTyping(false);
     }
   };
+
+  // Modify the render to show guest sign in when not authenticated
+  if (!app?.state?.app?.username && !isConnecting) {
+    return (
+      <Flex
+        direction="column"
+        align="center"
+        justify="center"
+        minH="100vh"
+        bg="gray.800"
+        p={4}
+        gap={6}
+      >
+        <GuestSignIn onSignIn={handleGuestLogin} />
+        <Text color="gray.400" fontSize="sm">or</Text>
+        <Box
+          as="button"
+          onClick={handleKeepKeyLogin}
+          p={4}
+          bg="blue.600"
+          borderRadius="lg"
+          _hover={{ bg: 'blue.500' }}
+        >
+          <Text color="white">Connect with KeepKey</Text>
+        </Box>
+      </Flex>
+    );
+  }
 
   return (
     <Flex 
