@@ -32,6 +32,7 @@ function PioneerInitializer({ children, onPioneerReady }: {
           spec: PIONEER_URL,
           wss: PIONEER_WSS,
         }
+        console.log('pioneerSetup: ',pioneerSetup)
         await pioneer.onStart([], pioneerSetup)
         setIsInitialized(true)
         onPioneerReady(pioneer)

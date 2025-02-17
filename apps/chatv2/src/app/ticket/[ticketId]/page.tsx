@@ -35,7 +35,7 @@ export default function TicketPage() {
 
   useEffect(() => {
     // Store the ticket ID in localStorage when the component mounts
-    localStorage.setItem('myRoomId', ticketId)
+    localStorage.setItem('ticketId', ticketId)
   }, [ticketId])
 
   // Ensure pioneer has all required properties

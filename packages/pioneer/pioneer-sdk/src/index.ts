@@ -38,11 +38,11 @@ export interface PioneerSDKConfig {
   paths: any;
   pubkeys?: any;
   balances?: any;
-  keepkeyApiKey: string;
-  ethplorerApiKey: string;
-  covalentApiKey: string;
-  utxoApiKey: string;
-  walletConnectProjectId: string;
+  keepkeyApiKey?: string;
+  ethplorerApiKey?: string;
+  covalentApiKey?: string;
+  utxoApiKey?: string;
+  walletConnectProjectId?: string;
 }
 
 // Helper function to format time differences

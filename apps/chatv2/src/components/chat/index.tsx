@@ -78,9 +78,9 @@ const MessageBubble: React.FC<{ message: Message, app: any }> = ({ message, app 
         borderTopColor: isUser ? 'blue.600' : 'gray.700',
       }}
     >
-      {isUser && app?.username && (
+      {isUser && app?.state.app.username && (
         <Text fontSize="xs" opacity={0.8} mb={1} color="whiteAlpha.800">
-          {app.username}
+          {app.state.app.username}
         </Text>
       )}
       <Text fontWeight="medium">{message.text}</Text>
@@ -159,26 +159,29 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   const [inputMessage, setInputMessage] = React.useState('');
   const [isTyping, setIsTyping] = React.useState(false);
 
+  // Update local messages when global messages change
+  React.useEffect(() => {
+    if (globalMessages && globalMessages.length > 0) {
+      setLocalMessages(globalMessages);
+    }
+  }, [globalMessages]);
+
   const onStart = React.useCallback(async () => {
     let tag = TAG + " | onStart | ";
     try {
-      // Check if we have a valid app state first
       if (!app) {
         console.log(tag, 'App not initialized yet');
         return;
       }
-      console.log(tag,'app: ',app)
-      console.log(tag,'app: ',app.state)
-      console.log(tag,'app: ',app.state.app)
+      
+      // Join the room
       let results = await app.state.app.pioneer.JoinRoom({
         ticketId,
         username: app.state.app.username || 'anonymous'
       });
-      console.log(tag,'JoinRoom results: ',results.data)
       
       // Update messages with ticket history
       if (results.data?.ticket?.messages) {
-        // Convert server messages to our Message format
         const formattedMessages = results.data.ticket.messages.map((msg: any) => ({
           id: msg.id || Math.random().toString(36).substr(2, 9),
           type: msg.type,
@@ -209,8 +212,10 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
     
     setIsTyping(true);
     try {
-      await sendMessage(inputMessage);
-      // Add the message to local messages
+      // Send message through the socket
+      await sendMessage(inputMessage, ticketId);
+      
+      // Add message to local state
       const newMessage: Message = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'message',
@@ -220,6 +225,12 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
       };
       setLocalMessages(prev => [...prev, newMessage]);
       setInputMessage('');
+
+      //
+      // Join the room
+      let results = await app.state.app.pioneer.Support(newMessage);
+      console.log('results push message: ', results.data)
+
     } catch (error) {
       console.error('Failed to send message:', error);
     } finally {

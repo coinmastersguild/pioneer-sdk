@@ -104,6 +104,9 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       const wss = setup.wss || 'wss://pioneers.dev';
 
       //@ts-ignore
+      console.log(tag, 'spec: ', spec);
+      console.log(tag, 'wss: ', wss);
+
       const appInit = new SDK(spec, {
         spec,
         wss,
