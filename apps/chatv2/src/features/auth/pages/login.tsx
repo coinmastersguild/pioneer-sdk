@@ -87,31 +87,43 @@ export const LoginPage = () => {
         isGuest: true
       }
 
-      const response = await fetch('/api/auth/kkauth', {
+      console.log('🔍 Guest auth payload:', payload)
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || ''
+      const response = await fetch(`${baseUrl}/api/auth/kkauth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        credentials: 'include'
       })
 
+      console.log('🔄 Guest auth response status:', response.status)
       const data = await response.json()
+      console.log('📡 Guest auth response data:', data)
       
       if (data.success) {
         console.log('✅ Guest auth successful')
-        toast.success({
-          title: "Authentication successful",
-          description: "Setting up guest session..."
-        })
         
-        // Use signIn to establish the session with the same structure as KeepKey
+        // Store guest session data
+        localStorage.setItem('pioneer_guest_username', data.username)
+        localStorage.setItem('pioneer_guest_key', data.queryKey)
+        
+        // Use signIn with absolute callback URL
+        const callbackUrl = `${window.location.origin}/getting-started`
+        console.log('📍 Using callback URL:', callbackUrl)
+        
         const result = await signIn('credentials', {
           username: data.username,
-          address: data.address,
+          address: data.address || '0xguestAddress',
           queryKey: data.queryKey,
           isGuest: true,
+          callbackUrl,
           redirect: false
         })
+
+        console.log('🔑 SignIn result:', result)
 
         if (result?.error) {
           console.error('❌ Guest session setup failed:', result.error)
@@ -122,8 +134,26 @@ export const LoginPage = () => {
           return
         }
 
-        console.log('✅ Guest session established successfully')
-        router.push('/getting-started')
+        if (result?.ok) {
+          console.log('✅ Guest session established successfully')
+          
+          // Wait for session to be established
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          // Check if session is actually set
+          const checkSession = await fetch(`${baseUrl}/api/auth/session`)
+          const sessionData = await checkSession.json()
+          console.log('🔍 Session check:', sessionData)
+          
+          if (sessionData?.user) {
+            // Use window.location for hard redirect
+            window.location.href = callbackUrl
+          } else {
+            throw new Error('Session not established after signin')
+          }
+        } else {
+          throw new Error('Session establishment failed')
+        }
       } else {
         console.error('❌ Guest auth failed:', data.error)
         toast.error({
@@ -141,6 +171,44 @@ export const LoginPage = () => {
       setIsAuthenticating(false)
     }
   }
+
+  // Update session restoration effect
+  useEffect(() => {
+    const restoreGuestSession = async () => {
+      const guestUsername = localStorage.getItem('pioneer_guest_username')
+      const guestKey = localStorage.getItem('pioneer_guest_key')
+      
+      if (guestUsername && guestKey && !session) {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || ''
+          const callbackUrl = `${window.location.origin}/getting-started`
+          
+          const result = await signIn('credentials', {
+            username: guestUsername,
+            queryKey: guestKey,
+            address: '0xguestAddress',
+            isGuest: true,
+            callbackUrl,
+            redirect: false
+          })
+          
+          if (result?.ok) {
+            console.log('✅ Guest session restored')
+            // Check session establishment
+            const checkSession = await fetch(`${baseUrl}/api/auth/session`)
+            const sessionData = await checkSession.json()
+            if (!sessionData?.user) {
+              console.error('Session not established after restoration')
+            }
+          }
+        } catch (error) {
+          console.error('Failed to restore guest session:', error)
+        }
+      }
+    }
+    
+    restoreGuestSession()
+  }, [session])
 
   return (
     <Stack flex="1" direction="row" minH="100vh">
