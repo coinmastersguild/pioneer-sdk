@@ -179,7 +179,7 @@ const test_service = async function (this: any) {
         let assets = app.assetsMap
         // log.info(tag,"assets: START: ",assets)
         assert(assets)
-        //
+
         // // //iterate over each asset
         // for(let [caip,asset] of assets){
         //     // log.info(tag,"asset: ",asset)

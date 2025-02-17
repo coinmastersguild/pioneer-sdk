@@ -193,6 +193,17 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         }));
         setLocalMessages(formattedMessages);
       }
+
+      //sub to events
+      if(app.state.app.events){
+        console.log('Subbing to events!')
+        app.state.app.events.on('message', (event: any) => {
+          console.log(tag,'event: ', event)
+          //push to messages
+        })
+      }
+
+
     } catch (e) {
       console.error(tag, 'Error in onStart:', e);
     }
