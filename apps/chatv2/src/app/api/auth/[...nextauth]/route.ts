@@ -69,10 +69,23 @@ const handler = NextAuth({
         session.queryKey = token.queryKey as string
       }
       return session
+    },
+    async redirect({ url, baseUrl }) {
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`
+      }
+      // Handle absolute URLs within our domain
+      else if (url.startsWith(baseUrl)) {
+        return url
+      }
+      // Default to base URL
+      return baseUrl
     }
   },
   pages: {
     signIn: '/login',
+    error: '/login', // Redirect back to login on error
   },
   session: {
     strategy: 'jwt',
@@ -83,30 +96,30 @@ const handler = NextAuth({
       name: `__Secure-next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         secure: true,
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+        domain: 'support.keepkey.info'
       }
     },
     callbackUrl: {
       name: `__Secure-next-auth.callback-url`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         secure: true,
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+        domain: 'support.keepkey.info'
       }
     },
     csrfToken: {
       name: `__Host-next-auth.csrf-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         secure: true,
-        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+        domain: 'support.keepkey.info'
       }
     }
   },

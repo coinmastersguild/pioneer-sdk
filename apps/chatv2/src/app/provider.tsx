@@ -67,7 +67,10 @@ export function Provider({ children, initialColorMode = 'dark' }: ProviderProps)
   }
 
   return (
-    <SessionProvider>
+    <SessionProvider 
+      refetchInterval={0} 
+      refetchOnWindowFocus={false}
+    >
       <ChakraProvider value={system}>
         <PioneerProvider>
           <PioneerInitializer onPioneerReady={handlePioneerReady}>

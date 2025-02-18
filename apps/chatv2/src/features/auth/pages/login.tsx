@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Container, Stack, Text, Box, Spinner } from '@chakra-ui/react'
+import { Button, Container, Stack, Text, Box, Spinner, type SpinnerProps, type ContainerProps } from '@chakra-ui/react'
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { FaGoogle, FaUser } from 'react-icons/fa'
@@ -17,10 +17,11 @@ export const LoginPage = () => {
 
   // Handle session redirect in useEffect to avoid React state updates during render
   useEffect(() => {
-    if (session) {
+    if (session && status === 'authenticated') {
+      console.log('Session redirect triggered:', { session, status })
       router.replace('/getting-started')
     }
-  }, [session, router])
+  }, [session, status, router])
 
   if (status === 'loading') {
     return (
@@ -78,21 +79,11 @@ export const LoginPage = () => {
       localStorage.setItem('pioneer_guest_username', guestUsername)
       localStorage.setItem('pioneer_guest_key', guestQueryKey)
       
-      // Create auth token cookie with explicit expiration
-      const authToken = btoa(JSON.stringify({
-        username: guestUsername,
-        queryKey: guestQueryKey,
-        address: '0xguestAddress',
-        provider: 'keepkey',
-        isGuest: true,
-        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
-      }))
-      document.cookie = `auth-token=${authToken}; path=/; max-age=86400; secure; samesite=strict`
+      // Remove any existing auth tokens
+      document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=support.keepkey.info'
       
-      console.log('🍪 Set auth cookie:', document.cookie)
-      
-      // Use signIn with redirect: false to handle the response
-      const result = await signIn('credentials', {
+      // Use signIn with redirect: true and properly encoded callback URL
+      await signIn('credentials', {
         username: guestUsername,
         address: '0xguestAddress',
         queryKey: guestQueryKey,
@@ -101,9 +92,6 @@ export const LoginPage = () => {
         callbackUrl: '/getting-started',
         redirect: true
       })
-
-      // We shouldn't reach here due to redirect: true
-      console.log('🔑 SignIn result:', result)
     } catch (error) {
       console.error('❌ Guest auth request failed:', error)
       toast.error({
@@ -162,12 +150,10 @@ export const LoginPage = () => {
       const guestUsername = localStorage.getItem('pioneer_guest_username')
       const guestKey = localStorage.getItem('pioneer_guest_key')
       
-      if (guestUsername && guestKey && !session) {
+      if (guestUsername && guestKey && status === 'unauthenticated') {
         try {
           console.log('🔄 Attempting to restore guest session:', { guestUsername, guestKey })
-          
-          // Use signIn with redirect: true
-          const result = await signIn('credentials', {
+          await signIn('credentials', {
             username: guestUsername,
             queryKey: guestKey,
             address: '0xguestAddress',
@@ -176,43 +162,36 @@ export const LoginPage = () => {
             callbackUrl: '/getting-started',
             redirect: true
           })
-
-          // We shouldn't reach here due to redirect: true
-          console.log('🔑 Session restoration result:', result)
         } catch (error) {
           console.error('❌ Failed to restore guest session:', error)
-          // Clear invalid session data
           localStorage.removeItem('pioneer_guest_username')
           localStorage.removeItem('pioneer_guest_key')
-          // Clear auth cookie
-          document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+          document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=support.keepkey.info'
         }
       }
     }
     
-    restoreGuestSession()
-  }, [session])
-
-  // Session check effect
-  useEffect(() => {
-    if (session) {
-      console.log('✅ Session found, redirecting to /getting-started')
-      router.replace('/getting-started')
+    if (status === 'unauthenticated') {
+      restoreGuestSession()
     }
-  }, [session, router])
+  }, [status])
 
-  // Add URL parameter handling
+  // URL parameter handling
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const error = params.get('error')
-    if (error) {
-      console.error('🚫 Auth error from URL:', error)
-      toast.error({
-        title: "Authentication Error",
-        description: error
-      })
+    if (status === 'unauthenticated') {
+      const params = new URLSearchParams(window.location.search)
+      const error = params.get('error')
+      const callbackUrl = params.get('callbackUrl')
+      
+      if (error) {
+        console.error('🚫 Auth error from URL:', { error, callbackUrl })
+        toast.error({
+          title: "Authentication Error",
+          description: error
+        })
+      }
     }
-  }, [])
+  }, [status])
 
   return (
     <Stack flex="1" direction="row" minH="100vh">
