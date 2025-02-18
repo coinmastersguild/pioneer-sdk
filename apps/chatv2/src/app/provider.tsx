@@ -70,6 +70,7 @@ export function Provider({ children, initialColorMode = 'dark' }: ProviderProps)
     <SessionProvider 
       refetchInterval={0} 
       refetchOnWindowFocus={false}
+      refetchWhenOffline={false}
     >
       <ChakraProvider value={system}>
         <PioneerProvider>

@@ -51,7 +51,18 @@ const handler = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Initial sign in
+      console.log('JWT Callback:', { 
+        hasUser: !!user,
+        tokenBefore: { ...token },
+        userData: user ? {
+          provider: user.provider,
+          username: user.username,
+          // mask sensitive data
+          address: user.address?.substring(0, 6) + '...',
+          queryKey: user.queryKey?.substring(0, 6) + '...'
+        } : null
+      })
+
       if (user) {
         token.provider = user.provider as string
         token.address = user.address as string
@@ -61,7 +72,18 @@ const handler = NextAuth({
       return token
     },
     async session({ session, token }: { session: any; token: any }) {
-      // Send properties to the client
+      console.log('Session Callback:', {
+        hasToken: !!token,
+        sessionBefore: { ...session },
+        tokenData: token ? {
+          provider: token.provider,
+          username: token.username,
+          // mask sensitive data
+          address: token.address?.substring(0, 6) + '...',
+          queryKey: token.queryKey?.substring(0, 6) + '...'
+        } : null
+      })
+
       if (token) {
         session.provider = token.provider as string
         session.address = token.address as string
@@ -71,16 +93,45 @@ const handler = NextAuth({
       return session
     },
     async redirect({ url, baseUrl }) {
-      // Handle relative URLs
+      console.log('Redirect Callback:', { 
+        url,
+        baseUrl,
+        isRelative: url.startsWith('/'),
+        isAbsolute: url.includes('://'),
+        urlParts: url.includes('://') ? new URL(url) : null
+      })
+
+      // Always use relative URLs
       if (url.startsWith('/')) {
-        return `${baseUrl}${url}`
-      }
-      // Handle absolute URLs within our domain
-      else if (url.startsWith(baseUrl)) {
+        console.log('Using relative URL:', url)
         return url
       }
-      // Default to base URL
-      return baseUrl
+
+      // Handle absolute URLs within our domain
+      try {
+        const urlObj = new URL(url)
+        console.log('Parsed URL:', {
+          hostname: urlObj.hostname,
+          pathname: urlObj.pathname,
+          search: urlObj.search,
+          isOurDomain: urlObj.hostname === 'support.keepkey.info'
+        })
+
+        if (urlObj.hostname === 'support.keepkey.info') {
+          const finalUrl = urlObj.pathname + urlObj.search
+          console.log('Converting to relative URL:', finalUrl)
+          return finalUrl
+        }
+      } catch (e) {
+        console.error('URL parsing error:', {
+          error: e,
+          url,
+          baseUrl
+        })
+      }
+
+      console.log('Defaulting to /getting-started')
+      return '/getting-started'
     }
   },
   pages: {

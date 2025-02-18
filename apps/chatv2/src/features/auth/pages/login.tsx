@@ -1,7 +1,7 @@
 'use client'
 
-import { Button, Container, Stack, Text, Box, Spinner, type SpinnerProps, type ContainerProps } from '@chakra-ui/react'
-import { signIn, useSession } from 'next-auth/react'
+import { Button, Stack, Text, Box } from '@chakra-ui/react'
+import { signIn, useSession, type SessionContextValue } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { FaGoogle, FaUser } from 'react-icons/fa'
 import { toast } from '@saas-ui/react'
@@ -9,36 +9,52 @@ import { usePioneerContext } from '#features/common/providers/app'
 import { useState, useEffect } from 'react'
 import { Logo } from '#components/logo'
 
+const LoadingScreen = () => (
+  <div className="fixed inset-0 flex items-center justify-center bg-gray-900">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+  </div>
+)
+
 export const LoginPage = () => {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession() as SessionContextValue
   const router = useRouter()
   const pioneer = usePioneerContext()
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
-  // Handle session redirect in useEffect to avoid React state updates during render
+  // Get the callback URL from query params
+  const getCallbackUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const callbackUrl = params.get('callbackUrl')
+      // If it's an absolute URL on our domain, extract the path
+      if (callbackUrl?.startsWith('https://support.keepkey.info/')) {
+        try {
+          const url = new URL(callbackUrl)
+          return url.pathname + url.search
+        } catch (e) {
+          console.error('Failed to parse callback URL:', e)
+        }
+      }
+      // If it's a relative URL, use it
+      if (callbackUrl?.startsWith('/')) {
+        return callbackUrl
+      }
+    }
+    return '/getting-started'
+  }
+
+  // Handle session redirect
   useEffect(() => {
     if (session && status === 'authenticated') {
-      console.log('Session redirect triggered:', { session, status })
-      router.replace('/getting-started')
+      const redirectUrl = getCallbackUrl()
+      console.log('Session redirect triggered:', { session, status, redirectUrl })
+      router.replace(redirectUrl)
     }
   }, [session, status, router])
 
+  // Show loading screen while session is being fetched
   if (status === 'loading') {
-    return (
-      <Box 
-        position="fixed"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        bg="gray.900"
-      >
-        <Spinner size="xl" color="blue.500" />
-      </Box>
-    )
+    return <LoadingScreen />
   }
 
   // Handle Google Sign In
@@ -75,21 +91,19 @@ export const LoginPage = () => {
       
       console.log('🔄 Starting guest login with:', { guestUsername, guestQueryKey })
       
-      // Store guest session data immediately
       localStorage.setItem('pioneer_guest_username', guestUsername)
       localStorage.setItem('pioneer_guest_key', guestQueryKey)
       
-      // Remove any existing auth tokens
       document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=support.keepkey.info'
       
-      // Use signIn with redirect: true and properly encoded callback URL
+      const callbackUrl = getCallbackUrl()
       await signIn('credentials', {
         username: guestUsername,
         address: '0xguestAddress',
         queryKey: guestQueryKey,
         isGuest: true,
         provider: 'keepkey',
-        callbackUrl: '/getting-started',
+        callbackUrl,
         redirect: true
       })
     } catch (error) {
@@ -103,36 +117,30 @@ export const LoginPage = () => {
     }
   }
 
-  // Simplify KeepKey login button handler
+  // Handle KeepKey login
   const handleKeepKeyLogin = async () => {
     try {
       setIsAuthenticating(true)
       
-      // Generate random credentials if Pioneer isn't available
       const username = pioneer?.state?.app?.username || `keepkey_${Math.random().toString(36).substring(7)}`
       const queryKey = pioneer?.state?.app?.queryKey || `key_${Math.random().toString(36).substring(7)}`
       const address = pioneer?.state?.app?.context?.selectedWallet?.address || '0xkeepkeyAddress'
       
       console.log('🔄 Starting KeepKey login with:', { username, queryKey, address })
-      console.log('Pioneer state:', pioneer?.state)
       
-      // Use signIn with redirect: true
-      const result = await signIn('credentials', {
+      const callbackUrl = getCallbackUrl()
+      await signIn('credentials', {
         username,
         address,
         queryKey,
         provider: 'keepkey',
-        callbackUrl: '/getting-started',
+        callbackUrl,
         redirect: true
       })
-
-      // We shouldn't reach here due to redirect: true
-      console.log('🔑 SignIn result:', result)
     } catch (error) {
       console.error('❌ Auth request failed:', {
         error,
         pioneerState: pioneer?.state,
-        cookies: document.cookie,
         pathname: window.location.pathname
       })
       toast.error({
@@ -203,7 +211,7 @@ export const LoginPage = () => {
         gap="8"
         bg="gray.900"
       >
-        <Container maxWidth="sm">
+        <div className="w-full max-w-md px-4">
           <Logo margin="0 auto" mb="12" />
 
           {/* Google Login Button */}
@@ -255,7 +263,7 @@ export const LoginPage = () => {
               <Text>Continue as Guest</Text>
             </Stack>
           </Button>
-        </Container>
+        </div>
       </Stack>
     </Stack>
   )
