@@ -49,23 +49,11 @@ export const LoginPage = () => {
       
       const result = await signIn('google', {
         callbackUrl: '/getting-started',
-        redirect: false
+        redirect: true
       })
-      
+
+      // We shouldn't reach here due to redirect: true
       console.log('🔑 SignIn result:', result)
-
-      if (result?.error) {
-        console.error('❌ Sign in failed:', result.error)
-        throw new Error(result.error)
-      }
-
-      if (result?.url) {
-        console.log('✅ Sign in successful, redirecting to:', result.url)
-        window.location.href = result.url
-      } else {
-        console.log('⚠️ No redirect URL, using fallback')
-        window.location.href = '/getting-started'
-      }
     } catch (error) {
       console.error('❌ Google auth failed:', error)
       toast.error({
@@ -111,23 +99,11 @@ export const LoginPage = () => {
         isGuest: true,
         provider: 'keepkey',
         callbackUrl: '/getting-started',
-        redirect: false
+        redirect: true
       })
 
+      // We shouldn't reach here due to redirect: true
       console.log('🔑 SignIn result:', result)
-
-      if (result?.error) {
-        console.error('❌ Sign in failed:', result.error)
-        throw new Error(result.error)
-      }
-
-      if (result?.url) {
-        console.log('✅ Sign in successful, redirecting to:', result.url)
-        window.location.href = result.url
-      } else {
-        console.log('⚠️ No redirect URL, using fallback')
-        window.location.href = '/getting-started'
-      }
     } catch (error) {
       console.error('❌ Guest auth request failed:', error)
       toast.error({
@@ -150,33 +126,27 @@ export const LoginPage = () => {
       const address = pioneer?.state?.app?.context?.selectedWallet?.address || '0xkeepkeyAddress'
       
       console.log('🔄 Starting KeepKey login with:', { username, queryKey, address })
+      console.log('Pioneer state:', pioneer?.state)
       
-      // Use signIn with redirect: false to handle the response
+      // Use signIn with redirect: true
       const result = await signIn('credentials', {
         username,
         address,
         queryKey,
         provider: 'keepkey',
         callbackUrl: '/getting-started',
-        redirect: false
+        redirect: true
       })
 
+      // We shouldn't reach here due to redirect: true
       console.log('🔑 SignIn result:', result)
-
-      if (result?.error) {
-        console.error('❌ Sign in failed:', result.error)
-        throw new Error(result.error)
-      }
-
-      if (result?.url) {
-        console.log('✅ Sign in successful, redirecting to:', result.url)
-        window.location.href = result.url
-      } else {
-        console.log('⚠️ No redirect URL, using fallback')
-        window.location.href = '/getting-started'
-      }
     } catch (error) {
-      console.error('❌ Auth request failed:', error)
+      console.error('❌ Auth request failed:', {
+        error,
+        pioneerState: pioneer?.state,
+        cookies: document.cookie,
+        pathname: window.location.pathname
+      })
       toast.error({
         title: "Authentication failed",
         description: error instanceof Error ? error.message : "Failed to sign in with KeepKey"
@@ -196,6 +166,7 @@ export const LoginPage = () => {
         try {
           console.log('🔄 Attempting to restore guest session:', { guestUsername, guestKey })
           
+          // Use signIn with redirect: true
           const result = await signIn('credentials', {
             username: guestUsername,
             queryKey: guestKey,
@@ -203,19 +174,11 @@ export const LoginPage = () => {
             isGuest: true,
             provider: 'keepkey',
             callbackUrl: '/getting-started',
-            redirect: false
+            redirect: true
           })
-          
-          console.log('🔑 Session restoration result:', result)
-          
-          if (result?.error) {
-            throw new Error(result.error)
-          }
 
-          if (result?.url) {
-            console.log('✅ Session restored, redirecting to:', result.url)
-            window.location.href = result.url
-          }
+          // We shouldn't reach here due to redirect: true
+          console.log('🔑 Session restoration result:', result)
         } catch (error) {
           console.error('❌ Failed to restore guest session:', error)
           // Clear invalid session data
@@ -234,9 +197,9 @@ export const LoginPage = () => {
   useEffect(() => {
     if (session) {
       console.log('✅ Session found, redirecting to /getting-started')
-      window.location.href = '/getting-started'
+      router.replace('/getting-started')
     }
-  }, [session])
+  }, [session, router])
 
   // Add URL parameter handling
   useEffect(() => {

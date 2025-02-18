@@ -37,8 +37,14 @@ export async function middleware(request: NextRequest) {
       console.log('Production auth debug:', {
         path: pathname,
         hasToken: !!token,
+        tokenDetails: token ? { ...token, sub: undefined } : null,
         cookies: request.cookies.getAll(),
-        headers: Object.fromEntries(request.headers.entries())
+        headers: Object.fromEntries(request.headers.entries()),
+        env: {
+          hasAuthSecret: !!process.env.AUTH_SECRET,
+          hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
+          nodeEnv: process.env.NODE_ENV
+        }
       })
     }
 
@@ -86,7 +92,17 @@ export async function middleware(request: NextRequest) {
     console.log('Proceeding with request for path:', pathname)
     return NextResponse.next()
   } catch (error) {
-    console.error('Middleware error:', error)
+    console.error('Middleware error:', {
+      error,
+      path: pathname,
+      cookies: request.cookies.getAll(),
+      headers: Object.fromEntries(request.headers.entries()),
+      env: {
+        hasAuthSecret: !!process.env.AUTH_SECRET,
+        hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
+        nodeEnv: process.env.NODE_ENV
+      }
+    })
     return NextResponse.redirect(new URL('/auth/error', request.url))
   }
 }

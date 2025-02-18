@@ -53,20 +53,20 @@ const handler = NextAuth({
     async jwt({ token, user }) {
       // Initial sign in
       if (user) {
-        token.provider = user.provider
-        token.address = user.address
-        token.username = user.username
-        token.queryKey = user.queryKey
+        token.provider = user.provider as string
+        token.address = user.address as string
+        token.username = user.username as string
+        token.queryKey = user.queryKey as string
       }
       return token
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       // Send properties to the client
       if (token) {
-        session.provider = token.provider
-        session.address = token.address
-        session.username = token.username
-        session.queryKey = token.queryKey
+        session.provider = token.provider as string
+        session.address = token.address as string
+        session.username = token.username as string
+        session.queryKey = token.queryKey as string
       }
       return session
     }
@@ -76,7 +76,41 @@ const handler = NextAuth({
   },
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+      }
+    },
+    callbackUrl: {
+      name: `__Secure-next-auth.callback-url`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+      }
+    },
+    csrfToken: {
+      name: `__Host-next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+        domain: process.env.NEXTAUTH_URL ? new URL(process.env.NEXTAUTH_URL).hostname : undefined
+      }
+    }
+  },
+  debug: process.env.NODE_ENV === 'development',
 })
 
 export { handler as GET, handler as POST } 

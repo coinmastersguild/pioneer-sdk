@@ -6,6 +6,7 @@ import { PioneerProvider, usePioneer } from "@coinmasters/pioneer-react"
 import { AppProvider } from '#features/common/providers/app'
 import { AppLoader } from '#components/app-loader/app-loader'
 import { system } from '#theme'
+import { SessionProvider } from 'next-auth/react'
 
 // Get environment variables with fallbacks
 const PIONEER_URL = process.env.NEXT_PUBLIC_PIONEER_URL || 'http://127.0.0.1:9001/spec/swagger.json'
@@ -66,14 +67,16 @@ export function Provider({ children, initialColorMode = 'dark' }: ProviderProps)
   }
 
   return (
-    <ChakraProvider value={system}>
-      <PioneerProvider>
-        <PioneerInitializer onPioneerReady={handlePioneerReady}>
-          <AppProvider onError={(error, info) => console.error(error, info)} initialColorMode={initialColorMode} pioneer={pioneerInstance}>
-            {children}
-          </AppProvider>
-        </PioneerInitializer>
-      </PioneerProvider>
-    </ChakraProvider>
+    <SessionProvider>
+      <ChakraProvider value={system}>
+        <PioneerProvider>
+          <PioneerInitializer onPioneerReady={handlePioneerReady}>
+            <AppProvider onError={(error, info) => console.error(error, info)} initialColorMode={initialColorMode} pioneer={pioneerInstance}>
+              {children}
+            </AppProvider>
+          </PioneerInitializer>
+        </PioneerProvider>
+      </ChakraProvider>
+    </SessionProvider>
   )
 }
