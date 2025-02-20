@@ -11,6 +11,7 @@ import {
   ActionBarSeparator,
 } from '@/components/ui/action-bar';
 import { Table } from "@chakra-ui/react"
+
 // Define the shape of inputsData
 // Adjust as needed for your data structure.
 type InputData = {

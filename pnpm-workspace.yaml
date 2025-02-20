@@ -6,4 +6,5 @@ packages:
   - 'packages/toolboxes/**'
   - 'packages/pioneer/**'
   - 'packages/wallets/**'
+  - 'packages/*'
   - '!internal/generator/template/**'
