@@ -1,6 +1,6 @@
 {
   "name": "keepkey-portfolio-v6",
-  "version": "0.1.27",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

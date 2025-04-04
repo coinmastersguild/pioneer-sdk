@@ -1,5 +1,17 @@
 # @internal/config
 
+## 2.10.0
+
+### Minor Changes
+
+- bump
+
+## 2.9.0
+
+### Minor Changes
+
+- bump
+
 ## 2.8.14
 
 ### Patch Changes

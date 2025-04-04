@@ -1,5 +1,17 @@
 # @swapkit/types
 
+## 4.10.0
+
+### Minor Changes
+
+- bump
+
+## 4.9.0
+
+### Minor Changes
+
+- bump
+
 ## 4.8.14
 
 ### Patch Changes
