@@ -264,11 +264,13 @@ export class TransactionManager {
             //console.log(tag, 'responseSign.value: ', responseSign.value);
             //console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures);
             //console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures[0]);
+            /* Old debug code commented out
             //console.log(
               tag,
               'responseSign.value.signatures: ',
               responseSign.value.signatures[0].serializedTx,
             );
+            */
 
             // Access serializedTx from signatures array
             signedTx = responseSign.value.signatures[0].serializedTx;
