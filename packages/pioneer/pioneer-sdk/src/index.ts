@@ -18,11 +18,11 @@ import { assetData } from '@pioneer-platform/pioneer-discovery';
 import { Events } from '@pioneer-platform/pioneer-events';
 import EventEmitter from 'events';
 
-import { getCharts } from './getCharts';
+import { getCharts } from './getCharts.js';
 //internal
-import { getPubkey } from './getPubkey';
-import { TransactionManager } from './TransactionManager';
-import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx';
+import { getPubkey } from './getPubkey.js';
+import { TransactionManager } from './TransactionManager.js';
+import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
 
 const TAG = ' | Pioneer-sdk | ';
 
@@ -64,10 +64,10 @@ export class SDK {
   public queryKey: string;
   public wss: string;
   public spec: any;
-  public ethplorerApiKey: string;
-  public covalentApiKey: string;
-  public utxoApiKey: string;
-  public walletConnectProjectId: string;
+  public ethplorerApiKey: string | undefined;
+  public covalentApiKey: string | undefined;
+  public utxoApiKey: string | undefined;
+  public walletConnectProjectId: string | undefined;
   public contextType: string;
   public context: string;
   public assetContext: any;
@@ -101,7 +101,7 @@ export class SDK {
   public refresh: () => Promise<any>;
   public setAssetContext: (asset?: any) => Promise<any>;
   public setOutboundAssetContext: (asset?: any) => Promise<any>;
-  public keepkeyApiKey: string;
+  public keepkeyApiKey: string | undefined;
   public isPioneer: string | null;
   public loadBalanceCache: (balances: any) => Promise<void>;
   public loadPubkeyCache: (pubkeys: any) => Promise<void>;
@@ -379,7 +379,15 @@ export class SDK {
         };
 
         let totalPortfolioValue = 0;
-        const networksTemp = [];
+        const networksTemp: Array<{
+          networkId: string;
+          totalValueUsd: number;
+          gasAssetCaip: string | null;
+          gasAssetSymbol: string | null;
+          icon: string | null;
+          color: string | null;
+          totalNativeBalance: string;
+        }> = [];
 
         // Calculate totals for each blockchain
         for (const blockchain of this.blockchains) {
@@ -1198,6 +1206,166 @@ export class SDK {
         console.error(tag, 'Error in getCharts:', e);
         throw e;
       }
+    };
+    this.setContext = async (context: string): Promise<{ success: boolean }> => {
+      const tag = `${TAG} | setContext | `;
+      try {
+        if (!context) throw Error('context required!');
+        this.context = context;
+        this.events.emit('SET_CONTEXT', context);
+        return { success: true };
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        return { success: false };
+      }
+    };
+    this.setContextType = async (contextType: string): Promise<{ success: boolean }> => {
+      const tag = `${TAG} | setContextType | `;
+      try {
+        if (!contextType) throw Error('contextType required!');
+        this.contextType = contextType;
+        this.events.emit('SET_CONTEXT_TYPE', contextType);
+        return { success: true };
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        return { success: false };
+      }
+    };
+    this.refresh = async (): Promise<any> => {
+      const tag = `${TAG} | refresh | `;
+      try {
+        await this.sync();
+        return this.balances;
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        throw e;
+      }
+    };
+    this.setAssetContext = async function (asset?: any): Promise<any> {
+      const tag = `${TAG} | setAssetContext | `;
+      try {
+        // Accept null
+        if (!asset) {
+          this.assetContext = null;
+          return;
+        }
+
+        if (!asset.caip) throw Error('Invalid Asset! missing caip!');
+        if (!asset.networkId) asset.networkId = caipToNetworkId(asset.caip);
+
+        // Try to find the asset in the local assetsMap
+        let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
+        console.log(tag, 'assetInfo: ', assetInfo);
+
+        // If the asset is not found, create a placeholder object
+        if (!assetInfo) {
+          console.log(tag, 'Building placeholder asset!');
+          // Create a placeholder asset if it's not found in Pioneer or locally
+          assetInfo = {
+            caip: asset.caip.toLowerCase(),
+            networkId: asset.networkId,
+            symbol: asset.symbol || 'UNKNOWN',
+            name: asset.name || 'Unknown Asset',
+            icon: asset.icon || 'https://pioneers.dev/coins/ethereum.png',
+          };
+        }
+
+        // Look for price information in balances
+        const matchingBalance = this.balances.find(b => b.caip === asset.caip);
+        if (matchingBalance && matchingBalance.priceUsd) {
+          console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
+          assetInfo.priceUsd = matchingBalance.priceUsd;
+        }
+
+        // Combine the user-provided asset with any additional info we have
+        this.assetContext = { ...assetInfo, ...asset };
+        
+        // Set blockchain context based on asset
+        if (asset.caip) {
+          this.blockchainContext = caipToNetworkId(asset.caip);
+        } else if (asset.networkId) {
+          this.blockchainContext = asset.networkId;
+        }
+        
+        this.events.emit('SET_ASSET_CONTEXT', this.assetContext);
+        return this.assetContext;
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        throw e;
+      }
+    };
+    this.setOutboundAssetContext = async function (asset?: any): Promise<any> {
+      const tag = `${TAG} | setOutputAssetContext | `;
+      try {
+        console.log(tag, '0. asset: ', asset);
+        
+        // Accept null
+        if (!asset) {
+          this.outboundAssetContext = null;
+          return;
+        }
+
+        console.log(tag, '1 asset: ', asset);
+        
+        if (!asset.caip) throw Error('Invalid Asset! missing caip!');
+        if (!asset.networkId) asset.networkId = caipToNetworkId(asset.caip);
+        
+        console.log(tag, 'networkId: ', asset.networkId);
+
+        // Try to find the asset in the local assetsMap
+        let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
+        console.log(tag, 'assetInfo: ', assetInfo);
+
+        // If the asset is not found, create a placeholder object
+        if (!assetInfo) {
+          // Create a placeholder asset if it's not found in Pioneer or locally
+          assetInfo = {
+            caip: asset.caip.toLowerCase(),
+            networkId: asset.networkId,
+            symbol: asset.symbol || 'UNKNOWN',
+            name: asset.name || 'Unknown Asset',
+            icon: asset.icon || 'https://pioneers.dev/coins/ethereum.png',
+          };
+        }
+        
+        // Look for price information in balances
+        const matchingBalance = this.balances.find(b => b.caip === asset.caip);
+        if (matchingBalance && matchingBalance.priceUsd) {
+          console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
+          assetInfo.priceUsd = matchingBalance.priceUsd;
+        }
+
+        console.log(tag, 'CHECKPOINT 1');
+        
+        // Combine the user-provided asset with any additional info we have
+        this.outboundAssetContext = { ...assetInfo, ...asset };
+        
+        console.log(tag, 'CHECKPOINT 3');
+        console.log(tag, 'outboundAssetContext: assetInfo: ', assetInfo);
+        
+        // Set outbound blockchain context based on asset
+        if (asset.caip) {
+          this.outboundBlockchainContext = caipToNetworkId(asset.caip);
+        } else if (asset.networkId) {
+          this.outboundBlockchainContext = asset.networkId;
+        }
+        
+        console.log(tag, 'CHECKPOINT 4');
+        
+        this.events.emit('SET_OUTBOUND_ASSET_CONTEXT', this.outboundAssetContext);
+        return this.outboundAssetContext;
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        throw e;
+      }
+    };
+    this.verifyWallet = async (): Promise<void> => {
+      // Implementation will be added later
+      return Promise.resolve();
+    };
+    this.search = async (query: string, config: any): Promise<void> => {
+      // Implementation will be added later
+      return Promise.resolve();
     };
   }
 }

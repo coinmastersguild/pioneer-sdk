@@ -1,4 +1,4 @@
-import { SDK } from '@coinmasters/pioneer-sdk';
+import SDK from '@coinmasters/pioneer-sdk';
 import { availableChainsByWallet, getChainEnumValue, WalletOption } from '@coinmasters/types';
 //@ts-ignore
 import { caipToNetworkId, ChainToNetworkId } from '@pioneer-platform/pioneer-caip';
@@ -120,7 +120,10 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       });
 
       const api = await appInit.init([], setup);
-      localStorage.setItem('keepkeyApiKey', appInit.keepkeyApiKey);
+      // Only store the keepkeyApiKey if it exists
+      if (appInit.keepkeyApiKey) {
+        localStorage.setItem('keepkeyApiKey', appInit.keepkeyApiKey);
+      }
       //@ts-ignore
       dispatch({ type: WalletActions.SET_API, payload: api });
       //@ts-ignore
