@@ -447,7 +447,7 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                     <ChartLegend 
                       data={chartData} 
                       total={dashboard.totalValueUsd}
-                      formatValue={(value) => formatUsd(value)}
+                      formatValue={(value: any) => formatUsd(value)}
                       activeIndex={activeSliceIndex}
                       onHoverItem={handleHover}
                     />

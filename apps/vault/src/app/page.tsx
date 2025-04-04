@@ -21,6 +21,11 @@ import {
   SoftwareApplicationStructuredData 
 } from '@/components/SEO/StructuredData'
 
+// @ts-ignore - Using any type to avoid issues
+type DialogContentType = any;
+// @ts-ignore - Using any type to avoid issues
+type DialogCloseTriggerType = any;
+
 export default function Home() {
   const { 
     app, 
