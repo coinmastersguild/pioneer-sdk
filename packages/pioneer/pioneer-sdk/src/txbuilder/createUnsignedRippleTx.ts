@@ -25,20 +25,20 @@ export async function createUnsignedRippleTx(
 
     // Determine networkId from caip
     const networkId = caipToNetworkId(caip);
-    console.log(tag, 'networkId:', networkId);
+    //console.log(tag, 'networkId:', networkId);
 
     const relevantPubkeys = pubkeys.filter((e: any) => e.networks.includes(networkId));
     if (relevantPubkeys.length === 0) {
       throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
     }
-    console.log(tag, 'relevantPubkeys:', relevantPubkeys);
+    //console.log(tag, 'relevantPubkeys:', relevantPubkeys);
 
     let accountInfo = await pioneer.GetAccountInfo({
       address: relevantPubkeys[0].address,
       network: 'ripple',
     });
     accountInfo = accountInfo.data;
-    console.log(tag, 'accountInfo:', accountInfo);
+    //console.log(tag, 'accountInfo:', accountInfo);
 
     const sequence = accountInfo.Sequence.toString();
     const ledgerIndexCurrent = accountInfo.ledger_index_current;
@@ -50,7 +50,7 @@ export async function createUnsignedRippleTx(
       desttag = '0';
     }
 
-    console.log(tag, 'amount:', amount);
+    //console.log(tag, 'amount:', amount);
     if (isMax) {
       //balance - 1 (min) - fee
       amount = Number(accountInfo.Balance) - 1000000 - 1;

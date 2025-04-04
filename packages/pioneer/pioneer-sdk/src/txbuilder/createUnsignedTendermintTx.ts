@@ -48,15 +48,15 @@ export async function createUnsignedTendermintTx(
         throw new Error(`Unhandled networkId: ${networkId}`);
     }
 
-    console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
+    //console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
 
     const fromAddress = relevantPubkeys[0].address;
     let asset = caip.split(':')[1]; // Assuming format is "network:asset"
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;
-    console.log('accountInfo: ', accountInfo);
+    //console.log('accountInfo: ', accountInfo);
     let balanceInfo = await pioneer.GetPubkeyBalance({ asset: chain, pubkey: fromAddress });
-    console.log(tag, `balanceInfo: `, balanceInfo);
+    //console.log(tag, `balanceInfo: `, balanceInfo);
 
     let account_number, sequence;
     if (networkId === 'cosmos:cosmoshub-4' || networkId === 'cosmos:osmosis-1') {
@@ -80,14 +80,14 @@ export async function createUnsignedTendermintTx(
     switch (networkId) {
       case 'cosmos:thorchain-mainnet-v1': {
         if (isMax) {
-          console.log('isMax detected! Adjusting amount for fees...');
+          //console.log('isMax detected! Adjusting amount for fees...');
           const fee = 2000000; // Convert fee to smallest unit
           amount = Math.floor(Math.max(0, balanceInfo.data * 1e8 - fee)); // Adjust amount for fees if isMax
         } else {
           amount = Math.floor(amount * 1e8); // Convert amount to smallest unit
         }
         asset = 'rune';
-        console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
+        //console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
         return to
           ? thorchainTransferTemplate({
               account_number,
@@ -136,7 +136,7 @@ export async function createUnsignedTendermintTx(
           amount = Math.max(Math.floor(amount * 1e10), 0); // Floor the multiplication result
         }
 
-        console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
+        //console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
         return to
           ? mayachainTransferTemplate({
               account_number,

@@ -122,7 +122,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
         }
 
         // for (const token of portfolio.tokens) {
-        //   console.log(tag, 'token: ', token);
+        //   //console.log(tag, 'token: ', token);
         //   if (token.assetCaip && token.networkId) {
         //     const balanceString = {
         //       context: context,
@@ -144,11 +144,11 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
         //     };
         //
         //     if (blockchains.includes(balanceString.networkId)) {
-        //       console.log(tag, 'WINNING! balances match!!! saving!!!! ', balanceString);
+        //       //console.log(tag, 'WINNING! balances match!!! saving!!!! ', balanceString);
         //       balances.push(balanceString);
         //       // const exists = balances.some((b) => b.caip === balanceString.caip);
         //       // if (!exists) {
-        //       //   console.log(tag,'adding balance!', balanceString)
+        //       //   //console.log(tag,'adding balance!', balanceString)
         //       //   balances.push(balanceString);
         //       // } else {
         //       //   //already exists!

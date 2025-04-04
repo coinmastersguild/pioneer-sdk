@@ -19,7 +19,7 @@ const Connect: React.FC<ConnectProps> = ({ setIsConnected }) => {
                     connectKeepkey();
                 }
             } catch (error) {
-                console.log('KeepKey endpoint not found, retrying...');
+                //console.log('KeepKey endpoint not found, retrying...');
             }
         }, 5000); // Check every 5 seconds
 
@@ -31,7 +31,7 @@ const Connect: React.FC<ConnectProps> = ({ setIsConnected }) => {
     };
 
     const connectKeepkey = () => {
-        console.log('connectKeepkey called');
+        //console.log('connectKeepkey called');
         setLocalIsConnecting(true);
         try {
             // Simulate successful connection

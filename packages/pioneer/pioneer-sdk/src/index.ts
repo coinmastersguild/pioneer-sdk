@@ -236,13 +236,13 @@ export class SDK {
           wss: this.wss,
         };
         let clientEvents = new Events(configWss);
-        console.log(tag, 'clientEvents: ', clientEvents);
+        //console.log(tag, 'clientEvents: ', clientEvents);
         await clientEvents.init();
         await clientEvents.setUsername(this.username);
 
         //events
         clientEvents.events.on('message', (request) => {
-          console.log(tag, 'request: ', request);
+          //console.log(tag, 'request: ', request);
           this.events.emit('message', request);
         });
 
@@ -352,7 +352,7 @@ export class SDK {
                 this.pubkeys.push(pubkey);
               }
             } else {
-              console.log(tag, ' **** CACHE **** Cache valid for pubkey: ', pubkey);
+              //console.log(tag, ' **** CACHE **** Cache valid for pubkey: ', pubkey);
             }
           }
         }
@@ -446,7 +446,7 @@ export class SDK {
         const btcBalances = this.balances.filter(b => 
           b.caip === 'bip122:000000000019d6689c085ae165831e93/slip44:0'
         );
-        console.log('Bitcoin balances:', btcBalances.map(b => ({
+        //console.log('Bitcoin balances:', btcBalances.map(b => ({
           pubkey: b.pubkey,
           balance: b.balance,
           valueUsd: b.valueUsd
@@ -541,7 +541,7 @@ export class SDK {
         // Update this.balances with unique values
         this.balances = Array.from(uniqueBalances.values());
 
-        console.log(tag, `Total balances after loading cache: ${this.balances.length}`);
+        //console.log(tag, `Total balances after loading cache: ${this.balances.length}`);
       } catch (e) {
         console.error(tag, 'Error loading balance cache:', e);
         throw e;
@@ -551,7 +551,7 @@ export class SDK {
       try {
         sendPayload.isMax = true;
         let unsignedTx = await this.buildTx(sendPayload);
-        console.log('unsignedTx: ', unsignedTx);
+        //console.log('unsignedTx: ', unsignedTx);
       } catch (e) {
         console.error(e);
         throw e;
@@ -571,7 +571,7 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let unsignedTx = await txManager.transfer(sendPayload);
-        console.log(tag, 'unsignedTx: ', unsignedTx);
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
       } catch (e) {
         console.error(e);
@@ -592,7 +592,7 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let signedTx = await txManager.sign(unsignedTx);
-        console.log(tag, 'signedTx: ', signedTx);
+        //console.log(tag, 'signedTx: ', signedTx);
         return signedTx;
       } catch (e) {
         console.error(e);
@@ -617,7 +617,7 @@ export class SDK {
           serialized: signedTx,
         };
         let txid = await txManager.broadcast(payload);
-        console.log(tag, 'txid: ', txid);
+        //console.log(tag, 'txid: ', txid);
         return txid;
       } catch (e) {
         console.error(e);
@@ -635,15 +635,15 @@ export class SDK {
         //Set contexts
         await this.setAssetContext({ caip: swapPayload.caipIn });
         await this.setOutboundAssetContext({ caip: swapPayload.caipOut });
-        console.log(tag, 'assetContext: ', this.assetContext);
-        console.log(tag, 'outboundAssetContext: ', this.outboundAssetContext);
+        //console.log(tag, 'assetContext: ', this.assetContext);
+        //console.log(tag, 'outboundAssetContext: ', this.outboundAssetContext);
 
         if (!this.assetContext || !this.assetContext.networkId)
           throw Error('Invalid networkId for assetContext');
         if (!this.outboundAssetContext || !this.outboundAssetContext.networkId)
           throw Error('Invalid networkId for outboundAssetContext');
-        console.log(tag, 'assetContext networkId: ', this.assetContext.networkId);
-        console.log(tag, 'outboundAssetContext  networkId: ', this.outboundAssetContext.networkId);
+        //console.log(tag, 'assetContext networkId: ', this.assetContext.networkId);
+        //console.log(tag, 'outboundAssetContext  networkId: ', this.outboundAssetContext.networkId);
 
         //get quote
         // Quote fetching logic
@@ -656,16 +656,16 @@ export class SDK {
           senderAddress = senderAddress.replace('bitcoincash:', '');
         }
 
-        console.log(
+        //console.log(
           tag,
           'this.outboundAssetContext.networkId',
           this.outboundAssetContext.networkId,
         );
-        console.log(tag, 'this.pubkeys: ', this.pubkeys);
+        //console.log(tag, 'this.pubkeys: ', this.pubkeys);
         const pubkeysOut = this.pubkeys.filter((e: any) =>
           e.networks.includes(this.outboundAssetContext.networkId),
         );
-        console.log(tag, 'pubkeysOut: ', pubkeysOut);
+        //console.log(tag, 'pubkeysOut: ', pubkeysOut);
         let recipientAddress = pubkeysOut[0]?.address || pubkeysOut[0]?.master;
         if (!recipientAddress) throw new Error('recipientAddress not found! wallet not connected');
         if (recipientAddress.includes('bitcoincash:')) {
@@ -684,13 +684,13 @@ export class SDK {
           senderAddress, // Fill this based on your logic
           slippage: '3',
         };
-        console.log(tag, 'quote: ', quote);
+        //console.log(tag, 'quote: ', quote);
 
         let result: any;
         try {
           result = await this.pioneer.Quote(quote);
           result = result.data;
-          console.log(tag, 'result: ', result);
+          //console.log(tag, 'result: ', result);
         } catch (e) {
           console.error(tag, 'Failed to get quote: ', e);
         }
@@ -701,14 +701,14 @@ export class SDK {
         //TODO let user handle selecting quote?
         let selected = result[0];
         let invocationId = selected.quote.id;
-        console.log('invocationId: ', invocationId);
+        //console.log('invocationId: ', invocationId);
 
-        console.log('txs: ', selected.quote.txs);
+        //console.log('txs: ', selected.quote.txs);
         let txs = selected.quote.txs;
         if (!txs) throw Error('invalid quote!');
         for (let i = 0; i < txs.length; i++) {
           let tx = txs[i];
-          console.log(tag, 'tx: ', tx);
+          //console.log(tag, 'tx: ', tx);
           const transactionDependencies = {
             context: this.context,
             assetContext: this.assetContext,
@@ -746,25 +746,25 @@ export class SDK {
               memo: tx.txParams.memo,
               //Options
             };
-            console.log(tag, 'sendPayload: ', sendPayload);
+            //console.log(tag, 'sendPayload: ', sendPayload);
             unsignedTx = await txManager.transfer(sendPayload);
-            console.log(tag, 'unsignedTx: ', unsignedTx);
+            //console.log(tag, 'unsignedTx: ', unsignedTx);
           }
 
           let signedTx = await txManager.sign({ caip, unsignedTx });
-          console.log(tag, 'signedTx: ', signedTx);
+          //console.log(tag, 'signedTx: ', signedTx);
 
           let payload = {
             networkId: caipToNetworkId(caip),
             serialized: signedTx,
           };
-          console.log(tag, 'payload: ', payload);
+          //console.log(tag, 'payload: ', payload);
 
           let txid = await txManager.broadcast(payload);
           if (txid.error) {
             throw Error('Failed to broadcast transaction! error:' + txid.error);
           }
-          console.log(tag, 'txid: ', txid);
+          //console.log(tag, 'txid: ', txid);
           return { txid, events: this.events };
         }
       } catch (e) {
@@ -792,13 +792,13 @@ export class SDK {
           isMax: sendPayload.isMax,
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
-        console.log(tag, 'sendPayload: ', sendPayload);
+        //console.log(tag, 'sendPayload: ', sendPayload);
         let unsignedTx = await txManager.transfer(sendPayload);
-        console.log(tag, 'unsignedTx: ', unsignedTx);
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
 
         // Sign the transaction
         let signedTx = await txManager.sign({ caip, unsignedTx });
-        console.log(tag, 'signedTx: ', signedTx);
+        //console.log(tag, 'signedTx: ', signedTx);
         if (!signedTx) throw Error('Failed to sign transaction!');
         // Broadcast the transaction
         let payload = {
@@ -806,7 +806,7 @@ export class SDK {
           serialized: signedTx,
         };
         let txid = await txManager.broadcast(payload);
-        console.log(tag, 'txid: ', txid);
+        //console.log(tag, 'txid: ', txid);
         return { txid, events: this.events };
       } catch (error: unknown) {
         if (error instanceof Error) {
@@ -843,7 +843,7 @@ export class SDK {
 
               if (txInfo.txid && detectedTime === null) {
                 detectedTime = Date.now();
-                console.log(
+                //console.log(
                   tag,
                   `Time from broadcast to detection: ${formatTime(detectedTime - broadcastTime)}`,
                 );
@@ -854,7 +854,7 @@ export class SDK {
                 confirmTime = Date.now();
 
                 if (detectedTime !== null && confirmTime !== null) {
-                  console.log(
+                  //console.log(
                     tag,
                     `Time from detection to confirmation: ${formatTime(
                       confirmTime - detectedTime,
@@ -1087,12 +1087,12 @@ export class SDK {
           }
         }
 
-        console.log(tag, 'assetQuery length: ', assetQuery.length);
+        //console.log(tag, 'assetQuery length: ', assetQuery.length);
         console.time('GetPortfolioBalances Response Time');
         let marketInfo = await this.pioneer.GetPortfolioBalances(assetQuery);
         console.timeEnd('GetPortfolioBalances Response Time');
 
-        console.log(tag, 'returned balances: ', marketInfo.data);
+        //console.log(tag, 'returned balances: ', marketInfo.data);
         let balances = marketInfo.data;
 
         // Enrich balances with asset info
@@ -1130,7 +1130,7 @@ export class SDK {
     this.getBalance = async function (networkId: string) {
       const tag = `${TAG} | getBalance | `;
       try {
-        console.log(tag, 'networkId:', networkId);
+        //console.log(tag, 'networkId:', networkId);
         // If we need to handle special logic like eip155: inside getBalance,
         // we can do it here or just rely on getBalancesForNetworks to handle it.
         // For example:
@@ -1155,7 +1155,7 @@ export class SDK {
     this.getCharts = async function () {
       const tag = `${TAG} | getCharts | `;
       try {
-        console.log(tag, 'Fetching charts');
+        //console.log(tag, 'Fetching charts');
 
         // Fetch balances from the `getCharts` function
         const newBalances = await getCharts(
@@ -1186,7 +1186,7 @@ export class SDK {
           return true; // Include valid balances
         });
 
-        console.log(tag, `Total unique balances after charts update: ${this.balances.length}`);
+        //console.log(tag, `Total unique balances after charts update: ${this.balances.length}`);
         return this.balances;
       } catch (e) {
         console.error(tag, 'Error in getCharts:', e);
@@ -1223,7 +1223,7 @@ export class SDK {
 
         // If the asset is not found, create a placeholder object
         if (!assetInfo) {
-          console.log(tag, 'Building placeholder asset!');
+          //console.log(tag, 'Building placeholder asset!');
           // Create a placeholder asset if it's not found in Pioneer or locally
           assetInfo = {
             chain: asset.chain || asset.name || 'Unknown Chain',
@@ -1286,8 +1286,8 @@ export class SDK {
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
           if (balance.priceUsd && parseFloat(balance.priceUsd) > 0) {
-            console.log(tag, 'detected priceUsd from assetInfo');
-            console.log(tag, 'balance.priceUsd:', balance.priceUsd);
+            //console.log(tag, 'detected priceUsd from assetInfo');
+            //console.log(tag, 'balance.priceUsd:', balance.priceUsd);
             priceUsd = balance.priceUsd;
           }
           balanceTotal = balanceTotal + parseFloat(balance.balance);
@@ -1320,7 +1320,7 @@ export class SDK {
     this.setOutboundAssetContext = async function (asset: any) {
       const tag = `${TAG} | setOutputAssetContext | `;
       try {
-        console.log(tag, '0. asset: ', asset);
+        //console.log(tag, '0. asset: ', asset);
         //accept null
         if (!asset) {
           this.outboundAssetContext = null;
@@ -1329,13 +1329,13 @@ export class SDK {
         if (!asset.caip) throw Error('Invalid Asset! missing caip!');
         if (!asset.networkId) asset.networkId = caipToNetworkId(asset.caip);
         if (!asset.networkId) throw Error('Invalid Asset! missing networkId!');
-        console.log(tag, '1 asset: ', asset);
-        console.log(tag, 'networkId: ', asset.networkId);
+        //console.log(tag, '1 asset: ', asset);
+        //console.log(tag, 'networkId: ', asset.networkId);
 
         let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
         // if (!assetInfo) throw Error('Missing assetInfo for caip: ' + asset.caip);
         if (!assetInfo) {
-          console.log(tag, 'Building placeholder asset!');
+          //console.log(tag, 'Building placeholder asset!');
           // Create a placeholder asset if it's not found in Pioneer or locally
           assetInfo = {
             chain: asset.chain || asset.name || 'Unknown Chain',
@@ -1374,7 +1374,7 @@ export class SDK {
           // Add asset to assetsMap and DB if it's missing
           this.assetsMap.set(asset.caip.toLowerCase(), assetInfo);
         }
-        console.log(tag, 'assetInfo: ', assetInfo);
+        //console.log(tag, 'assetInfo: ', assetInfo);
 
         //find related pubkeys
         let networkId = assetInfo.networkId;
@@ -1392,8 +1392,8 @@ export class SDK {
         for (let i = 0; i < balances.length; i++) {
           let balance = balances[i];
           if (balance.priceUsd && parseFloat(balance.priceUsd) > 0) {
-            console.log(tag, 'detected priceUsd from assetInfo');
-            console.log(tag, 'balance.priceUsd:', balance.priceUsd);
+            //console.log(tag, 'detected priceUsd from assetInfo');
+            //console.log(tag, 'balance.priceUsd:', balance.priceUsd);
             priceUsd = balance.priceUsd;
           }
           balanceTotal = balanceTotal + parseFloat(balance.balance);
@@ -1402,19 +1402,19 @@ export class SDK {
         assetInfo.priceUsd = priceUsd;
         assetInfo.balance = balanceTotal.toString();
 
-        console.log(tag, 'CHECKPOINT 1');
+        //console.log(tag, 'CHECKPOINT 1');
         //get marketInfo for asset
-        console.log(tag, 'CHECKPOINT 3');
+        //console.log(tag, 'CHECKPOINT 3');
         //this.events.emit('SET_OUTBOUND_ASSET_CONTEXT', assetInfo);
-        console.log(tag, 'outboundAssetContext: assetInfo: ', assetInfo);
+        //console.log(tag, 'outboundAssetContext: assetInfo: ', assetInfo);
         this.outboundAssetContext = assetInfo;
-        console.log(tag, 'CHECKPOINT 4');
+        //console.log(tag, 'CHECKPOINT 4');
 
         // try {
         //   let priceData = await this.pioneer.MarketInfo({
         //     caip: assetInfo.caip.toLowerCase(),
         //   });
-        //   console.log(tag, 'CHECKPOINT 2');
+        //   //console.log(tag, 'CHECKPOINT 2');
         //   priceData = priceData?.data || {};
         //   assetInfo = { ...assetInfo, ...priceData };
         // } catch (e) {

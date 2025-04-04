@@ -33,7 +33,7 @@ const AssetTable = ({ usePioneer, onSelect }: any) => {
             app
               .syncMarket()
               .then(() => {
-                  console.log("syncMarket called from AssetTable");
+                  //console.log("syncMarket called from AssetTable");
                   // Artificially adjust all balances by +0.01 for testing
                   if (app.balances && Array.isArray(app.balances)) {
                       app.balances = app.balances.map((balance: any) => {
@@ -56,8 +56,8 @@ const AssetTable = ({ usePioneer, onSelect }: any) => {
         const tag = " | onStart | ";
         try {
             const networks = app.blockchains;
-            console.log(tag, "networks", networks);
-            console.log(tag, "balances", app.balances);
+            //console.log(tag, "networks", networks);
+            //console.log(tag, "balances", app.balances);
 
             const networkBalances = networks.map((network: any) => {
                 const balancesForNetwork = balances.filter(

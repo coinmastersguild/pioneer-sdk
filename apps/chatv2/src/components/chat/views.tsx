@@ -91,8 +91,8 @@ export function renderViewMessage(viewMessage: any, index: number, app: any) {
 
   const { view } = viewMessage;
   let username = app?.username || 'anonymous'
-  console.log(tag,'view: ',view)
-  console.log(tag,'view: ',view?.type)
+  //console.log(tag,'view: ',view)
+  //console.log(tag,'view: ',view?.type)
   
   // If view is missing or malformed, show as JSON
   if (!view || !view.type) {

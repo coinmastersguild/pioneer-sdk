@@ -15,10 +15,10 @@ export default function RootPage() {
 
   useEffect(() => {
     const initPioneer = async () => {
-      console.log('🚀 Initializing Pioneer at root level')
+      //console.log('🚀 Initializing Pioneer at root level')
       try {
         await onStartApp()
-        console.log('✅ Pioneer initialized successfully')
+        //console.log('✅ Pioneer initialized successfully')
       } catch (e) {
         console.error('❌ Pioneer initialization error:', e)
       }

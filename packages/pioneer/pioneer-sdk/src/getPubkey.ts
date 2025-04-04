@@ -9,7 +9,7 @@ import {
 export const getPubkey = async (networkId: string, path: any, sdk: any, context: string) => {
   const tag = `| getPubkey | `;
   try {
-    console.log(tag, 'path:', path);
+    //console.log(tag, 'path:', path);
 
     if (!path || !path.addressNList) {
       throw new Error('Invalid or missing path provided for pubkey retrieval');
@@ -46,7 +46,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     const networkType = networkIdToType[networkId];
     let address;
 
-    console.log(tag, 'networkType:', networkType, 'networkId:', networkId, 'chain:', chain, 'addressInfo:', addressInfo)
+    //console.log(tag, 'networkType:', networkType, 'networkId:', networkId, 'chain:', chain, 'addressInfo:', addressInfo)
     switch (networkType) {
       case 'UTXO':
         //console.log(tag, 'UTXO addressInfo:', addressInfo);
@@ -81,7 +81,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     pubkey.master = address;
     pubkey.address = address;
     if (['xpub', 'ypub', 'zpub'].includes(path.type)) {
-      console.log(tag, 'Getting xpub for path:', path);
+      //console.log(tag, 'Getting xpub for path:', path);
 
       const pathQuery = {
         symbol: 'BTC',

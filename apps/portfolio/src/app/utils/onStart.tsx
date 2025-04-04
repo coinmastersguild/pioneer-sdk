@@ -16,7 +16,7 @@ export const useOnStartApp = () => {
 
             // Subscribe to all events
             events.on('*', (action: string, data: any) => {
-                console.log('Event: ',action, data);
+                //console.log('Event: ',action, data);
                 toaster.create({
                     title: `Event: ${action}`,
                     description: JSON.stringify(data),

@@ -4,11 +4,11 @@ import { LuCommand, LuTag } from 'react-icons/lu'
 
 export const bulkActions = ({ selections }: { selections: Array<string> }) => {
   const handleAddTags = () => {
-    console.log('Add tags', selections)
+    //console.log('Add tags', selections)
   }
 
   const handleCommand = () => {
-    console.log('Command', selections)
+    //console.log('Command', selections)
   }
 
   return (

@@ -118,19 +118,19 @@ export async function createUnsignedEvmTx(
     // Fetch gas price in gwei and convert to wei
     const gasPriceData = await pioneer.GetGasPriceByNetwork({ networkId });
     const gasPriceGwei = gasPriceData.data; // Ensure this is in gwei
-    console.log(tag, 'gasPrice (gwei):', gasPriceGwei);
+    //console.log(tag, 'gasPrice (gwei):', gasPriceGwei);
 
     const gasPrice = BigInt(gasPriceGwei); // Convert gwei to wei
 
     const nonceData = await pioneer.GetNonceByNetwork({ networkId, address });
     const nonce = nonceData.data;
     if (nonce === undefined || nonce === null) throw new Error('Failed to fetch nonce');
-    console.log(tag, 'nonce:', nonce);
+    //console.log(tag, 'nonce:', nonce);
 
     const balanceData = await pioneer.GetBalanceAddressByNetwork({ networkId, address });
     const balanceEth = balanceData.data; // Assuming this is in ETH
     const balance = BigInt(Math.round(balanceEth * 1e18)); // Convert to wei
-    console.log(tag, 'balance (wei):', balance.toString());
+    //console.log(tag, 'balance (wei):', balance.toString());
     if (balance <= 0n) throw new Error('Wallet balance is zero');
 
     // Classify asset type by CAIP
@@ -148,11 +148,11 @@ export async function createUnsignedEvmTx(
         if (memo && memo !== '') {
           const memoBytes = Buffer.from(memo, 'utf8').length;
           gasLimit += BigInt(memoBytes) * 68n; // Approximate additional gas
-          console.log(tag, 'Adjusted gasLimit for memo:', gasLimit.toString());
+          //console.log(tag, 'Adjusted gasLimit for memo:', gasLimit.toString());
         }
 
         const gasFee = gasPrice * gasLimit;
-        console.log(tag, 'gasFee (wei):', gasFee.toString());
+        //console.log(tag, 'gasFee (wei):', gasFee.toString());
 
         let amountWei;
         if (isMax) {
@@ -167,7 +167,7 @@ export async function createUnsignedEvmTx(
           }
         }
 
-        console.log(tag, 'amountWei:', amountWei.toString());
+        //console.log(tag, 'amountWei:', amountWei.toString());
         unsignedTx = {
           chainId,
           nonce: toHex(nonce),
@@ -188,7 +188,7 @@ export async function createUnsignedEvmTx(
         if (memo && memo !== '') {
           const memoBytes = Buffer.from(memo, 'utf8').length;
           gasLimit += BigInt(memoBytes) * 68n; // Approximate additional gas
-          console.log(tag, 'Adjusted gasLimit for memo:', gasLimit.toString());
+          //console.log(tag, 'Adjusted gasLimit for memo:', gasLimit.toString());
         }
 
         const gasFee = gasPrice * gasLimit;
@@ -248,7 +248,7 @@ export async function createUnsignedEvmTx(
     // Address path for hardware wallets (e.g., BIP44 path for Ethereum)
     unsignedTx.addressNList = [0x80000000 + 44, 0x80000000 + 60, 0x80000000, 0, 0];
 
-    console.log(tag, 'Unsigned Transaction:', unsignedTx);
+    //console.log(tag, 'Unsigned Transaction:', unsignedTx);
     return unsignedTx;
   } catch (error) {
     console.error(tag, 'Error:', error.message);

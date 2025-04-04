@@ -32,7 +32,7 @@ export const ConnectWalletStep = () => {
   // Check if wallet is already connected
   useEffect(() => {
     if (pioneer.state.app?.queryKey) {
-      console.log('Wallet already connected from login, advancing step...');
+      //console.log('Wallet already connected from login, advancing step...');
       stepper.setStep(stepper.value + 1);
       return;
     }
@@ -47,7 +47,7 @@ export const ConnectWalletStep = () => {
           setIsDesktopRunning(true);
         }
       } catch (error) {
-        console.log('KeepKey endpoint not found');
+        //console.log('KeepKey endpoint not found');
       } finally {
         setHasCheckedEndpoint(true);
       }

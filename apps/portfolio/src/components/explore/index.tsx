@@ -47,11 +47,11 @@ export function Explore({ usePioneer, setCurrentNav }: any): JSX.Element {
 
   const onStart = async function () {
     let globals = await app.pioneer.Globals()
-    console.log("globals: ", globals.data)
+    //console.log("globals: ", globals.data)
     setAssets(globals.data.info.assets)
     setBlockchains(globals.data.info.blockchains)
 
-    console.log('assets: ',app.assets)
+    //console.log('assets: ',app.assets)
 
     // Convert the assets object into a normal array for filtering
     if (app.assets) {
@@ -77,13 +77,13 @@ export function Explore({ usePioneer, setCurrentNav }: any): JSX.Element {
 
     try {
       let skip = page * pageSize;
-      console.log('app.pioneer ',app.pioneer)
+      //console.log('app.pioneer ',app.pioneer)
       let response = await app.pioneer.ListAssetsPageniate({
         limit: pageSize,
         skip: skip,
         query: searchQuery // Pass the search query to the API
       });
-      console.log('response:  ',response.data)
+      //console.log('response:  ',response.data)
       if (page === 0) {
         setData(response.data); // Replace data for new search
       } else {
@@ -165,7 +165,7 @@ export function Explore({ usePioneer, setCurrentNav }: any): JSX.Element {
   // Add a new function to handle asset clicks
   const handleAssetClick = async (asset: any) => {
     try{
-      console.log("Asset clicked:", asset);
+      //console.log("Asset clicked:", asset);
       await app.setAssetContext(asset);
       setCurrentNav('wallet')
       // Show a toast with the selected context

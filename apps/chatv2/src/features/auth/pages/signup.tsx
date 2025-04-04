@@ -43,7 +43,7 @@ export const SignupPage = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      console.log('Starting Google sign-up...')
+      //console.log('Starting Google sign-up...')
       const result = await signIn('google', {
         callbackUrl: '/',
         redirect: false

@@ -49,10 +49,10 @@ export async function createUnsignedUxtoTx(
 
     const utxos: any[] = [];
     for (const pubkey of relevantPubkeys) {
-      console.log('pubkey: ',pubkey)
+      //console.log('pubkey: ',pubkey)
       let utxosResp = await pioneer.ListUnspent({ network: chain, xpub: pubkey.pubkey });
       utxosResp = utxosResp.data;
-      console.log('utxosResp: ',utxosResp)
+      //console.log('utxosResp: ',utxosResp)
       //classify scriptType
       let scriptType = pubkey.scriptType
       // Assign the scriptType to each UTXO in the array
@@ -116,23 +116,23 @@ export async function createUnsignedUxtoTx(
 
     let result;
     if (isMax) {
-      console.log(tag, 'isMax:', isMax);
+      //console.log(tag, 'isMax:', isMax);
       // For max send, use coinSelectSplit
       result = coinSelectSplit(utxos, [{ address: to }], effectiveFeeRate);
     } else {
-      console.log(tag, 'isMax:', isMax)
+      //console.log(tag, 'isMax:', isMax)
       // Regular send
       result = coinSelect(utxos, [{ address: to, value: amount }], effectiveFeeRate);
     }
-    console.log(tag, 'result:', result);
+    //console.log(tag, 'result:', result);
     let { inputs, outputs, fee } = result;
     if (!inputs) throw Error('Failed to create transaction: Missing inputs');
     if (!outputs) throw Error('Failed to create transaction: Missing outputs');
     if (fee === undefined) throw Error('Failed to calculate transaction fee');
 
     const uniqueInputSet = new Set();
-    console.log(tag,'inputs:', inputs);
-    console.log(tag,'inputs:', inputs[0]);
+    //console.log(tag,'inputs:', inputs);
+    //console.log(tag,'inputs:', inputs[0]);
     const preparedInputs = inputs
       .map(transformInput)
       .filter(({ hash, index }) =>
@@ -174,11 +174,11 @@ export async function createUnsignedUxtoTx(
     }
 
     let unsignedTx = { inputs: preparedInputs, outputs: preparedOutputs, memo };
-    console.log(tag, 'unsignedTx:', unsignedTx);
+    //console.log(tag, 'unsignedTx:', unsignedTx);
 
     return unsignedTx;
   } catch (error) {
-    console.log(tag, 'Error:', error);
+    //console.log(tag, 'Error:', error);
     throw error;
   }
 }

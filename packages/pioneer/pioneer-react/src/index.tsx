@@ -88,7 +88,7 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
 
       let keepkeyApiKey = localStorage.getItem('keepkeyApiKey');
       if (!keepkeyApiKey) keepkeyApiKey = '123';
-      console.log(tag, '(from localstorage) keepkeyApiKey: ', keepkeyApiKey);
+      //console.log(tag, '(from localstorage) keepkeyApiKey: ', keepkeyApiKey);
 
       const walletType = WalletOption.KEEPKEY;
       const allSupported = availableChainsByWallet[walletType];
@@ -104,8 +104,8 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       const wss = setup.wss || 'wss://pioneers.dev';
 
       //@ts-ignore
-      console.log(tag, 'spec: ', spec);
-      console.log(tag, 'wss: ', wss);
+      //console.log(tag, 'spec: ', spec);
+      //console.log(tag, 'wss: ', wss);
 
       const appInit = new SDK(spec, {
         spec,
@@ -146,7 +146,7 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
 
       appInit.events.on('*', (action: string, data: any) => {
         eventEmitter.emit(action, data);
-        console.log(TAG, 'Event:', action, data);
+        //console.log(TAG, 'Event:', action, data);
       });
 
       return appInit.events;

@@ -94,9 +94,9 @@ export function Swap({ usePioneer }: any): JSX.Element {
   const fetchQuote = async () => {
     let tag = " | fetchQuote | "
     try{
-      console.log(tag,'Fetching quote...');
-      console.log(tag,'inputAmount:',inputAmount)
-      console.log(tag,'inputAmount:',typeof(inputAmount))
+      //console.log(tag,'Fetching quote...');
+      //console.log(tag,'inputAmount:',inputAmount)
+      //console.log(tag,'inputAmount:',typeof(inputAmount))
 
       if(!app.assetContext || !app.outboundAssetContext) throw Error('Invalid state, must have contexts set!')
 
@@ -109,9 +109,9 @@ export function Swap({ usePioneer }: any): JSX.Element {
         slippagePercentage: 5,
       };
 
-      console.log(tag,'swapPayload: ', swapPayload);
+      //console.log(tag,'swapPayload: ', swapPayload);
       const txid = await app.swap(swapPayload);
-      console.log('txid: ',txid)
+      //console.log('txid: ',txid)
 
       // // Quote fetching logic
       // const pubkeys = app.pubkeys.filter((e: any) => e.networks.includes(assetContext.networkId));
@@ -137,11 +137,11 @@ export function Swap({ usePioneer }: any): JSX.Element {
       //   senderAddress, // Fill this based on your logic
       //   slippage: '3',
       // }
-      // console.log(tag,'quote: ',quote)
+      // //console.log(tag,'quote: ',quote)
       //
       // let result = await app.pioneer.Quote(quote);
       // result = result.data;
-      // console.log(tag,'result:',result)
+      // //console.log(tag,'result:',result)
       //
       // if (result && result.length > 0) {
       //   setQuotesData(result);

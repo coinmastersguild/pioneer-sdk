@@ -167,10 +167,10 @@ export const authConfig: NextAuthOptions = {
   },
   events: {
     async signIn({ user, account, profile, isNewUser }) {
-      console.log('Sign in event:', { user, account, isNewUser })
+      //console.log('Sign in event:', { user, account, isNewUser })
     },
     async signOut({ session, token }) {
-      console.log('Sign out event:', { session, token })
+      //console.log('Sign out event:', { session, token })
     }
   }
 } 

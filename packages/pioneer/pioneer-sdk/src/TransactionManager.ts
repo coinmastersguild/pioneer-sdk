@@ -63,7 +63,7 @@ export class TransactionManager {
       let unsignedTx;
       switch (type) {
         case 'UTXO': {
-          console.log(tag, 'UTXO transaction');
+          //console.log(tag, 'UTXO transaction');
           unsignedTx = await createUnsignedUxtoTx(
             caip,
             to,
@@ -77,7 +77,7 @@ export class TransactionManager {
           break;
         }
         case 'TENDERMINT': {
-          console.log(tag, 'Tendermint transaction');
+          //console.log(tag, 'Tendermint transaction');
           const txType = 'transfer';
           unsignedTx = await createUnsignedTendermintTx(
             caip,
@@ -93,7 +93,7 @@ export class TransactionManager {
           break;
         }
         case 'EIP155': {
-          console.log(tag, 'EIP-155 transaction');
+          //console.log(tag, 'EIP-155 transaction');
           unsignedTx = await createUnsignedEvmTx(
             caip,
             to,
@@ -107,7 +107,7 @@ export class TransactionManager {
           break;
         }
         case 'OTHER': {
-          console.log(tag, 'Other transaction type');
+          //console.log(tag, 'Other transaction type');
           unsignedTx = await createUnsignedRippleTx(
             caip,
             to,
@@ -157,7 +157,7 @@ export class TransactionManager {
             signPayload.opReturnData = unsignedTx.memo;
           }
 
-          console.log('signPayload: ', JSON.stringify(signPayload));
+          //console.log('signPayload: ', JSON.stringify(signPayload));
           const responseSign = await this.keepKeySdk.utxo.utxoSignTransaction(signPayload);
           signedTx = responseSign.serializedTx;
           break;
@@ -166,10 +166,10 @@ export class TransactionManager {
           switch (caip) {
             case 'cosmos:cosmoshub-4/slip44:118': {
               if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
-                console.log(tag, 'transfer:');
-                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                //console.log(tag, 'transfer:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.cosmos.cosmosSignAmino(unsignedTx);
-                console.log(tag, 'responseSign:', responseSign);
+                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
@@ -179,12 +179,12 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:osmosis-1/slip44:118': {
-              console.log(tag, 'Osmosis transaction');
+              //console.log(tag, 'Osmosis transaction');
               if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
-                console.log(tag, 'osmosis transfer:');
-                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                //console.log(tag, 'osmosis transfer:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.osmosis.osmosisSignAmino(unsignedTx);
-                console.log(tag, 'responseSign:', responseSign);
+                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
@@ -194,21 +194,21 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:thorchain-mainnet-v1/slip44:931': {
-              console.log(tag, 'Thorchain transaction');
+              //console.log(tag, 'Thorchain transaction');
               //transfer
               if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
-                console.log(tag, 'MsgSend:');
-                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                //console.log(tag, 'MsgSend:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
-                console.log(tag, 'responseSign:', responseSign);
+                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgDeposit') {
-                console.log(tag, 'MsgDeposit:');
-                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                //console.log(tag, 'MsgDeposit:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);
-                console.log(tag, 'responseSign:', responseSign);
+                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
@@ -219,20 +219,20 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:mayachain-mainnet-v1/slip44:931': {
-              console.log(tag, ' mayachain tx detected! ');
+              //console.log(tag, ' mayachain tx detected! ');
               if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgSend') {
-                console.log(tag, 'transfer:');
-                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                //console.log(tag, 'transfer:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.mayachain.mayachainSignAminoTransfer(unsignedTx);
-                console.log(tag, 'responseSign:', responseSign);
+                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgDeposit') {
-                console.log(tag, 'transfer:');
-                console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                //console.log(tag, 'transfer:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.mayachain.mayachainSignAminoDeposit(unsignedTx);
-                console.log(tag, 'responseSign:', responseSign);
+                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
@@ -249,22 +249,22 @@ export class TransactionManager {
         }
         case 'EIP155': {
           const responseSign = await this.keepKeySdk.eth.ethSignTransaction(unsignedTx);
-          console.log(tag, 'responseSign: ', responseSign);
+          //console.log(tag, 'responseSign: ', responseSign);
           if (!responseSign.serialized) throw new Error('Failed to sign transaction');
           signedTx = responseSign.serialized;
           break;
         }
         case 'OTHER': {
-          console.log(tag, 'OTHER: ', caip);
+          //console.log(tag, 'OTHER: ', caip);
           if (caip === 'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144') {
-            console.log(tag, 'unsignedTx: ', JSON.stringify(unsignedTx));
+            //console.log(tag, 'unsignedTx: ', JSON.stringify(unsignedTx));
             let responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
-            console.log(tag, 'responseSign: ', responseSign);
+            //console.log(tag, 'responseSign: ', responseSign);
             if (typeof responseSign === 'string') responseSign = JSON.parse(responseSign);
-            console.log(tag, 'responseSign.value: ', responseSign.value);
-            console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures);
-            console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures[0]);
-            console.log(
+            //console.log(tag, 'responseSign.value: ', responseSign.value);
+            //console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures);
+            //console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures[0]);
+            //console.log(
               tag,
               'responseSign.value.signatures: ',
               responseSign.value.signatures[0].serializedTx,
@@ -296,7 +296,7 @@ export class TransactionManager {
       if (!serialized) throw Error('Failed to broadcast! missing serialized2');
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
-      console.log(tag, 'result:', result);
+      //console.log(tag, 'result:', result);
       if (result.error) {
         return result;
       } else {

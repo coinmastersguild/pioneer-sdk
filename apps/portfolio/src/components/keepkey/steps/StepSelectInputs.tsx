@@ -19,7 +19,7 @@ export function StepSelectInputs() {
   } = useTransferContext();
 
   const handleReviewUTXOs = () => {
-    console.log("Reviewing UTXOs...");
+    //console.log("Reviewing UTXOs...");
     // Implement UTXO review logic here (e.g., navigate to another page or open a modal)
   };
 

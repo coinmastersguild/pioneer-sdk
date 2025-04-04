@@ -1,7 +1,7 @@
 // theme.ts
 import { createSystem, defineConfig } from '@chakra-ui/react'
 import { defaultConfig } from '@saas-ui-pro/react'
-// console.log('defaultConfig: ',defaultConfig)
+// //console.log('defaultConfig: ',defaultConfig)
 
 //colorPalette.solid
 const config = defineConfig({

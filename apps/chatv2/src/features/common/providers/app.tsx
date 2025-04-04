@@ -44,7 +44,7 @@ export function AppProvider({
   const queryClient = getQueryClient()
 
   useHotkeys('ctrl+shift+d', () => {
-    console.log('Toggle devtools')
+    //console.log('Toggle devtools')
   })
 
   return (

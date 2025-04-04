@@ -190,7 +190,7 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
     const buildTx = useCallback(async () => {
         let tag = TAG + " | buildTx | "
         try{
-            console.log(tag,"buildTx clicked!!!! ")
+            //console.log(tag,"buildTx clicked!!!! ")
             //
             setIsSubmitting(true);
             setUnsignedTx(null);
@@ -201,7 +201,7 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
             let outputs: { address?: string; amount?: string; opReturn?: string }[] = [];
 
             if (!batchEnabled) {
-                console.log(tag," Not a Batch TX")
+                //console.log(tag," Not a Batch TX")
                 // Single
                 // if (!recipient || !validateAddress(recipient)) {
                 //     toaster.create({
@@ -223,11 +223,11 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
                 // }
 
                 let params = { address: recipient, amount: inputAmount }
-                console.log(tag," params: ",params)
+                //console.log(tag," params: ",params)
 
                 outputs.push(params);
             } else {
-                console.log(tag," Batch TX! ")
+                //console.log(tag," Batch TX! ")
                 // Batch
                 const cleaned = batchOutputs.filter(o => o.recipient && validateAddress(o.recipient) && o.amount);
                 if (cleaned.length === 0) {
@@ -253,12 +253,12 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
                 feeLevel:5, //TODO fee level
                 isMax,
             };
-            console.log(tag,"sendPayload: ",sendPayload)
+            //console.log(tag,"sendPayload: ",sendPayload)
             // Simulate building tx
             // await new Promise(res => setTimeout(res, 1000));
 
             try {
-                console.log(tag,"sendPayload: ",sendPayload)
+                //console.log(tag,"sendPayload: ",sendPayload)
 
                 /*
                             const sendPayload = {
@@ -272,7 +272,7 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
                  */
 
                 let unsignedTxResult = await app.buildTx(sendPayload);
-                console.log(tag,"unsignedTxResult: ",unsignedTxResult)
+                //console.log(tag,"unsignedTxResult: ",unsignedTxResult)
 
                 let transactionState: any = {
                     method: 'transfer',
@@ -326,7 +326,7 @@ function TransferProvider({ app, children }: { app: any; children: React.ReactNo
             }
             try {
                 let broadcast = await app.broadcastTx(caip, signedTx);
-                console.log(tag,"broadcast: ",broadcast)
+                //console.log(tag,"broadcast: ",broadcast)
                 const finalTxHash = broadcast.txHash || broadcast.txid;
                 setTxHash(finalTxHash);
                 setBroadcastResult(broadcast);

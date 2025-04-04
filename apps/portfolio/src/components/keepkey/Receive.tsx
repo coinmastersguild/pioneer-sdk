@@ -12,7 +12,7 @@ export function Receive({ usePioneer }: any) {
 
     useEffect(() => {
         if (app.assetContext) {
-            console.log(app.assetContext);
+            //console.log(app.assetContext);
             setAvatarUrl(app.assetContext.icon)
         }
         // if (assetContext?.pubkeys?.length > 0) {

@@ -28,7 +28,7 @@ const ActionCell: DataGridCell<Contact> = (cell) => {
       <OverflowMenu.Root lazyMount portalled>
         <OverflowMenu.Item
           value="delete"
-          onClick={() => console.log(cell.row.id)}
+          onClick={() => //console.log(cell.row.id)}
         >
           Delete
         </OverflowMenu.Item>

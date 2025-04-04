@@ -20,7 +20,7 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     pathname.startsWith('/auth/')
   ) {
-    console.log('Skipping middleware for static/api path:', pathname)
+    //console.log('Skipping middleware for static/api path:', pathname)
     return NextResponse.next()
   }
 
@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
 
     // Add debug logging in production
     if (process.env.NODE_ENV === 'production') {
-      console.log('Production auth debug:', {
+      //console.log('Production auth debug:', {
         path: pathname,
         hasToken: !!token,
         tokenDetails: token ? { ...token, sub: undefined } : null,
@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
       })
     }
 
-    console.log('Auth token status:', token ? 'present' : 'missing', 'for path:', pathname)
+    //console.log('Auth token status:', token ? 'present' : 'missing', 'for path:', pathname)
 
     // Allow root path to be handled by page.tsx
     if (pathname === '/') {
@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
     // Special handling for getting-started page
     if (pathname === '/getting-started') {
       if (!token) {
-        console.log('Unauthenticated user on getting-started, redirecting to login')
+        //console.log('Unauthenticated user on getting-started, redirecting to login')
         const loginUrl = new URL('/login', request.url)
         return NextResponse.redirect(loginUrl)
       }
@@ -78,18 +78,18 @@ export async function middleware(request: NextRequest) {
 
     // If on login page and already authenticated, redirect to appropriate page
     if (pathname === '/login' && token) {
-      console.log('Authenticated user on login page, redirecting to appropriate page')
+      //console.log('Authenticated user on login page, redirecting to appropriate page')
       const redirectUrl = hasCompletedOnboarding ? '/' : '/getting-started'
       return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
 
     // Redirect authenticated users who haven't completed onboarding
     if (token && !hasCompletedOnboarding && onboardingPaths.includes(pathname)) {
-      console.log('User needs to complete onboarding, redirecting to getting-started')
+      //console.log('User needs to complete onboarding, redirecting to getting-started')
       return NextResponse.redirect(new URL('/getting-started', request.url))
     }
 
-    console.log('Proceeding with request for path:', pathname)
+    //console.log('Proceeding with request for path:', pathname)
     return NextResponse.next()
   } catch (error) {
     console.error('Middleware error:', {

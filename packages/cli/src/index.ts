@@ -53,6 +53,29 @@ async function installComponent(componentName: string) {
   }
 }
 
+async function removeComponent(componentName: string) {
+  const spinner = ora(`Removing ${componentName} component...`).start();
+
+  try {
+    const componentPath = path.join('./components/pioneer', `${componentName}.tsx`);
+    
+    // Check if component exists
+    if (!(await fs.pathExists(componentPath))) {
+      spinner.fail(chalk.red(`Component ${componentName} is not installed`));
+      return;
+    }
+    
+    // Remove component file
+    await fs.remove(componentPath);
+    
+    spinner.succeed(chalk.green(`Successfully removed ${componentName} component`));
+  } catch (error) {
+    spinner.fail(chalk.red(`Failed to remove ${componentName} component`));
+    console.error(error);
+    process.exit(1);
+  }
+}
+
 program
   .name('pioneer-sdk')
   .description('CLI tool for managing Pioneer SDK components')
@@ -60,9 +83,42 @@ program
 
 program
   .command('install')
-  .description('Install Portfolio component')
-  .action(async () => {
-    await installComponent('Portfolio');
+  .description('Install Pioneer SDK components')
+  .argument('<components...>', 'Component names to install')
+  .action(async (components: string[]) => {
+    for (const component of components) {
+      if (!COMPONENTS.includes(component.toLowerCase())) {
+        console.error(chalk.red(`Invalid component: ${component}`));
+        //console.log(chalk.yellow('Available components:'));
+        COMPONENTS.forEach(c =>console.log(`  - ${c}`));
+        process.exit(1);
+      }
+      await installComponent(component.toLowerCase());
+    }
+  });
+
+program
+  .command('list')
+  .description('List available components')
+  .action(() => {
+    //console.log(chalk.blue('Available components:'));
+    COMPONENTS.forEach(component => {
+      //console.log(`  - ${component}`);
+    });
+  });
+
+program
+  .command('remove')
+  .description('Remove installed components')
+  .argument('<components...>', 'Component names to remove')
+  .action(async (components: string[]) => {
+    for (const component of components) {
+      if (!COMPONENTS.includes(component.toLowerCase())) {
+        console.error(chalk.red(`Invalid component: ${component}`));
+        process.exit(1);
+      }
+      await removeComponent(component.toLowerCase());
+    }
   });
 
 program.parse(); 

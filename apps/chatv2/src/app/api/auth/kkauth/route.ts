@@ -7,10 +7,10 @@ const AUTH_SECRET = process.env.AUTH_SECRET || 'your-secret-key'
 export async function POST(request: Request) {
   try {
     const { username, address, queryKey } = await request.json()
-    console.log('KeepKey auth request:', { username, address, queryKey })
+    //console.log('KeepKey auth request:', { username, address, queryKey })
     
     if (!username || !queryKey) {
-      console.log('❌ Missing required auth data')
+      //console.log('❌ Missing required auth data')
       return NextResponse.json(
         { error: 'Missing required authentication data' },
         { status: 400 }
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
       exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
     }
 
-    console.log('Creating JWT with payload:', payload)
+    //console.log('Creating JWT with payload:', payload)
 
     // Create JWT token using AUTH_SECRET
     const token = await new SignJWT(payload)
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       maxAge: 60 * 60 * 24 // 24 hours
     })
 
-    console.log('✅ Auth token set successfully')
+    //console.log('✅ Auth token set successfully')
     return response
   } catch (error) {
     console.error('❌ KeepKey auth error:', error)

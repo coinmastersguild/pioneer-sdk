@@ -18,7 +18,7 @@ const Launch: React.FC<ConnectProps> = ({ setIsConnecting }) => {
           connectKeepkey();
         }
       } catch (error) {
-        console.log('KeepKey endpoint not found, retrying...');
+        //console.log('KeepKey endpoint not found, retrying...');
       }
     }, 5000); // Check every 5 seconds
 
@@ -30,13 +30,13 @@ const Launch: React.FC<ConnectProps> = ({ setIsConnecting }) => {
   };
 
   const connectKeepkey = () => {
-    console.log('Call Start Keepkey')
+    //console.log('Call Start Keepkey')
   };
 
   const launchKeepKey = () => {
     try {
-      console.log('window: ', window);
-      console.log('window.location: ', window.location);
+      //console.log('window: ', window);
+      //console.log('window.location: ', window.location);
       if (window) {
         setTimeout(() => {
           window.location.assign('keepkey://launch');

@@ -99,9 +99,9 @@ export const CreateTicketStep = () => {
 
   const { mutateAsync: createTicket } = useMutation({
     mutationFn: async (data: FormInput) => {
-      console.log("Creating ticket with data:", data)
-      console.log("Pioneer state:", pioneer)
-      console.log("Pioneer instance:", pioneer?.pioneer)
+      //console.log("Creating ticket with data:", data)
+      //console.log("Pioneer state:", pioneer)
+      //console.log("Pioneer instance:", pioneer?.pioneer)
       
       if (!pioneer?.state.app.pioneer) {
         throw new Error('Pioneer service is not initialized. Please try again.');
@@ -117,12 +117,12 @@ export const CreateTicketStep = () => {
         ...data
       }
 
-      console.log('Sending ticket to pioneer:', ticket)
+      //console.log('Sending ticket to pioneer:', ticket)
       try {
         // Create the ticket
         let result = await pioneer?.state.app.pioneer.CreateTicket(ticket)
         result = result.data
-        console.log('Response from CreateTicket:', result)
+        //console.log('Response from CreateTicket:', result)
         
         if(result.ticketId){
           // Store the ticket info
@@ -130,10 +130,10 @@ export const CreateTicketStep = () => {
           localStorage.setItem('myRoomId', ticketId)
 
           // Initialize the chat room
-          console.log('Initializing chat room...');
+          //console.log('Initializing chat room...');
           try {
             await pioneer?.state.app.pioneer.joinRoom?.(ticketId);
-            console.log('Chat room initialized');
+            //console.log('Chat room initialized');
           } catch (error) {
             console.error('Error initializing chat room:', error);
             // Continue even if chat room init fails - we can retry on the ticket page
@@ -152,20 +152,20 @@ export const CreateTicketStep = () => {
 
   // Initial connection attempt
   useEffect(() => {
-    console.log('Pioneer state in useEffect:', pioneer);
-    console.log('Is wallet connected:', isWalletConnected);
+    //console.log('Pioneer state in useEffect:', pioneer);
+    //console.log('Is wallet connected:', isWalletConnected);
     if (!isWalletConnected && !isConnecting) {
       ensureWalletConnected()
     }
   }, [isWalletConnected])
 
   const handleSubmit = async (data: FormInput) => {
-    console.log('handleSubmit called with data:', data);
-    console.log('Current pioneer state:', pioneer);
+    //console.log('handleSubmit called with data:', data);
+    //console.log('Current pioneer state:', pioneer);
     try {
-      console.log('Creating ticket...');
+      //console.log('Creating ticket...');
       const ticketId = await createTicket(data);
-      console.log('Ticket created successfully with ID:', ticketId);
+      //console.log('Ticket created successfully with ID:', ticketId);
       
       // Add a small delay to ensure everything is initialized
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -185,7 +185,7 @@ export const CreateTicketStep = () => {
   }
 
   const handleCreateTicket = () => {
-    console.log('handleCreateTicket clicked');
+    //console.log('handleCreateTicket clicked');
     setShowTicketForm(true);
   }
 
@@ -225,7 +225,7 @@ export const CreateTicketStep = () => {
       pioneer: pioneer.pioneer,
       dispatch: pioneer.dispatch,
       sendMessage: async (message: string) => {
-        console.log('Top level sendMessage redirecting to state.pioneer:', message);
+        //console.log('Top level sendMessage redirecting to state.pioneer:', message);
         try {
           const response = await pioneer.state.app.pioneer?.sendMessage?.(message);
           // Add the user's message to the chat
@@ -243,11 +243,11 @@ export const CreateTicketStep = () => {
         }
       },
       joinRoom: async (ticketId: string) => {
-        console.log('Top level joinRoom redirecting to state.pioneer:', ticketId);
+        //console.log('Top level joinRoom redirecting to state.pioneer:', ticketId);
         return pioneer.state.app.pioneer?.joinRoom?.({ticketId});
       },
       onStart: async () => {
-        console.log('Top level onStart redirecting to state.pioneer');
+        //console.log('Top level onStart redirecting to state.pioneer');
         const appSetup = {
           appName: 'KeepKey Portfolio',
           appIcon: 'https://pioneers.dev/coins/keepkey.png',
@@ -258,8 +258,8 @@ export const CreateTicketStep = () => {
     }
 
     // Log the state to verify initialization
-    console.log('Chat pioneer state:', chatPioneerState);
-    console.log('Messages array:', chatPioneerState.state.messages);
+    //console.log('Chat pioneer state:', chatPioneerState);
+    //console.log('Messages array:', chatPioneerState.state.messages);
 
     return (
       <Box 
@@ -289,7 +289,7 @@ export const CreateTicketStep = () => {
   }
 
   if (showTicketForm) {
-    console.log('Rendering ticket form');
+    //console.log('Rendering ticket form');
     return (
       <Box>
         <OnboardingStep
@@ -298,13 +298,13 @@ export const CreateTicketStep = () => {
           description="Let us know what's going on and we'll help you out."
           defaultValues={{ description: '', emailFollowUp: false, email: '' }}
           onSubmit={(data) => {
-            console.log('OnboardingStep onSubmit called with data:', data);
+            //console.log('OnboardingStep onSubmit called with data:', data);
             return handleSubmit(data);
           }}
           submitLabel="Create Ticket"
           maxW={{ base: '100%', md: 'lg' }}
           onChange={(data) => {
-            console.log('Form data changed:', data);
+            //console.log('Form data changed:', data);
           }}
         >
           <FormFields />

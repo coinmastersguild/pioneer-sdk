@@ -28,10 +28,10 @@ export default function Portfolio({ usePioneer, currentNav, setCurrentNav }: any
             const caipOut = searchParams.get('caipOut');
             const networkId = searchParams.get('networkId');
             const type = searchParams.get('type'); // e.g., 'tx' or 'swap'
-            console.log('Type:', type);
-            console.log('caipIn:', caipIn);
-            console.log('caipOut:', caipOut);
-            console.log('networkId:', networkId);
+            //console.log('Type:', type);
+            //console.log('caipIn:', caipIn);
+            //console.log('caipOut:', caipOut);
+            //console.log('networkId:', networkId);
 
             if (type === 'swap') {
                 if(caipIn) await app.setAssetContext({caip:caipIn})
@@ -51,10 +51,10 @@ export default function Portfolio({ usePioneer, currentNav, setCurrentNav }: any
     }, [app, assets, isConnected]);
 
     const onSelect = async (asset: any) => {
-        console.log('asset: ', asset);
+        //console.log('asset: ', asset);
         if (asset.caip) {
             try {
-                console.log('Switching to wallet view');
+                //console.log('Switching to wallet view');
                 setCurrentNav('wallet');
                 await app.setAssetContext(asset);
                 // setSelectedAsset(asset.caip);

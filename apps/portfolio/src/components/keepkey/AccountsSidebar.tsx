@@ -34,7 +34,7 @@ export const AccountsSidebar = ({ usePioneer }: any) => {
 
   const onStart = async () => {
     if (app && app.pairWallet && !isConnecting) {
-      console.log('App loaded... connecting');
+      //console.log('App loaded... connecting');
       await connectWallet('KEEPKEY');
       setIsConnecting(true);
       await app.getPubkeys();
@@ -239,7 +239,7 @@ export const AccountsSidebar = ({ usePioneer }: any) => {
                   <Box
                       cursor="pointer"
                       onClick={() => {
-                        console.log('Add Asset clicked');
+                        //console.log('Add Asset clicked');
                       }}
                       p={2}
                       minWidth="50px"

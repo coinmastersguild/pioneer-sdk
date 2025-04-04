@@ -47,7 +47,7 @@ export const LoginPage = () => {
   useEffect(() => {
     if (session && status === 'authenticated') {
       const redirectUrl = getCallbackUrl()
-      console.log('Session redirect triggered:', { session, status, redirectUrl })
+      //console.log('Session redirect triggered:', { session, status, redirectUrl })
       router.replace(redirectUrl)
     }
   }, [session, status, router])
@@ -62,7 +62,7 @@ export const LoginPage = () => {
     try {
       setIsAuthenticating(true)
       
-      console.log('🔄 Starting Google login')
+      //console.log('🔄 Starting Google login')
       
       const result = await signIn('google', {
         callbackUrl: '/getting-started',
@@ -70,7 +70,7 @@ export const LoginPage = () => {
       })
 
       // We shouldn't reach here due to redirect: true
-      console.log('🔑 SignIn result:', result)
+      //console.log('🔑 SignIn result:', result)
     } catch (error) {
       console.error('❌ Google auth failed:', error)
       toast.error({
@@ -89,7 +89,7 @@ export const LoginPage = () => {
       const guestUsername = `guest_${Math.random().toString(36).substring(7)}`
       const guestQueryKey = `guest_${Math.random().toString(36).substring(7)}`
       
-      console.log('🔄 Starting guest login with:', { guestUsername, guestQueryKey })
+      //console.log('🔄 Starting guest login with:', { guestUsername, guestQueryKey })
       
       localStorage.setItem('pioneer_guest_username', guestUsername)
       localStorage.setItem('pioneer_guest_key', guestQueryKey)
@@ -126,7 +126,7 @@ export const LoginPage = () => {
       const queryKey = pioneer?.state?.app?.queryKey || `key_${Math.random().toString(36).substring(7)}`
       const address = pioneer?.state?.app?.context?.selectedWallet?.address || '0xkeepkeyAddress'
       
-      console.log('🔄 Starting KeepKey login with:', { username, queryKey, address })
+      //console.log('🔄 Starting KeepKey login with:', { username, queryKey, address })
       
       const callbackUrl = getCallbackUrl()
       await signIn('credentials', {
@@ -160,7 +160,7 @@ export const LoginPage = () => {
       
       if (guestUsername && guestKey && status === 'unauthenticated') {
         try {
-          console.log('🔄 Attempting to restore guest session:', { guestUsername, guestKey })
+          //console.log('🔄 Attempting to restore guest session:', { guestUsername, guestKey })
           await signIn('credentials', {
             username: guestUsername,
             queryKey: guestKey,

@@ -138,7 +138,7 @@ export function Charts({ usePioneer, onSelect }: any) {
         const intervalId = setInterval(() => {
             app.syncMarket()
               .then(() => {
-                  console.log("syncMarket called from Charts");
+                  //console.log("syncMarket called from Charts");
                   // Artificially adjust all balances by +0.01 for testing
                   if (app.balances && Array.isArray(app.balances)) {
                       app.balances = app.balances.map((balance: any) => {

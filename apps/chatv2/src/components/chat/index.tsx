@@ -210,7 +210,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
   // Handle KeepKey login
   const handleKeepKeyLogin = async () => {
     try {
-      console.log("🔍 Initiating KeepKey login...");
+      //console.log("🔍 Initiating KeepKey login...");
       
       // Store redirect URL before attempting connection
       const currentUrl = window.location.href;
@@ -315,7 +315,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
     let tag = TAG + " | onStart | ";
     try {
       if (!app) {
-        console.log(tag, 'App not initialized yet');
+        //console.log(tag, 'App not initialized yet');
         return;
       }
       
@@ -341,13 +341,13 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
 
       //sub to events
       if(app.state.app.events){
-        console.log('Subbing to events!')
+        //console.log('Subbing to events!')
         app.state.app.events.on('message', (event: any) => {
-          console.log(tag,'event: ', event)
+          //console.log(tag,'event: ', event)
           event = JSON.parse(event)
-          console.log(tag,'event: ', typeof(event))
-          console.log(tag,'event.type: ', event.type)
-          console.log(tag,'event.content: ', event.content)
+          //console.log(tag,'event: ', typeof(event))
+          //console.log(tag,'event.type: ', event.type)
+          //console.log(tag,'event.content: ', event.content)
           /*
 
           { "type":"join","room":"954a5839-aade-4010-bc7e-a47343655811","ticketId":"954a5839-aade-4010-bc7e-a47343655811","user":"user:c4659350","content":"user:c4659350 has joined the room"}
@@ -364,14 +364,14 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
             view: event.view
           };
 
-          console.log("Creating new message from event:", newMessage);
+          //console.log("Creating new message from event:", newMessage);
 
           setLocalMessages(prev => {
             // Check if message already exists
             if (prev.some(msg => msg.id === newMessage.id)) {
               return prev;
             }
-            console.log("Adding new message to local state:", newMessage);
+            //console.log("Adding new message to local state:", newMessage);
             return [...prev, newMessage];
           });
         })
@@ -391,7 +391,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
 
   // Separate useEffect for initialization
   React.useEffect(() => {
-    console.log(TAG, 'Initialization useEffect triggered');
+    //console.log(TAG, 'Initialization useEffect triggered');
     onStart();
   }, [onStart]);
 
@@ -429,7 +429,7 @@ export const Chat: React.FC<ChatProps> = React.forwardRef<HTMLDivElement, ChatPr
         timestamp: new Date().toISOString()
       });
 
-      console.log('Message sent to server:', results);
+      //console.log('Message sent to server:', results);
 
     } catch (error) {
       console.error('Failed to send message:', error);
