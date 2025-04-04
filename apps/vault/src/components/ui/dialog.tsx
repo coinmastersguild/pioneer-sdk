@@ -38,27 +38,39 @@ export const DialogCloseTrigger: any = React.forwardRef<
   HTMLButtonElement,
   ChakraDialog.CloseTriggerProps
 >(function DialogCloseTrigger(props, ref) {
+  const { children, asChild, ...rest } = props
+  
+  // If asChild is true and children are provided, avoid nesting buttons
+  if (asChild && children) {
+    return (
+      <ChakraDialog.CloseTrigger {...rest}>
+        {children}
+      </ChakraDialog.CloseTrigger>
+    )
+  }
+  
+  // Default case - use the CloseButton component
   return (
     <ChakraDialog.CloseTrigger
       position="absolute"
       top="2"
       insetEnd="2"
-      {...props}
-      asChild
+      {...rest}
     >
       <CloseButton size="sm" ref={ref}>
-        {props.children}
+        {children}
       </CloseButton>
     </ChakraDialog.CloseTrigger>
   )
 })
 
 export const DialogRoot = ChakraDialog.Root
-export const DialogFooter = ChakraDialog.Footer
+export const DialogBackdrop = ChakraDialog.Backdrop
 export const DialogHeader = ChakraDialog.Header
 export const DialogBody = ChakraDialog.Body
-export const DialogBackdrop = ChakraDialog.Backdrop
+export const DialogFooter = ChakraDialog.Footer
 export const DialogTitle = ChakraDialog.Title
 export const DialogDescription = ChakraDialog.Description
+
 export const DialogTrigger = ChakraDialog.Trigger
 export const DialogActionTrigger = ChakraDialog.ActionTrigger

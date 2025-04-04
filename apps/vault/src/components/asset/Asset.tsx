@@ -47,6 +47,18 @@ interface AssetProps {
   onReceiveClick?: () => void;
 }
 
+// Utility function to make promises timeout-able
+const withTimeout = (promise: Promise<any>, ms: number, errorMessage: string) => {
+  const timeout = new Promise((_, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id);
+      reject(new Error(`Timeout after ${ms}ms: ${errorMessage}`));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeout]);
+};
+
 export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) => {
   // State for managing the component's loading status
   const [loading, setLoading] = useState(true);
@@ -100,7 +112,7 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
     
     // Set a timeout to wait for assetContext to be populated
     let checkCount = 0;
-    const maxChecks = 10;
+    const maxChecks = 5; // Reduced from 10 to fail faster
     
     const checkAssetContext = () => {
       // Re-access the latest context values
@@ -115,13 +127,7 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
       
       checkCount++;
       if (checkCount >= maxChecks) {
-        console.log('❌ [Asset] AssetContext still null after', maxChecks, 'checks');
-        console.log('❌ [Asset] Current app state:', {
-          hasApp: !!currentApp,
-          hasAssetContext: !!currentApp?.assetContext,
-          hasSetAssetContext: !!currentApp?.setAssetContext,
-          isDashboardAvailable: !!currentApp?.dashboard
-        });
+        console.log('❌ [Asset] AssetContext still null after', maxChecks, 'checks - will continue anyway');
         setLoading(false);
         return true;
       }
@@ -132,18 +138,27 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
     // Immediately check once
     if (checkAssetContext()) return;
     
-    // Then set up an interval for repeated checks
+    // Then set up an interval for repeated checks with overall timeout safety
     const timer = setInterval(() => {
       if (checkAssetContext()) {
         clearInterval(timer);
       }
-    }, 500); // Check every 500ms
+    }, 300); // Check more frequently
+    
+    // Add a safety timeout in case things get stuck during hot reload
+    setTimeout(() => {
+      if (timer) {
+        console.log('🛑 [Asset] Safety timeout reached - ensuring component is not stuck');
+        clearInterval(timer);
+        setLoading(false);
+      }
+    }, 3000);
     
     return () => {
       console.log('👋 [Asset] Component unmounting');
       clearInterval(timer);
     };
-  }, [app, assetContext, pioneer]);
+  }, [assetContext, pioneer?.state?.app]);
 
   // Set up interval to sync market data every 15 seconds
   useEffect(() => {

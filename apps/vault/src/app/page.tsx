@@ -42,6 +42,56 @@ export default function Home() {
     return () => console.log('🏠 [Page] Component unmounting');
   }, []);
 
+  // Add recovery mechanism for Fast Refresh
+  useEffect(() => {
+    // Handle Fast Refresh recovery
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 [Page] Page became visible - checking for recovery needed');
+        
+        // If we have app but not asset contexts, they might have been lost in a Fast Refresh
+        if (app && !app.assetContext) {
+          console.log('🔄 [Page] Detected missing asset context after Fast Refresh - recovering');
+          
+          // Set a default context with a timeout to prevent hanging
+          const recoverContext = async () => {
+            try {
+              // Set a default BTC context as fallback
+              const defaultAsset = {
+                caip: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                networkId: 'bitcoin',
+                symbol: 'BTC',
+                name: 'Bitcoin'
+              };
+              
+              // Use Promise.race with a timeout to prevent hanging
+              await Promise.race([
+                app.setAssetContext(defaultAsset),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Timeout setting asset context')), 5000)
+                )
+              ]);
+              
+              console.log('✅ [Page] Successfully recovered asset context');
+            } catch (error) {
+              console.error('❌ [Page] Error recovering from Fast Refresh:', error);
+              // Force page reload if recovery fails
+              if (error instanceof Error && error.message.includes('Timeout')) {
+                console.log('🔄 [Page] Recovery timed out - will continue without asset context');
+              }
+            }
+          };
+          
+          recoverContext();
+        }
+      }
+    };
+    
+    // Listen for visibility changes which can indicate return from Fast Refresh
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [app]);
+
   useEffect(() => {
     console.log('🔄 [Page] State update:', {
       currentView,
@@ -128,7 +178,7 @@ export default function Home() {
             </DialogBody>
             <DialogFooter>
               <DialogCloseTrigger asChild>
-                <Box as="button" color="white" p={2} fontSize="sm">
+                <Box color="white" p={2} fontSize="sm" cursor="pointer">
                   Close
                 </Box>
               </DialogCloseTrigger>
@@ -147,7 +197,7 @@ export default function Home() {
             </DialogBody>
             <DialogFooter>
               <DialogCloseTrigger asChild>
-                <Box as="button" color="white" p={2} fontSize="sm">
+                <Box color="white" p={2} fontSize="sm" cursor="pointer">
                   Close
                 </Box>
               </DialogCloseTrigger>

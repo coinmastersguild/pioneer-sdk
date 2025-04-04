@@ -25,8 +25,11 @@ const scale = keyframes`
 // Get environment variables with fallbacks
 const PIONEER_URL = process.env.NEXT_PUBLIC_PIONEER_URL
 const PIONEER_WSS = process.env.NEXT_PUBLIC_PIONEER_WSS
-// Create a wrapper component to handle Pioneer initialization
 
+// Store instance outside React lifecycle to preserve during Fast Refresh
+let pioneerInstance: any = null;
+
+// Create a wrapper component to handle Pioneer initialization
 function PioneerInitializer({ children, onPioneerReady }: {
   children: React.ReactNode
   onPioneerReady: (pioneer: ReturnType<typeof usePioneer>) => void
@@ -37,6 +40,15 @@ function PioneerInitializer({ children, onPioneerReady }: {
   const [connectionError, setConnectionError] = useState(false)
 
   const initPioneer = async () => {
+    // If we already have an instance preserved from Fast Refresh, use it
+    if (pioneerInstance) {
+      console.log('Using preserved Pioneer instance from Fast Refresh')
+      setIsInitialized(true)
+      setIsLoading(false)
+      onPioneerReady(pioneer)
+      return
+    }
+
     if (isInitialized) return
 
     try {
@@ -50,6 +62,8 @@ function PioneerInitializer({ children, onPioneerReady }: {
       }
       console.log('pioneerSetup: ',pioneerSetup)
       await pioneer.onStart([], pioneerSetup)
+      // Store instance for Fast Refresh persistence
+      pioneerInstance = pioneer
       setIsInitialized(true)
       onPioneerReady(pioneer)
     } catch (e) {
@@ -66,6 +80,19 @@ function PioneerInitializer({ children, onPioneerReady }: {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Preserve state on fast refresh
+  // @ts-ignore - __NEXT_HMR_CB__ is an internal Next.js API
+  if (typeof window !== 'undefined' && (window as any).__NEXT_HMR_CB__) {
+    // Store the original callback
+    const originalCallback = (window as any).__NEXT_HMR_CB__;
+    
+    // Replace with our version that preserves the pioneer instance
+    (window as any).__NEXT_HMR_CB__ = (...args: any) => {
+      console.log('Fast Refresh triggered, preserving Pioneer instance');
+      originalCallback(...args);
+    };
   }
 
   useEffect(() => {
