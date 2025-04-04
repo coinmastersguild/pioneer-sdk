@@ -17,11 +17,17 @@ export function AnimatedSlice({
 }: AnimatedSliceProps) {
   return (
     <motion.g
-      initial={{ opacity: 0, scale: 0.25, transformOrigin: 'center' }}
+      initial={{ 
+        opacity: 0, 
+        scale: 0.25, 
+        transformOrigin: 'center',
+        filter: 'brightness(1)'
+      }}
       animate={{ 
         opacity: 1, 
         scale: isActive ? 1.03 : 1, 
-        transformOrigin: 'center' 
+        transformOrigin: 'center',
+        filter: 'brightness(1)'
       }}
       whileHover={{ 
         scale: 1.05,
@@ -31,6 +37,7 @@ export function AnimatedSlice({
       transition={{
         opacity: { duration: 0.4, delay: index * 0.1 },
         scale: { type: 'spring', duration: 0.5, bounce: 0.2, delay: index * 0.1 },
+        filter: { duration: 0.2 }
       }}
       style={{ originX: 0, originY: 0 }}
     >

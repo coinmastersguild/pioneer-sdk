@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Provider } from './provider';
 
 import { Geist, Geist_Mono } from "next/font/google";
@@ -13,6 +13,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// Separate viewport export as recommended by Next.js 15+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1
+};
 
 export const metadata: Metadata = {
   title: "KeepKey Vault | Secure Crypto Wallet Management",
@@ -57,20 +64,19 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/images/kk-icon-gold.png" }
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/images/kk-icon-gold.png", type: "image/png", sizes: "192x192" }
+    ],
+    shortcut: [
+      { url: "/favicon.ico" }
     ],
     apple: [
-      { url: "/images/logos/keepkey-logo-square.png" }
+      { url: "/images/kk-icon-gold.png", sizes: "180x180" }
     ]
   },
   robots: {
     index: true,
     follow: true
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1
   },
   category: "Finance"
 };

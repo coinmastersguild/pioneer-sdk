@@ -44,6 +44,8 @@ const theme = {
 // Define view types
 type ViewType = 'asset' | 'send' | 'receive';
 
+// Note: Client components can't export metadata or viewport
+// Those should be defined in a separate layout.tsx file for this route
 export default function AssetPage() {
   const params = useParams()
   const [isAppReady, setIsAppReady] = useState(false)
