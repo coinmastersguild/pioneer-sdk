@@ -62,18 +62,6 @@ export const metadata: Metadata = {
     images: ["/images/logos/keepkey-logo-square.png"],
     creator: "@keepkey"
   },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/images/kk-icon-gold.png", type: "image/png", sizes: "192x192" }
-    ],
-    shortcut: [
-      { url: "/favicon.ico" }
-    ],
-    apple: [
-      { url: "/images/kk-icon-gold.png", sizes: "180x180" }
-    ]
-  },
   robots: {
     index: true,
     follow: true
