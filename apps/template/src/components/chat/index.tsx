@@ -78,6 +78,71 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
     }
   }, [localMessages]);
 
+  // Set up event listeners for receiving messages
+  React.useEffect(() => {
+    if (!pioneer?.state?.app) return;
+    
+    const app = pioneer.state.app;
+    
+    // Set up event listener for messages
+    const handleMessage = (text: string) => {
+      console.log('Received message via event system:', text);
+      
+      const responseMessage: Message = {
+        id: `event-${Date.now()}`,
+        type: 'message',
+        from: 'computer',
+        text: String(text),
+        timestamp: new Date(),
+      };
+      
+      setLocalMessages(prev => [...prev, responseMessage]);
+      setIsTyping(false);
+    };
+    
+    // Register event listener - check multiple possible event locations
+    let eventsRegistered = false;
+    
+    // Option 1: Direct events on app
+    if (app.events && typeof app.events.on === 'function') {
+      console.log('Registering message event listener on app.events');
+      app.events.on('message', handleMessage);
+      eventsRegistered = true;
+    }
+    
+    // Option 2: Events on pioneer instance
+    if (!eventsRegistered && pioneer.events && typeof pioneer.events.on === 'function') {
+      console.log('Registering message event listener on pioneer.events');
+      pioneer.events.on('message', handleMessage);
+      eventsRegistered = true;
+    }
+    
+    // Option 3: Events on pioneer state root
+    if (!eventsRegistered && pioneer.state?.events && typeof pioneer.state.events.on === 'function') {
+      console.log('Registering message event listener on pioneer.state.events');
+      pioneer.state.events.on('message', handleMessage);
+      eventsRegistered = true;
+    }
+    
+    // Clean up event listener
+    return () => {
+      if (app.events && typeof app.events.off === 'function') {
+        console.log('Removing message event listener from app.events');
+        app.events.off('message', handleMessage);
+      }
+      
+      if (pioneer.events && typeof pioneer.events.off === 'function') {
+        console.log('Removing message event listener from pioneer.events');
+        pioneer.events.off('message', handleMessage);
+      }
+      
+      if (pioneer.state?.events && typeof pioneer.state.events.off === 'function') {
+        console.log('Removing message event listener from pioneer.state.events');
+        pioneer.state.events.off('message', handleMessage);
+      }
+    };
+  }, [pioneer]);
+
   // Handle sending a message
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -95,21 +160,51 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
         timestamp: new Date(),
       };
       setLocalMessages(prev => [...prev, newMessage]);
+      
+      // Store the message for clearing input field
+      const sentMessage = inputMessage;
       setInputMessage('');
 
-      // Simulate bot response for demo
-      setTimeout(() => {
-        // Add bot response
-        const responseMessage: Message = {
-          id: `response-${messageId}`,
-          type: 'message',
-          from: 'computer',
-          text: `Thank you for your message. Our team will respond to "${inputMessage.substring(0, 30)}${inputMessage.length > 30 ? '...' : ''}" shortly.`,
-          timestamp: new Date(),
-        };
-        setLocalMessages(prev => [...prev, responseMessage]);
-        setIsTyping(false);
-      }, 1500);
+      // Try sending message through Pioneer event system at multiple possible locations
+      let messageSent = false;
+      
+      // Option 1: App events
+      if (!messageSent && pioneer?.state?.app?.events && typeof pioneer.state.app.events.emit === 'function') {
+        console.log('Sending message via app.events:', sentMessage);
+        pioneer.state.app.events.emit('message', sentMessage);
+        messageSent = true;
+      }
+      
+      // Option 2: Pioneer events
+      if (!messageSent && pioneer?.events && typeof pioneer.events.emit === 'function') {
+        console.log('Sending message via pioneer.events:', sentMessage);
+        pioneer.events.emit('message', sentMessage);
+        messageSent = true;
+      }
+      
+      // Option 3: State events
+      if (!messageSent && pioneer?.state?.events && typeof pioneer.state.events.emit === 'function') {
+        console.log('Sending message via pioneer.state.events:', sentMessage);
+        pioneer.state.events.emit('message', sentMessage);
+        messageSent = true;
+      }
+      
+      // Fallback for when no event system is available
+      if (!messageSent) {
+        console.log('Events system not available, using fallback');
+        // Simulate bot response for demo (fallback)
+        setTimeout(() => {
+          const responseMessage: Message = {
+            id: `response-${messageId}`,
+            type: 'message',
+            from: 'computer',
+            text: `Thank you for your message. Our team will respond to "${sentMessage.substring(0, 30)}${sentMessage.length > 30 ? '...' : ''}" shortly.`,
+            timestamp: new Date(),
+          };
+          setLocalMessages(prev => [...prev, responseMessage]);
+          setIsTyping(false);
+        }, 1500);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsTyping(false);
@@ -126,6 +221,45 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  // Test event system button click handler
+  const handleTestEvent = () => {
+    let eventSent = false;
+    
+    // Option 1: App events
+    if (!eventSent && pioneer?.state?.app?.events && typeof pioneer.state.app.events.emit === 'function') {
+      console.log('Testing event via app.events');
+      pioneer.state.app.events.emit('message', 'This is a test message from the event system!');
+      eventSent = true;
+    }
+    
+    // Option 2: Pioneer events
+    if (!eventSent && pioneer?.events && typeof pioneer.events.emit === 'function') {
+      console.log('Testing event via pioneer.events');
+      pioneer.events.emit('message', 'This is a test message from the event system!');
+      eventSent = true;
+    }
+    
+    // Option 3: State events
+    if (!eventSent && pioneer?.state?.events && typeof pioneer.state.events.emit === 'function') {
+      console.log('Testing event via pioneer.state.events');
+      pioneer.state.events.emit('message', 'This is a test message from the event system!');
+      eventSent = true;
+    }
+    
+    if (!eventSent) {
+      console.warn('No event system available for testing');
+      // Add local message to show the issue
+      const testErrorMessage: Message = {
+        id: `test-error-${Date.now()}`,
+        type: 'system',
+        from: 'computer',
+        text: 'Events system not available. Check console for details.',
+        timestamp: new Date(),
+      };
+      setLocalMessages(prev => [...prev, testErrorMessage]);
     }
   };
 
@@ -150,13 +284,22 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
             </Text>
           </Box>
         </HStack>
-        <Button
-          onClick={() => setShowDebug(!showDebug)}
-          colorScheme="whiteAlpha"
-          size="xs"
-        >
-          {showDebug ? "Hide Debug" : "Debug"}
-        </Button>
+        <HStack>
+          <Button
+            onClick={handleTestEvent}
+            colorScheme="blue"
+            size="xs"
+          >
+            Test Event
+          </Button>
+          <Button
+            onClick={() => setShowDebug(!showDebug)}
+            colorScheme="whiteAlpha"
+            size="xs"
+          >
+            {showDebug ? "Hide Debug" : "Debug"}
+          </Button>
+        </HStack>
       </Flex>
 
       {/* Debug Info */}
