@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Box,
+  Text,
   VStack,
   HStack,
-  Text,
   Button,
   Image,
-  Box,
 } from '@chakra-ui/react';
-import { FaGithub, FaBook, FaHome, FaTrash, FaBroadcastTower, FaRedo } from 'react-icons/fa';
+import { FaGithub, FaBook, FaHome, FaTrash, FaBroadcastTower, FaRedo, FaBomb } from 'react-icons/fa';
 import { usePioneerContext } from '@/components/providers/pioneer';
 
 // Theme colors - matching our dashboard theme
@@ -19,6 +19,16 @@ const theme = {
   border: '#222222',
 };
 
+// Log level options
+const logLevels = [
+  { value: 0, label: 'None - No logging' },
+  { value: 1, label: 'Error - Only errors' },
+  { value: 2, label: 'Warning - Errors and warnings' },
+  { value: 3, label: 'Info - Normal information (default)' },
+  { value: 4, label: 'Debug - Detailed debugging information' },
+  { value: 5, label: 'Trace - Very verbose execution flow' },
+];
+
 interface SettingsProps {
   onClose: () => void;
 }
@@ -28,12 +38,16 @@ const Settings = ({ onClose }: SettingsProps) => {
   const { state } = pioneer;
   const { app } = state;
   const [loading, setLoading] = useState(false);
+  const [toastShown, setToastShown] = useState(false);
 
   const [maskingSettings, setMaskingSettings] = useState({
     enableMetaMaskMasking: false,
     enableXfiMasking: false,
     enableKeplrMasking: false,
   });
+  
+  // State for log level
+  const [logLevel, setLogLevel] = useState(3); // Default to INFO
 
   const handleToggle = async (setting: keyof typeof maskingSettings) => {
     try {
@@ -92,35 +106,44 @@ const Settings = ({ onClose }: SettingsProps) => {
       console.error('Error announcing provider:', error);
     }
   };
+  
+  // Handle log level change
+  const handleLogLevelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLevel = parseInt(e.target.value);
+    setLogLevel(newLevel);
+    
+    // Set the log level in the Pioneer SDK if app is available
+    if (app && typeof app.setLogLevel === 'function') {
+      app.setLogLevel(newLevel);
+      setToastShown(true);
+      // Toast notification would be shown here
+      console.log(`Log level updated to: ${logLevels.find(l => l.value === newLevel)?.label}`);
+    }
+  };
 
   return (
-    <Box height="600px" bg={theme.bg}>
+    <Box height="100vh" bg={theme.bg}>
       {/* Header */}
       <Box 
         borderBottom="1px" 
         borderColor={theme.border}
-        p={3}
+        p={4}
         bg={theme.cardBg}
-        backdropFilter="blur(10px)"
-        position="relative"
-        _after={{
-          content: '""',
-          position: "absolute",
-          bottom: "-1px",
-          left: "0",
-          right: "0",
-          height: "1px",
-          background: `linear-gradient(90deg, transparent 0%, ${theme.gold}40 50%, transparent 100%)`,
-        }}
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
       >
-        <HStack gap={2}>
-          <Image src="/images/kk-icon-gold.png" alt="KeepKey" height="20px" />
-          <Text fontSize="md" fontWeight="bold" color={theme.gold}>
-            Settings
-          </Text>
-        </HStack>
+        <Text color={theme.gold} fontWeight="bold">Settings</Text>
+        <Button 
+          size="sm" 
+          variant="ghost" 
+          color={theme.gold}
+          onClick={onClose}
+        >
+          Close
+        </Button>
       </Box>
-
+      
       {/* Main Content */}
       <Box 
         height="calc(100% - 52px)" 
@@ -173,6 +196,122 @@ const Settings = ({ onClose }: SettingsProps) => {
                   <Text>About KeepKey</Text>
                 </HStack>
               </Button>
+            </VStack>
+          </Box>
+
+          {/* Log Level Settings */}
+          <Box bg={theme.cardBg} p={4} borderRadius="xl" borderWidth="1px" borderColor={theme.border}>
+            <Text fontWeight="bold" color={theme.gold} mb={3}>
+              Developer Settings
+            </Text>
+            
+            <Box mb={4}>
+              <Text color="gray.300" mb={1}>Log Level</Text>
+              <select 
+                value={logLevel} 
+                onChange={handleLogLevelChange}
+                style={{
+                  backgroundColor: "black",
+                  color: "white",
+                  borderColor: theme.border,
+                  padding: "8px",
+                  borderRadius: "4px",
+                  width: "100%"
+                }}
+              >
+                {logLevels.map(level => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+            </Box>
+            
+            <Box 
+              borderTop="1px" 
+              borderColor={theme.border} 
+              my={3}
+              pt={3}
+            />
+
+          {/* Provider Settings */}
+          <Box mb={4}>
+            <Text fontWeight="medium" color="gray.300" mb={2}>
+              Provider Masking
+            </Text>
+            <VStack gap={2} align="stretch">
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Text mb="0" color="gray.400" fontSize="sm">
+                  Mask MetaMask
+                </Text>
+                <input 
+                  type="checkbox"
+                  id="metamask-toggle" 
+                  checked={maskingSettings.enableMetaMaskMasking}
+                  onChange={() => handleToggle('enableMetaMaskMasking')}
+                  style={{ accentColor: theme.gold }}
+                />
+              </Box>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Text mb="0" color="gray.400" fontSize="sm">
+                  Mask XFI
+                </Text>
+                <input 
+                  type="checkbox"
+                  id="xfi-toggle" 
+                  checked={maskingSettings.enableXfiMasking}
+                  onChange={() => handleToggle('enableXfiMasking')}
+                  style={{ accentColor: theme.gold }}
+                />
+              </Box>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Text mb="0" color="gray.400" fontSize="sm">
+                  Mask Keplr
+                </Text>
+                <input 
+                  type="checkbox"
+                  id="keplr-toggle" 
+                  checked={maskingSettings.enableKeplrMasking}
+                  onChange={() => handleToggle('enableKeplrMasking')}
+                  style={{ accentColor: theme.gold }}
+                />
+              </Box>
+            </VStack>
+          </Box>
+          </Box>
+
+          {/* Advanced Actions */}
+          <Box bg={theme.cardBg} p={4} borderRadius="xl" borderWidth="1px" borderColor={theme.border}>
+            <Text fontWeight="bold" color="red.400" mb={3}>
+              Advanced Options
+            </Text>
+            <VStack gap={3}>
+              <Button
+                width="100%"
+                size="sm"
+                variant="outline"
+                colorScheme="red"
+                onClick={handleClearStorage}
+                disabled={loading}
+              >
+                <HStack>
+                  <FaTrash />
+                  <Text>Clear App Storage {loading && '...'}</Text>
+                </HStack>
+              </Button>
+              <Button
+                width="100%"
+                size="sm"
+                variant="outline"
+                colorScheme="red"
+                onClick={handleForceReset}
+                disabled={loading}
+              >
+                <HStack>
+                  <FaBomb />
+                  <Text>Force App Reset {loading && '...'}</Text>
+                </HStack>
+              </Button>
               <Button
                 width="100%"
                 size="sm"
@@ -180,60 +319,9 @@ const Settings = ({ onClose }: SettingsProps) => {
                 color={theme.gold}
                 borderColor={theme.border}
                 _hover={{ bg: 'rgba(255, 215, 0, 0.1)' }}
-                onClick={() => window.open('https://github.com/keepkey', '_blank')}
-              >
-                <HStack gap={2}>
-                  <FaGithub />
-                  <Text>GitHub Repository</Text>
-                </HStack>
-              </Button>
-            </VStack>
-          </Box>
-
-          {/* Advanced Actions */}
-          <Box bg={theme.cardBg} p={4} borderRadius="xl" borderWidth="1px" borderColor={theme.border}>
-            <VStack gap={3}>
-              <Text fontSize="md" fontWeight="bold" color={theme.gold}>
-                Advanced Actions
-              </Text>
-              <Button
-                width="100%"
-                size="sm"
-                colorScheme="red"
-                variant="outline"
-                onClick={handleClearStorage}
-                disabled={loading}
-              >
-                <HStack gap={2}>
-                  <FaTrash />
-                  <Text>Clear Storage</Text>
-                </HStack>
-              </Button>
-              <Button
-                width="100%"
-                size="sm"
-                colorScheme="red"
-                variant="outline"
-                onClick={handleForceReset}
-                disabled={loading}
-              >
-                <HStack gap={2}>
-                  <FaRedo />
-                  <Text>Force Reset App</Text>
-                </HStack>
-              </Button>
-              <Button
-                width="100%"
-                size="sm"
-                colorScheme="blue"
-                variant="outline"
                 onClick={handleAnnounceProvider}
-                disabled={loading}
               >
-                <HStack gap={2}>
-                  <FaBroadcastTower />
-                  <Text>Announce Provider</Text>
-                </HStack>
+                Announce Provider
               </Button>
             </VStack>
           </Box>

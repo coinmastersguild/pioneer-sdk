@@ -23,6 +23,8 @@ import { getCharts } from './getCharts.js';
 import { getPubkey } from './getPubkey.js';
 import { TransactionManager } from './TransactionManager.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
+// Import the logger
+import logger, { LogLevel, setLogLevel } from './utils/logger.js';
 
 const TAG = ' | Pioneer-sdk | ';
 
@@ -43,10 +45,11 @@ export interface PioneerSDKConfig {
   covalentApiKey?: string;
   utxoApiKey?: string;
   walletConnectProjectId?: string;
+  logLevel?: LogLevel; // Add log level configuration
 }
 
 // Helper function to format time differences
-function formatTime(durationMs) {
+function formatTime(durationMs: number): string {
   let seconds = Math.floor((durationMs / 1000) % 60);
   let minutes = Math.floor((durationMs / (1000 * 60)) % 60);
   let hours = Math.floor((durationMs / (1000 * 60 * 60)) % 24);
@@ -57,6 +60,9 @@ function formatTime(durationMs) {
   formatted += `${seconds}s`;
   return formatted.trim();
 }
+
+// Re-export LogLevel enum for consumers
+export { LogLevel } from './utils/logger.js';
 
 export class SDK {
   public status: string;
@@ -119,6 +125,7 @@ export class SDK {
   public getBalance: (networkId: string) => Promise<any>;
   public getCharts: () => Promise<any>;
   public keepKeySdk: any;
+  public setLogLevel: (level: LogLevel) => void;
   private getGasAssets: () => Promise<any>;
   private transactions: any;
   private transfer: (sendPayload: any) => Promise<any>;
@@ -184,6 +191,17 @@ export class SDK {
     this.utxoApiKey = config.utxoApiKey;
     this.walletConnectProjectId = config.walletConnectProjectId;
     this.contextType = '';
+    
+    // Implement the setLogLevel method
+    this.setLogLevel = (level: LogLevel) => {
+      setLogLevel(level);
+    };
+
+    // Set the log level if provided in config
+    if (config.logLevel !== undefined) {
+      this.setLogLevel(config.logLevel);
+    }
+    
     this.pairWallet = async (options: any) => {
       // Implementation will be added later
       return Promise.resolve({});
