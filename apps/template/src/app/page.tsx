@@ -53,44 +53,20 @@ export default function Home() {
       minHeight="100vh"
       alignItems="center"
       justifyContent="space-between"
-      padding={{ base: "20px", md: "80px" }}
+      padding={{ base: "10px", md: "20px" }}
       gap="64px"
     >
-      <Box flexGrow={1} width="100%" maxWidth="1200px" marginX="auto">
-        <Stack direction="column" gap={6} alignItems="center" marginBottom={8}>
-          <Box position="relative" width={300} height={200}>
-            <Image
-              src="/gif/kk.gif"
-              alt="KeepKey device"
-              fill
-              style={{ objectFit: 'contain' }}
-              priority
-              sizes="100vw"
-            />
-          </Box>
-          <Heading as="h1" size="xl">KeepKey Template</Heading>
-          <Text fontSize="lg" textAlign="center" maxWidth="600px">
-            A starter template for building secure applications with KeepKey hardware wallets.
-          </Text>
-        </Stack>
-
-        <Box marginBottom={8}>
-          <Heading as="h2" size="md" marginBottom={4}>Ask a Question</Heading>
-          <Stack direction="column" gap={4} alignItems="flex-start">
+      <Box>
             <Chat usePioneer={pioneer}></Chat>
-          </Stack>
-        </Box>
       </Box>
 
       <Flex 
         as="footer"
         width="100%"
         justifyContent="center"
-        paddingY={4}
       >
           <Flex
               direction={{base: "column", md: "row"}}
-              gap={4}
               alignItems="center"
           >
               <a
