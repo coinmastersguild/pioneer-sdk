@@ -13,6 +13,7 @@ import {
   Flex
 } from "@chakra-ui/react"
 import { usePioneerContext } from '@/components/providers/pioneer'
+import Chat from '@/components/chat'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowRight } from '@fortawesome/free-solid-svg-icons'
 
@@ -64,6 +65,7 @@ export default function Home() {
               fill
               style={{ objectFit: 'contain' }}
               priority
+              sizes="100vw"
             />
           </Box>
           <Heading as="h1" size="xl">KeepKey Template</Heading>
@@ -72,59 +74,10 @@ export default function Home() {
           </Text>
         </Stack>
 
-        {pioneer?.state?.app?.username && (
-          <Box marginBottom={8} padding={4} borderRadius="lg" borderWidth="1px">
-            <Text fontSize="md">Connected as: <Text as="span" fontWeight="bold">{pioneer.state.app.username}</Text></Text>
-          </Box>
-        )}
-
-        <Box marginBottom={8} width="100%">
-          <Heading as="h2" size="md" marginBottom={4}>Supported Blockchains</Heading>
-          <Grid 
-            templateColumns={{ 
-              base: "1fr", 
-              sm: "repeat(2, 1fr)", 
-              md: "repeat(3, 1fr)" 
-            }}
-            gap={4}
-            width="100%"
-          >
-            {blockchainList.map((blockchain: string, index: number) => (
-              <Box 
-                key={index} 
-                borderWidth="1px"
-                borderRadius="lg"
-                padding={4}
-                _hover={{ 
-                  boxShadow: "md", 
-                  borderColor: "blue.500" 
-                }}
-                transition="all 0.2s"
-              >
-                <Heading size="sm" textTransform="capitalize" marginBottom={2}>
-                  {typeof blockchain === 'string' ? blockchain.trim() : blockchain}
-                </Heading>
-                <Text fontSize="xs" color="gray.500">Blockchain</Text>
-              </Box>
-            ))}
-          </Grid>
-        </Box>
-
         <Box marginBottom={8}>
-          <Heading as="h2" size="md" marginBottom={4}>Get Started</Heading>
+          <Heading as="h2" size="md" marginBottom={4}>Ask a Question</Heading>
           <Stack direction="column" gap={4} alignItems="flex-start">
-            <HStack gap={4}>
-              <a 
-                href="https://docs.keepkey.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ textDecoration: 'none' }}
-              >
-                <Button variant="outline">
-                  View Documentation
-                </Button>
-              </a>
-            </HStack>
+            <Chat usePioneer={pioneer}></Chat>
           </Stack>
         </Box>
       </Box>
@@ -135,21 +88,31 @@ export default function Home() {
         justifyContent="center"
         paddingY={4}
       >
-        <Flex 
-          direction={{ base: "column", md: "row" }} 
-          gap={4} 
-          alignItems="center"
-        >
-          <Text fontSize="sm">Built with KeepKey SDK</Text>
-          <Text fontSize="sm">•</Text>
-          <a href="https://keepkey.com" target="_blank" rel="noopener noreferrer">
-            <Text fontSize="sm" _hover={{ textDecoration: "underline" }}>KeepKey Website</Text>
-          </a>
-          <Text fontSize="sm">•</Text>
-          <a href="https://github.com/keepkey" target="_blank" rel="noopener noreferrer">
-            <Text fontSize="sm" _hover={{ textDecoration: "underline" }}>GitHub</Text>
-          </a>
-        </Flex>
+          <Flex
+              direction={{base: "column", md: "row"}}
+              gap={4}
+              alignItems="center"
+          >
+              <a
+                  href="https://docs.keepkey.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{textDecoration: 'none'}}
+              >
+                  <Button variant="outline">
+                      View Documentation
+                  </Button>
+              </a>
+              <Text fontSize="sm">Built with KeepKey SDK</Text>
+              <Text fontSize="sm">•</Text>
+              <a href="https://keepkey.com" target="_blank" rel="noopener noreferrer">
+                  <Text fontSize="sm" _hover={{textDecoration: "underline"}}>KeepKey Website</Text>
+              </a>
+              <Text fontSize="sm">•</Text>
+              <a href="https://github.com/keepkey" target="_blank" rel="noopener noreferrer">
+                  <Text fontSize="sm" _hover={{textDecoration: "underline"}}>GitHub</Text>
+              </a>
+          </Flex>
       </Flex>
     </Flex>
   );

@@ -12,6 +12,9 @@ import { ConnectionError } from '@/components/error'
 // //@ts-ignore
 // import { defaultConfig } from '@saas-ui-pro/react';
 
+// Global variable to track if context setup has been completed
+let contextSetupComplete = false;
+
 interface ProviderProps {
   children: React.ReactNode;
 }
@@ -62,6 +65,93 @@ function PioneerInitializer({ children, onPioneerReady }: {
       }
       console.log('pioneerSetup: ',pioneerSetup)
       await pioneer.onStart([], pioneerSetup)
+
+            // Disable default asset context setup to prevent getting stuck in setOutboundAssetContext
+            // This overrides the default setup in pioneer-react's PioneerProvider
+            if (pioneer.state?.app) {
+              // Add a property to track if we should skip automatic context setting
+              pioneer.state.app.skipDefaultContextSetup = true;
+              
+              // If setOutboundAssetContext is running and causing issues, let's monkey patch it with a timeout version
+              if (typeof pioneer.state.app.setOutboundAssetContext === 'function') {
+                const originalFn = pioneer.state.app.setOutboundAssetContext;
+                pioneer.state.app.setOutboundAssetContext = async function(asset?: any) {
+                  console.log('Safe version of setOutboundAssetContext', asset);
+                  try {
+                    // Only allow this to run once to prevent constant re-triggering
+                    if (contextSetupComplete) {
+                      console.log('Context setup already complete, returning cached value');
+                      return pioneer.state.app.outboundAssetContext;
+                    }
+                    
+                    // Run with a timeout
+                    const result = await new Promise((resolve, reject) => {
+                      const timeout = setTimeout(() => {
+                        console.log('setOutboundAssetContext timed out, using fallback');
+                        resolve({
+                          caip: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                          networkId: 'bitcoin',
+                          symbol: 'BTC',
+                          name: 'Bitcoin',
+                          icon: 'https://pioneers.dev/coins/bitcoin.png',
+                        });
+                      }, 2000);
+                      
+                      originalFn.call(pioneer.state.app, asset)
+                        .then((result: any) => {
+                          clearTimeout(timeout);
+                          resolve(result);
+                        })
+                        .catch((err: any) => {
+                          clearTimeout(timeout);
+                          reject(err);
+                        });
+                    });
+                    
+                    contextSetupComplete = true;
+                    return result;
+                  } catch (e) {
+                    console.error('Safe setOutboundAssetContext error:', e);
+                    contextSetupComplete = true;
+                    return pioneer.state.app.outboundAssetContext || {
+                      caip: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                      networkId: 'bitcoin'
+                    };
+                  }
+                };
+              }
+              
+              // Also patch the setAssetContext method if it exists
+              if (typeof pioneer.state.app.setAssetContext === 'function') {
+                const originalSetAssetFn = pioneer.state.app.setAssetContext;
+                pioneer.state.app.setAssetContext = async function(asset?: any) {
+                  console.log('Safe version of setAssetContext', asset);
+                  try {
+                    // Run with a timeout
+                    const result = await Promise.race([
+                      originalSetAssetFn.call(pioneer.state.app, asset),
+                      new Promise((resolve) => setTimeout(() => {
+                        console.log('setAssetContext timed out, using fallback');
+                        resolve({
+                          caip: 'eip155:1/slip44:60',
+                          networkId: 'ethereum',
+                          symbol: 'ETH',
+                          name: 'Ethereum',
+                          icon: 'https://pioneers.dev/coins/ethereum.png',
+                        });
+                      }, 2000))
+                    ]);
+                    return result;
+                  } catch (e) {
+                    console.error('Safe setAssetContext error:', e);
+                    return pioneer.state.app.assetContext || {
+                      caip: 'eip155:1/slip44:60',
+                      networkId: 'ethereum'
+                    };
+                  }
+                };
+              }
+            }
       // Store instance for Fast Refresh persistence
       pioneerInstance = pioneer
       setIsInitialized(true)

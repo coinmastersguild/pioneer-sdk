@@ -21,6 +21,8 @@ interface ProviderProps {
   children: React.ReactNode;
 }
 
+// Global variable to track if context setup has been completed
+let contextSetupComplete = false;
 
 // Get environment variables with fallbacks
 const PIONEER_URL = process.env.NEXT_PUBLIC_PIONEER_URL
@@ -62,6 +64,63 @@ function PioneerInitializer({ children, onPioneerReady }: {
 
             console.log('Initializing Pioneer:', pioneerSetup)
             await pioneer.onStart([], pioneerSetup)
+            
+            // Disable default asset context setup to prevent getting stuck in setOutboundAssetContext
+            // This overrides the default setup in pioneer-react's PioneerProvider
+            if (pioneer.state?.app) {
+              // Add a property to track if we should skip automatic context setting
+              pioneer.state.app.skipDefaultContextSetup = true;
+              
+              // If setOutboundAssetContext is running and causing issues, let's monkey patch it with a no-op version
+              if (typeof pioneer.state.app.setOutboundAssetContext === 'function') {
+                const originalFn = pioneer.state.app.setOutboundAssetContext;
+                pioneer.state.app.setOutboundAssetContext = async function(asset?: any) {
+                  console.log('Template app: Using safe version of setOutboundAssetContext', asset);
+                  try {
+                    // Only allow this to run once to prevent constant re-triggering
+                    if (contextSetupComplete) {
+                      console.log('Context setup already complete, returning cached value');
+                      return pioneer.state.app.outboundAssetContext;
+                    }
+                    
+                    // Run with a timeout
+                    const result = await new Promise((resolve, reject) => {
+                      const timeout = setTimeout(() => {
+                        console.log('setOutboundAssetContext timed out, using fallback');
+                        resolve({
+                          caip: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                          networkId: 'bitcoin',
+                          symbol: 'BTC',
+                          name: 'Bitcoin',
+                          icon: 'https://pioneers.dev/coins/bitcoin.png',
+                        });
+                      }, 2000);
+                      
+                      originalFn.call(pioneer.state.app, asset)
+                        .then((result: any) => {
+                          clearTimeout(timeout);
+                          resolve(result);
+                        })
+                        .catch((err: any) => {
+                          clearTimeout(timeout);
+                          reject(err);
+                        });
+                    });
+                    
+                    contextSetupComplete = true;
+                    return result;
+                  } catch (e) {
+                    console.error('Safe setOutboundAssetContext error:', e);
+                    contextSetupComplete = true;
+                    return pioneer.state.app.outboundAssetContext || {
+                      caip: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                      networkId: 'bitcoin'
+                    };
+                  }
+                };
+              }
+            }
+            
             break;
           } catch (e) {
             retries--;
@@ -122,7 +181,7 @@ export function Provider({ children }: ProviderProps) {
       <ChakraProvider>
         <BasePioneerProvider>
           <PioneerInitializer onPioneerReady={handlePioneerReady}>
-            <AppProvider onError={(error, info) => console.error(error, info)} initialColorMode={'dark'} pioneer={pioneerInstance}>
+            <AppProvider onError={(error, info) => console.error(error, info)} pioneer={pioneerInstance}>
               {children}
             </AppProvider>
           </PioneerInitializer>

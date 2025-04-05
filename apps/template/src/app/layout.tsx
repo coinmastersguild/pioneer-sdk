@@ -137,21 +137,8 @@ export default function RootLayout({
             borderBottom="1px solid"
             borderColor="gray.800"
           >
-            <HStack gap={4}>
-              <Image src="/images/logos/keepkey_logo.png" alt="KeepKey Logo" height="24px" />
-              <Text color="white" fontWeight="semibold">KeepKey Template</Text>
-            </HStack>
             
             <HStack gap={4}>
-              <IconButton
-                aria-label="Toggle wallet view"
-                variant="ghost"
-                colorScheme="gray"
-                size="sm"
-                onClick={() => setShowVault(!showVault)}
-              >
-                <RiWallet3Fill />
-              </IconButton>
               <Tooltip 
                 content={isDesktopRunning ? "KeepKey Desktop is running" : "KeepKey Desktop is not connected"}
                 showArrow
@@ -179,8 +166,6 @@ export default function RootLayout({
                   </Box>
                 </Box>
               </Tooltip>
-
-              <KKConnectionStatus size="md" />
             </HStack>
           </Box>
           
