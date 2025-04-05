@@ -29,7 +29,7 @@ export default function ChatPage() {
 
   return (
     <Container maxW="container.xl" py={8}>
-      <VStack spacing={6} align="stretch">
+      <VStack gap={6} align="stretch">
         <Heading as="h1" size="xl">KeepKey Support Chat</Heading>
         
         <Box 
