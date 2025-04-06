@@ -21,6 +21,8 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
   const [isTyping, setIsTyping] = React.useState(false);
   const [debugInfo, setDebugInfo] = React.useState<string>("");
   const [showDebug, setShowDebug] = React.useState<boolean>(false);
+  const [eventSystemStatus, setEventSystemStatus] = React.useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [activeEventSystem, setActiveEventSystem] = React.useState<string | null>(null);
   
   // Debug function to analyze the pioneer object
   const analyzeObject = (obj: any, path = 'pioneer'): string => {
@@ -83,7 +85,8 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
     if (!pioneer?.state?.app) return;
     
     const app = pioneer.state.app;
-    
+    console.log('app: ', app);
+
     // Set up event listener for messages
     const handleMessage = (text: string) => {
       console.log('Received message via event system:', text);
@@ -108,20 +111,15 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
       console.log('Registering message event listener on app.events');
       app.events.on('message', handleMessage);
       eventsRegistered = true;
+      setEventSystemStatus('connected');
+      setActiveEventSystem('app.events');
     }
     
-    // Option 2: Events on pioneer instance
-    if (!eventsRegistered && pioneer.events && typeof pioneer.events.on === 'function') {
-      console.log('Registering message event listener on pioneer.events');
-      pioneer.events.on('message', handleMessage);
-      eventsRegistered = true;
-    }
-    
-    // Option 3: Events on pioneer state root
-    if (!eventsRegistered && pioneer.state?.events && typeof pioneer.state.events.on === 'function') {
-      console.log('Registering message event listener on pioneer.state.events');
-      pioneer.state.events.on('message', handleMessage);
-      eventsRegistered = true;
+    // Update status if no events were registered
+    if (!eventsRegistered) {
+      console.warn('No event system available');
+      setEventSystemStatus('disconnected');
+      setActiveEventSystem(null);
     }
     
     // Clean up event listener
@@ -160,51 +158,9 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
         timestamp: new Date(),
       };
       setLocalMessages(prev => [...prev, newMessage]);
-      
-      // Store the message for clearing input field
-      const sentMessage = inputMessage;
-      setInputMessage('');
 
-      // Try sending message through Pioneer event system at multiple possible locations
-      let messageSent = false;
-      
-      // Option 1: App events
-      if (!messageSent && pioneer?.state?.app?.events && typeof pioneer.state.app.events.emit === 'function') {
-        console.log('Sending message via app.events:', sentMessage);
-        pioneer.state.app.events.emit('message', sentMessage);
-        messageSent = true;
-      }
-      
-      // Option 2: Pioneer events
-      if (!messageSent && pioneer?.events && typeof pioneer.events.emit === 'function') {
-        console.log('Sending message via pioneer.events:', sentMessage);
-        pioneer.events.emit('message', sentMessage);
-        messageSent = true;
-      }
-      
-      // Option 3: State events
-      if (!messageSent && pioneer?.state?.events && typeof pioneer.state.events.emit === 'function') {
-        console.log('Sending message via pioneer.state.events:', sentMessage);
-        pioneer.state.events.emit('message', sentMessage);
-        messageSent = true;
-      }
-      
-      // Fallback for when no event system is available
-      if (!messageSent) {
-        console.log('Events system not available, using fallback');
-        // Simulate bot response for demo (fallback)
-        setTimeout(() => {
-          const responseMessage: Message = {
-            id: `response-${messageId}`,
-            type: 'message',
-            from: 'computer',
-            text: `Thank you for your message. Our team will respond to "${sentMessage.substring(0, 30)}${sentMessage.length > 30 ? '...' : ''}" shortly.`,
-            timestamp: new Date(),
-          };
-          setLocalMessages(prev => [...prev, responseMessage]);
-          setIsTyping(false);
-        }, 1500);
-      }
+      //TODO
+
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsTyping(false);
@@ -279,9 +235,21 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
           <Avatar size="sm" name="Support" src="https://pioneers.dev/coins/keepkey.png" />
           <Box>
             <Text fontWeight="bold">KeepKey Support</Text>
-            <Text fontSize="xs" color="green.300">
-              Online
-            </Text>
+            <HStack gap={1}>
+              <Box 
+                w="8px" 
+                h="8px" 
+                borderRadius="full" 
+                bg={eventSystemStatus === 'connected' ? 'green.400' : eventSystemStatus === 'checking' ? 'yellow.400' : 'red.400'} 
+              />
+              <Text fontSize="xs" color={eventSystemStatus === 'connected' ? 'green.300' : eventSystemStatus === 'checking' ? 'yellow.300' : 'red.300'}>
+                {eventSystemStatus === 'connected' 
+                  ? `Events connected (${activeEventSystem})` 
+                  : eventSystemStatus === 'checking' 
+                    ? 'Checking events...' 
+                    : 'Events disconnected'}
+              </Text>
+            </HStack>
           </Box>
         </HStack>
         <HStack>
