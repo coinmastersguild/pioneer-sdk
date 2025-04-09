@@ -14,6 +14,8 @@ import { toaster } from "../ui/toaster";
 import { HiPaperAirplane } from 'react-icons/hi';
 import type { FlexProps } from '@chakra-ui/react';
 import { Avatar } from "../ui/avatar";
+import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '@chakra-ui/react';
 
 interface ChatMessage {
   id: string;
@@ -23,7 +25,7 @@ interface ChatMessage {
   timestamp: Date;
   icon?: string;
   isSupport?: boolean;
-  ticketId?: string;
+  chatId?: string;
 }
 
 export interface ChatProps extends Omit<FlexProps, 'children'> {
@@ -34,9 +36,10 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [ticketId, setTicketId] = useState<string>('');
+  const [chatId, setChatId] = useState<string>('');
   const [eventsAvailable, setEventsAvailable] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -55,52 +58,52 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
       }
 
       try {
-        // Create or join ticket
+        // Create or join chat
         const username = usePioneer.state.app.username;
-        const newTicketId = `${username}-${Date.now()}`;
-        console.log('🚀 Initializing chat for user:', username, 'with ticket:', newTicketId);
-        setTicketId(newTicketId);
+        const newChatId = `${username}-${Date.now()}`;
+        console.log('🚀 Initializing chat for user:', username, 'with chat ID:', newChatId);
+        setChatId(newChatId);
 
-        // Create ticket
-        console.log('📝 Creating ticket...');
-        const createTicketResponse = await fetch('/api/support/create', {
+        // Create chat session
+        console.log('📝 Creating chat session...');
+        const createChatResponse = await fetch('/api/support/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': usePioneer.state.app.token || ''
           },
           body: JSON.stringify({
-            id: newTicketId,
+            id: newChatId,
             username,
             description: 'Chat support session'
           })
         });
 
-        if (!createTicketResponse.ok) {
-          throw new Error('Failed to create ticket');
+        if (!createChatResponse.ok) {
+          throw new Error('Failed to create chat session');
         }
-        console.log('✅ Ticket created successfully');
+        console.log('✅ Chat session created successfully');
 
-        // Join room
-        console.log('🔗 Joining chat room...');
-        const joinRoomResponse = await fetch('/api/support/join', {
+        // Join chat
+        console.log('🔗 Joining chat...');
+        const joinChatResponse = await fetch('/api/support/join', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': usePioneer.state.app.token || ''
           },
           body: JSON.stringify({
-            ticketId: newTicketId,
+            chatId: newChatId,
             username
           })
         });
 
-        if (!joinRoomResponse.ok) {
-          throw new Error('Failed to join room');
+        if (!joinChatResponse.ok) {
+          throw new Error('Failed to join chat');
         }
 
-        const joinData = await joinRoomResponse.json();
-        console.log('📥 Received room data:', joinData);
+        const joinData = await joinChatResponse.json();
+        console.log('📥 Received chat data:', joinData);
         if (joinData.messages) {
           setMessages(joinData.messages);
         }
@@ -111,7 +114,7 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
           setEventsAvailable(true);
           usePioneer.events.events.on('message', (message: any) => {
             console.log('📨 Received message event:', message);
-            if (message.ticketId === newTicketId) {
+            if (message.chatId === newChatId) {
               setMessages(prev => [...prev, message]);
               toaster.create({
                 title: "New message",
@@ -149,64 +152,61 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
         usePioneer.events.events.removeAllListeners('message');
       }
     };
-  }, [usePioneer?.state?.app?.username, toaster]);
+  }, [usePioneer?.state?.app?.username]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !ticketId) return;
+    if (!inputMessage.trim()) {
+      console.error('Cannot send empty message');
+      return;
+    }
 
-    const messageText = inputMessage.trim();
-    setInputMessage('');
     setIsTyping(true);
+    const messageId = uuidv4();
 
     try {
-      console.log('📤 Sending message:', messageText);
-      // Send message through support endpoint
-      const response = await fetch('/api/support/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': usePioneer.state.app.token || ''
-        },
-        body: JSON.stringify({
-          ticketId,
-          message: messageText,
-          text: messageText
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send message');
+      console.log('Attempting to send message via Pioneer SDK...');
+      
+      if (!usePioneer?.state?.app?.pioneer?.Support) {
+        throw new Error('Pioneer SDK Support method not available');
       }
 
-      console.log('✅ Message sent successfully');
-      // Local message will be updated when we receive the event
-      const tempMessage: ChatMessage = {
-        id: `temp-${Date.now()}`,
+      // Add message to local state immediately for UI responsiveness
+      const tempMessage = {
+        id: messageId,
         type: 'message',
         from: 'user',
-        text: messageText,
-        timestamp: new Date(),
-        ticketId
-      };
-
-      setMessages(prev => [...prev, tempMessage]);
-    } catch (error) {
-      console.error('❌ Error sending message:', error);
-      toaster.create({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        type: "error",
-        duration: 3000,
-      });
-      // Show error in chat
-      const errorMessage: ChatMessage = {
-        id: `error-${Date.now()}`,
-        type: 'system',
-        from: 'computer',
-        text: 'Failed to send message. Please try again.',
+        text: inputMessage.trim(),
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, tempMessage]);
+
+      // Send via Pioneer SDK
+      const result = await usePioneer.state.app.pioneer.Support({
+        id: messageId,
+        type: 'message',
+        message: inputMessage.trim(),
+        room: chatId || 'general', // Fallback to 'general' if no chatId
+        user: {
+          username: usePioneer.state.app.username || 'guest'
+        },
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('Message sent successfully:', result);
+      setInputMessage('');
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast({
+        title: 'Error sending message',
+        description: error.message || 'Failed to send message. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true
+      });
+
+      // Remove the temporary message if it failed to send
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
     } finally {
       setIsTyping(false);
     }
@@ -228,9 +228,9 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
           <Avatar src="https://pioneers.dev/coins/keepkey.png" />
           <Box flex="1">
             <Text fontWeight="bold" fontSize="lg">KeepKey Support</Text>
-            {ticketId && (
+            {chatId && (
               <Text fontSize="xs" color="gray.400">
-                Ticket ID: {ticketId}
+                Chat ID: {chatId}
               </Text>
             )}
           </Box>
@@ -329,18 +329,26 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
               ring: 2,
               ringColor: 'blue.500'
             }}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !isTyping) {
+                e.preventDefault();
+                console.log('🎯 Enter key pressed, sending message...');
                 handleSendMessage();
               }
             }}
+            disabled={isTyping}
           />
           <IconButton
             aria-label="Send message"
             variant="solid"
             colorScheme="blue"
             size="md"
-            onClick={handleSendMessage}
+            onClick={() => {
+              console.log('🎯 Send button clicked, sending message...');
+              handleSendMessage();
+            }}
+            disabled={!inputMessage.trim() || isTyping}
+            loading={isTyping}
           >
             <HiPaperAirplane />
           </IconButton>
