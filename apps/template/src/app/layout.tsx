@@ -208,6 +208,7 @@ export default function RootLayout({
                   flex={1}
                   px={4}
                 >
+
                   {isDesktopRunning ? (
                     <>
                       <Box display="flex" justifyContent="center">
