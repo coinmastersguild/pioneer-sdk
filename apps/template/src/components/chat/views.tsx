@@ -1,4 +1,4 @@
-import { Box, Flex, HStack, Icon, Link, Text, VStack, Card, Input, Stack } from '@chakra-ui/react';
+import { Box, Flex, HStack, Icon, Link, Text, VStack, Card, Input, Stack, Badge } from '@chakra-ui/react';
 import { Button } from "@chakra-ui/react";
 import { Avatar } from "../ui/avatar";
 import React, { useState } from 'react';
@@ -6,17 +6,96 @@ import React, { useState } from 'react';
 const TAG = " | views | ";
 
 export function renderEventMessage(eventMessage: any, index: number) {
+  // Determine if this is a system message or an event message
+  const isSystemMessage = eventMessage.type === 'system';
+  
+  // Format the text content
+  let displayText = eventMessage.message || eventMessage.text || 'Unknown event';
+  let eventType = '';
+  let eventData = null;
+  
+  // If the text is a JSON string, try to parse and format it
+  if (typeof displayText === 'string' && (displayText.startsWith('{') || displayText.startsWith('['))) {
+    try {
+      const parsedData = JSON.parse(displayText);
+      if (parsedData.type) {
+        eventType = parsedData.type;
+      }
+      eventData = parsedData;
+      // Use a more readable format for display
+      displayText = JSON.stringify(parsedData, null, 2);
+    } catch (e) {
+      // Not valid JSON, use as is
+    }
+  }
+  
   return (
-    <Text
+    <Box
       key={index}
-      fontSize="xs"
+      width="100%"
       display="flex"
-      justifyContent="center"
+      flexDirection="column"
       alignItems="center"
       mb={2}
     >
-      {eventMessage.message || eventMessage.text}
-    </Text>
+      {isSystemMessage ? (
+        // System message style
+        <Text
+          fontSize="xs"
+          color="gray.400"
+          textAlign="center"
+          px={3}
+          py={1}
+          borderRadius="md"
+          bg="blackAlpha.300"
+          maxW="80%"
+        >
+          {displayText}
+        </Text>
+      ) : (
+        // Event message style
+        <Box
+          p={3}
+          borderRadius="md"
+          bg="gray.700"
+          maxW="90%"
+          width="100%"
+        >
+          <Flex justify="space-between" align="center" mb={2}>
+            <HStack>
+              <Badge colorScheme="purple">Event</Badge>
+              {eventType && (
+                <Badge colorScheme="blue">{eventType}</Badge>
+              )}
+            </HStack>
+            <Text fontSize="xs" color="gray.400">
+              {eventMessage.timestamp instanceof Date 
+                ? eventMessage.timestamp.toLocaleTimeString() 
+                : 'Unknown time'}
+            </Text>
+          </Flex>
+          
+          {eventData ? (
+            <Box 
+              mt={2} 
+              p={2} 
+              bg="gray.800" 
+              borderRadius="md" 
+              fontSize="xs"
+              fontFamily="mono"
+              overflowX="auto"
+              whiteSpace="pre"
+            >
+              {displayText}
+            </Box>
+          ) : (
+            <Text fontSize="sm">
+              {displayText}
+            </Text>
+          )}
+        </Box>
+      )}
+    </Box>
   );
 }
 

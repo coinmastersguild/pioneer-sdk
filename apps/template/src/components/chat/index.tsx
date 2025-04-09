@@ -1,29 +1,56 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Flex, Text, Input, HStack, VStack, IconButton, type FlexProps, Button } from '@chakra-ui/react';
+import { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Flex, 
+  Text, 
+  Input, 
+  HStack, 
+  VStack, 
+  IconButton, 
+  type FlexProps, 
+  Button,
+  useDisclosure,
+  Textarea
+} from '@chakra-ui/react';
 import { HiPaperAirplane } from 'react-icons/hi';
 import { Avatar } from "../ui/avatar";
 import { Message } from './types';
 import MessageList from './MessageList';
 import { useParams } from 'next/navigation';
 
+interface Message {
+  id: string;
+  type: 'message' | 'system';
+  from: 'user' | 'computer';
+  text: string;
+  timestamp: Date;
+}
+
 export interface ChatProps extends Omit<FlexProps, 'children'> {
   usePioneer: any;
 }
 
-function Chat({ usePioneer, ...rest }: ChatProps) {
+export function Chat({ usePioneer, ...rest }: ChatProps) {
   const params = useParams();
   const ticketId = params?.ticketId as string;
   const pioneer = usePioneer;
-  const [localMessages, setLocalMessages] = React.useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = React.useState('');
-  const [isTyping, setIsTyping] = React.useState(false);
-  const [debugInfo, setDebugInfo] = React.useState<string>("");
-  const [showDebug, setShowDebug] = React.useState<boolean>(false);
-  const [eventSystemStatus, setEventSystemStatus] = React.useState<'checking' | 'connected' | 'disconnected'>('checking');
-  const [activeEventSystem, setActiveEventSystem] = React.useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [eventsAvailable, setEventsAvailable] = useState<boolean>(false);
+  const [showDebug, setShowDebug] = useState<boolean>(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
   
+  // Add state for Redis testing
+  const [showRedisForm, setShowRedisForm] = useState<boolean>(false);
+  const [redisChannel, setRedisChannel] = useState<string>('keepkey-support');
+  const [redisMessage, setRedisMessage] = useState<string>('{"type":"broadcast","message":"Test message from UI"}');
+  const [redisMessageType, setRedisMessageType] = useState<string>('broadcast');
+  const [redisMessageStatus, setRedisMessageStatus] = useState<string>('');
+
   // Debug function to analyze the pioneer object
   const analyzeObject = (obj: any, path = 'pioneer'): string => {
     if (!obj) return `${path} is null or undefined`;
@@ -59,110 +86,126 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
   };
   
   // Collect debug info on pioneer object
-  React.useEffect(() => {
+  useEffect(() => {
     if (pioneer) {
       const info = analyzeObject(pioneer);
       setDebugInfo(info);
     }
   }, [pioneer]);
 
-  // Initialize demo messages if none exist
-  React.useEffect(() => {
-    if (!localMessages || localMessages.length === 0) {
-      const welcomeMessage: Message = {
-        id: 'welcome-1',
+  // Initialize with welcome message
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([{
+        id: 'welcome',
         type: 'system',
         from: 'computer',
-        text: 'Welcome to the KeepKey Support Chat! How can I help you today?',
-        timestamp: new Date(),
-      };
-      setLocalMessages([welcomeMessage]);
+        text: 'Welcome to KeepKey support! How can I help you today?',
+        timestamp: new Date()
+      }]);
     }
-  }, [localMessages]);
+  }, []);
 
-  // Set up event listeners for receiving messages
-  React.useEffect(() => {
-    if (!pioneer?.state?.app) return;
-    
-    const app = pioneer.state.app;
-    console.log('app: ', app);
-
-    // Set up event listener for messages
-    const handleMessage = (text: string) => {
-      console.log('Received message via event system:', text);
-      
-      const responseMessage: Message = {
-        id: `event-${Date.now()}`,
-        type: 'message',
-        from: 'computer',
-        text: String(text),
-        timestamp: new Date(),
-      };
-      
-      setLocalMessages(prev => [...prev, responseMessage]);
-      setIsTyping(false);
-    };
-    
-    // Register event listener - check multiple possible event locations
-    let eventsRegistered = false;
-    
-    // Option 1: Direct events on app
-    if (app.events && typeof app.events.on === 'function') {
-      console.log('Registering message event listener on app.events');
-      app.events.on('message', handleMessage);
-      eventsRegistered = true;
-      setEventSystemStatus('connected');
-      setActiveEventSystem('app.events');
+  // Initialize message list and set up event listeners
+  useEffect(() => {
+    if (pioneer?.events) {
+      try {
+        setEventsAvailable(pioneer.events.isConnected);
+        
+        // Subscribe to messages from events system
+        pioneer.events.events.on('message', (message: any) => {
+          console.log('Event message received:', message);
+          
+          // Properly format the event message
+          const formattedMessage: Message = {
+            id: `event-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            type: 'event',
+            from: 'computer',
+            text: typeof message === 'string' ? message : JSON.stringify(message),
+            timestamp: new Date(),
+            icon: 'https://pioneers.dev/coins/keepkey.png'
+          };
+          
+          // Add message to chat
+          setMessages(prev => [...prev, formattedMessage]);
+        });
+        
+        // Setup reconnection monitoring
+        pioneer.events.socket.on('connect', () => {
+          setEventsAvailable(true);
+          
+          // Add system message when reconnected
+          const reconnectMsg: Message = {
+            id: `system-${Date.now()}`,
+            type: 'system',
+            from: 'computer',
+            text: 'Events system connected successfully!',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, reconnectMsg]);
+        });
+        
+        pioneer.events.socket.on('disconnect', () => {
+          setEventsAvailable(false);
+          
+          // Add system message when disconnected
+          const disconnectMsg: Message = {
+            id: `system-${Date.now()}`,
+            type: 'system',
+            from: 'computer',
+            text: 'Events system disconnected. Attempting to reconnect...',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, disconnectMsg]);
+        });
+      } catch (e) {
+        console.error('Error setting up event listeners:', e);
+        setEventsAvailable(false);
+      }
     }
     
-    // Update status if no events were registered
-    if (!eventsRegistered) {
-      console.warn('No event system available');
-      setEventSystemStatus('disconnected');
-      setActiveEventSystem(null);
-    }
-    
-    // Clean up event listener
+    // Clean up event listeners
     return () => {
-      if (app.events && typeof app.events.off === 'function') {
-        console.log('Removing message event listener from app.events');
-        app.events.off('message', handleMessage);
+      if (pioneer?.events?.events) {
+        pioneer.events.events.removeAllListeners('message');
       }
-      
-      if (pioneer.events && typeof pioneer.events.off === 'function') {
-        console.log('Removing message event listener from pioneer.events');
-        pioneer.events.off('message', handleMessage);
-      }
-      
-      if (pioneer.state?.events && typeof pioneer.state.events.off === 'function') {
-        console.log('Removing message event listener from pioneer.state.events');
-        pioneer.state.events.off('message', handleMessage);
+      if (pioneer?.events?.socket) {
+        pioneer.events.socket.off('connect');
+        pioneer.events.socket.off('disconnect');
       }
     };
   }, [pioneer]);
 
-  // Handle sending a message
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
+    // Add user message
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      type: 'message',
+      from: 'user',
+      text: inputMessage,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
     setIsTyping(true);
+
     try {
-      const messageId = Math.random().toString(36).substr(2, 9);
-
-      // Add message to local state
-      const newMessage: Message = {
-        id: messageId,
+      // Add bot response
+      const botMessage: Message = {
+        id: `bot-${Date.now()}`,
         type: 'message',
-        from: 'user',
-        text: inputMessage,
-        timestamp: new Date(),
+        from: 'computer',
+        text: 'Thank you for your message. Our support team will get back to you soon.',
+        timestamp: new Date()
       };
-      setLocalMessages(prev => [...prev, newMessage]);
 
-      //TODO
-
+      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('Error sending message:', error);
+    } finally {
       setIsTyping(false);
     }
   };
@@ -172,169 +215,253 @@ function Chat({ usePioneer, ...rest }: ChatProps) {
     setInputMessage(e.target.value);
   };
 
-  // Handle key down (send on Enter)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  // Handle test event button
+  const handleTestEvent = async () => {
+    try {
+      if (!pioneer?.events) {
+        // If no events system, add a message about it
+        const noEventsMsg: Message = {
+          id: `system-${Date.now()}`,
+          type: 'system',
+          from: 'computer',
+          text: 'Events system not available. Please refresh the page or check connection.',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, noEventsMsg]);
+        return;
+      }
+      
+      // Check if events system is connected
+      if (!eventsAvailable) {
+        // Try to initialize if not connected
+        try {
+          await pioneer.events.init();
+          setEventsAvailable(true);
+        } catch (e: any) {
+          console.error('Failed to initialize events:', e);
+          const errorMsg: Message = {
+            id: `system-${Date.now()}`,
+            type: 'system',
+            from: 'computer',
+            text: `Failed to initialize events: ${e.message || e}`,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, errorMsg]);
+          return;
+        }
+      }
+      
+      // Send test event
+      const testEvent = {
+        type: 'test',
+        data: 'Hello from the test event button!',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Add outgoing message
+      const outgoingMsg: Message = {
+        id: `event-out-${Date.now()}`,
+        type: 'message',
+        from: 'user',
+        text: `Sending test event: ${JSON.stringify(testEvent)}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, outgoingMsg]);
+      
+      // Send the event through socket
+      await pioneer.events.send('event', testEvent);
+      
+      // Add confirmation message
+      const confirmMsg: Message = {
+        id: `system-${Date.now()}`,
+        type: 'system',
+        from: 'computer',
+        text: 'Test event sent successfully!',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, confirmMsg]);
+    } catch (e: any) {
+      console.error('Error sending test event:', e);
+      // Add error message
+      const errorMsg: Message = {
+        id: `system-${Date.now()}`,
+        type: 'system',
+        from: 'computer',
+        text: `Error sending test event: ${e.message || e}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMsg]);
     }
   };
 
-  // Test event system button click handler
-  const handleTestEvent = () => {
-    let eventSent = false;
-    
-    // Option 1: App events
-    if (!eventSent && pioneer?.state?.app?.events && typeof pioneer.state.app.events.emit === 'function') {
-      console.log('Testing event via app.events');
-      pioneer.state.app.events.emit('message', 'This is a test message from the event system!');
-      eventSent = true;
-    }
-    
-    // Option 2: Pioneer events
-    if (!eventSent && pioneer?.events && typeof pioneer.events.emit === 'function') {
-      console.log('Testing event via pioneer.events');
-      pioneer.events.emit('message', 'This is a test message from the event system!');
-      eventSent = true;
-    }
-    
-    // Option 3: State events
-    if (!eventSent && pioneer?.state?.events && typeof pioneer.state.events.emit === 'function') {
-      console.log('Testing event via pioneer.state.events');
-      pioneer.state.events.emit('message', 'This is a test message from the event system!');
-      eventSent = true;
-    }
-    
-    if (!eventSent) {
-      console.warn('No event system available for testing');
-      // Add local message to show the issue
-      const testErrorMessage: Message = {
-        id: `test-error-${Date.now()}`,
+  // Handle Redis Direct Message form submission
+  const handleSendRedisMessage = async () => {
+    try {
+      setRedisMessageStatus('Sending...');
+      
+      // Format the message based on type
+      let messagePayload: any;
+      
+      try {
+        // Try to parse as JSON first
+        messagePayload = JSON.parse(redisMessage);
+      } catch (e) {
+        // If not valid JSON, use as text
+        messagePayload = { message: redisMessage };
+      }
+      
+      // Add message type if not present
+      if (!messagePayload.type) {
+        messagePayload.type = redisMessageType;
+      }
+      
+      // Add logInChat flag to ensure the message appears in chat
+      messagePayload.logInChat = true;
+      
+      // Add timestamp if not present
+      if (!messagePayload.timestamp) {
+        messagePayload.timestamp = new Date().toISOString();
+      }
+      
+      // Create a message about what we're doing
+      const preparingMessage: Message = {
+        id: `redis-info-${Date.now()}`,
         type: 'system',
         from: 'computer',
-        text: 'Events system not available. Check console for details.',
-        timestamp: new Date(),
+        text: `Sending message to ${redisChannel} channel: ${JSON.stringify(messagePayload)}`,
+        timestamp: new Date()
       };
-      setLocalMessages(prev => [...prev, testErrorMessage]);
+      setMessages(prev => [...prev, preparingMessage]);
+      
+      // For simplicity, inform user to use the direct-push.sh script
+      // since browser might not have direct Redis access
+      const infoMessage: Message = {
+        id: `redis-help-${Date.now()}`,
+        type: 'system',
+        from: 'computer',
+        text: `To send this message manually, run this command from the terminal:\n\n/Users/highlander/WebstormProjects/keepkey-stack/skills/direct-push.sh ${redisChannel} '${JSON.stringify(messagePayload)}'`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, infoMessage]);
+      
+      // Reset the form
+      setShowRedisForm(false);
+      setRedisMessageStatus('Command prepared for terminal');
+      
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setRedisMessageStatus('');
+      }, 3000);
+    } catch (e: any) {
+      console.error('Error preparing Redis message:', e);
+      setRedisMessageStatus(`Error: ${e.message || String(e)}`);
+      
+      // Add error message to chat
+      const errorMessage: Message = {
+        id: `redis-error-${Date.now()}`,
+        type: 'system',
+        from: 'computer',
+        text: `Failed to prepare Redis message: ${e.message || String(e)}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+  
+  // Update message template when type changes
+  const updateMessageTemplate = (type: string) => {
+    setRedisMessageType(type);
+    switch (type) {
+      case 'broadcast':
+        setRedisMessage('{"type":"broadcast","message":"Broadcast message to all users"}');
+        break;
+      case 'admin':
+        setRedisMessage('{"type":"admin","message":"Admin notification message"}');
+        break;
+      case 'event':
+        setRedisMessage('{"type":"event","eventType":"test","data":{"key":"value"}}');
+        break;
+      case 'message':
+        setRedisMessage('{"type":"message","ticketId":"room-id","message":"Message to specific room"}');
+        break;
+      default:
+        setRedisMessage('{"message":"Custom message"}');
     }
   };
 
   // Main chat interface
   return (
-    <Flex direction="column" h="75vh" {...rest}>
-      {/* Chat Header */}
-      <Flex
-        py={4}
-        px={6}
-        bg="gray.700"
-        borderTopRadius="md"
-        align="center"
-        justify="space-between"
-      >
+    <Flex
+      direction="column"
+      h="full"
+      bg="gray.900"
+      {...rest}
+    >
+      {/* Header */}
+      <Box p={4} borderBottom="1px" borderColor="gray.700">
         <HStack>
-          <Avatar size="sm" name="Support" src="https://pioneers.dev/coins/keepkey.png" />
-          <Box>
-            <Text fontWeight="bold">KeepKey Support</Text>
-            <HStack gap={1}>
-              <Box 
-                w="8px" 
-                h="8px" 
-                borderRadius="full" 
-                bg={eventSystemStatus === 'connected' ? 'green.400' : eventSystemStatus === 'checking' ? 'yellow.400' : 'red.400'} 
-              />
-              <Text fontSize="xs" color={eventSystemStatus === 'connected' ? 'green.300' : eventSystemStatus === 'checking' ? 'yellow.300' : 'red.300'}>
-                {eventSystemStatus === 'connected' 
-                  ? `Events connected (${activeEventSystem})` 
-                  : eventSystemStatus === 'checking' 
-                    ? 'Checking events...' 
-                    : 'Events disconnected'}
-              </Text>
-            </HStack>
-          </Box>
+          <Avatar src="https://pioneers.dev/coins/keepkey.png" />
+          <Text fontWeight="bold">KeepKey Support</Text>
         </HStack>
-        <HStack>
-          <Button
-            onClick={handleTestEvent}
-            colorScheme="blue"
-            size="xs"
-          >
-            Test Event
-          </Button>
-          <Button
-            onClick={() => setShowDebug(!showDebug)}
-            colorScheme="whiteAlpha"
-            size="xs"
-          >
-            {showDebug ? "Hide Debug" : "Debug"}
-          </Button>
-        </HStack>
-      </Flex>
+      </Box>
 
-      {/* Debug Info */}
-      {showDebug && (
-        <Box
-          p={2}
-          bg="gray.800"
-          fontSize="xs"
-          fontFamily="monospace"
-          overflowX="auto"
-          maxH="150px"
-          overflowY="auto"
-        >
-          {debugInfo || "No debug info available"}
-        </Box>
-      )}
-
-      {/* Messages Container */}
+      {/* Messages */}
       <Flex
         flex={1}
         direction="column"
-        p={6}
+        p={4}
         overflowY="auto"
-        bg="gray.800"
-        borderBottomRadius={0}
+        gap={4}
       >
-        <MessageList messages={localMessages} app={pioneer?.state?.app} />
-        {isTyping && (
-          <Flex align="center" my={2}>
-            <Avatar size="xs" name="Support" src="https://pioneers.dev/coins/keepkey.png" />
-            <Text ml={2} fontSize="sm" color="gray.400">
-              Typing...
-            </Text>
+        {messages.map((msg) => (
+          <Flex
+            key={msg.id}
+            justify={msg.from === 'user' ? 'flex-end' : 'flex-start'}
+          >
+            <Box
+              maxW="80%"
+              bg={msg.from === 'user' ? 'blue.500' : 'gray.700'}
+              color="white"
+              p={3}
+              borderRadius="lg"
+            >
+              <Text>{msg.text}</Text>
+            </Box>
           </Flex>
+        ))}
+        {isTyping && (
+          <Text color="gray.500" fontSize="sm">
+            Support is typing...
+          </Text>
         )}
       </Flex>
 
-      {/* Message Input */}
-      <HStack
-        p={4}
-        bg="gray.700"
-        borderBottomRadius="md"
-      >
-        <Input
-          placeholder="Type your message..."
-          value={inputMessage}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          bg="gray.600"
-          border="none"
-          _focus={{ borderColor: "blue.500" }}
-          borderRadius="md"
-          color="white"
-          _placeholder={{ color: 'gray.400' }}
-        />
-        <IconButton
-          aria-label="Send message"
-          onClick={handleSendMessage}
-          loading={isTyping}
-          colorScheme="blue"
-          borderRadius="md"
-        >
-          <HiPaperAirplane />
-        </IconButton>
-      </HStack>
+      {/* Input */}
+      <Box p={4} borderTop="1px" borderColor="gray.700">
+        <HStack>
+          <Input
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            placeholder="Type your message..."
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleSendMessage();
+              }
+            }}
+          />
+          <IconButton
+            aria-label="Send message"
+            _icon={{ as: HiPaperAirplane }}
+            onClick={handleSendMessage}
+            isLoading={isTyping}
+            colorScheme="blue"
+          />
+        </HStack>
+      </Box>
     </Flex>
   );
 }
 
+// Default export
 export default Chat;
