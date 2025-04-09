@@ -13,7 +13,7 @@ import {
   Flex
 } from "@chakra-ui/react"
 import { usePioneerContext } from '@/components/providers/pioneer'
-import Chat from '@/components/chat'
+import { Chat } from '@/components/chat'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowRight } from '@fortawesome/free-solid-svg-icons'
 
@@ -49,7 +49,7 @@ export default function Home() {
 
   return (
     <Box height="100vh" bg="black">
-      <Chat usePioneer={app} />
+      <Chat />
     </Box>
   );
 }
