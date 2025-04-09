@@ -25,9 +25,8 @@ interface ProviderProps {
 let contextSetupComplete = false;
 
 // Get environment variables with fallbacks
-const PIONEER_URL = process.env.NEXT_PUBLIC_PIONEER_URL
-const PIONEER_WSS = process.env.NEXT_PUBLIC_PIONEER_WSS
-// Create a wrapper component to handle Pioneer initialization
+const PIONEER_URL = process.env.NEXT_PUBLIC_PIONEER_URL || 'https://pioneers.dev/spec/swagger.json'
+const PIONEER_WSS = process.env.NEXT_PUBLIC_PIONEER_WSS || 'wss://pioneers.dev'
 
 function PioneerInitializer({ children, onPioneerReady }: {
   children: React.ReactNode
@@ -53,37 +52,63 @@ function PioneerInitializer({ children, onPioneerReady }: {
             const pioneerSetup = {
               appName: 'KeepKey Portfolio',
               appIcon: 'https://pioneers.dev/coins/keepkey.png',
-              spec: PIONEER_URL,
-              wss: PIONEER_WSS,
+              spec: PIONEER_URL || 'https://pioneers.dev/spec/swagger.json',
+              wss: PIONEER_WSS || 'wss://pioneers.dev',
               configWss: {
                 reconnect: true,
                 reconnectInterval: 3000,
-                maxRetries: 5
+                maxRetries: 5,
+                events: true
               }
             }
 
             console.log('Initializing Pioneer:', pioneerSetup)
             await pioneer.onStart([], pioneerSetup)
             
-            // Disable default asset context setup to prevent getting stuck in setOutboundAssetContext
-            // This overrides the default setup in pioneer-react's PioneerProvider
+            // Initialize events system first
+            if (pioneer.state?.app?.pioneer?.socket) {
+              console.log('🎯 Initializing Pioneer events system...')
+              
+              // Create events object if it doesn't exist
+              pioneer.state.app.events = {
+                on: (event: string, callback: Function) => {
+                  console.log('📡 Subscribing to event:', event)
+                  pioneer.state.app.pioneer.socket.on(event, callback)
+                },
+                removeAllListeners: (event: string) => {
+                  console.log('🔌 Removing listeners for event:', event)
+                  pioneer.state.app.pioneer.socket.removeAllListeners(event)
+                }
+              }
+
+              // Set up basic event listeners
+              pioneer.state.app.events.on('connect', () => {
+                console.log('🔗 WebSocket connected!')
+              })
+
+              pioneer.state.app.events.on('disconnect', () => {
+                console.log('🔌 WebSocket disconnected!')
+              })
+
+              pioneer.state.app.events.on('message', (msg: any) => {
+                console.log('📨 Message received:', msg)
+              })
+            }
+            
+            // Then handle asset context
             if (pioneer.state?.app) {
-              // Add a property to track if we should skip automatic context setting
               pioneer.state.app.skipDefaultContextSetup = true;
               
-              // If setOutboundAssetContext is running and causing issues, let's monkey patch it with a no-op version
               if (typeof pioneer.state.app.setOutboundAssetContext === 'function') {
                 const originalFn = pioneer.state.app.setOutboundAssetContext;
                 pioneer.state.app.setOutboundAssetContext = async function(asset?: any) {
                   console.log('Template app: Using safe version of setOutboundAssetContext', asset);
                   try {
-                    // Only allow this to run once to prevent constant re-triggering
                     if (contextSetupComplete) {
                       console.log('Context setup already complete, returning cached value');
                       return pioneer.state.app.outboundAssetContext;
                     }
                     
-                    // Run with a timeout
                     const result = await new Promise((resolve, reject) => {
                       const timeout = setTimeout(() => {
                         console.log('setOutboundAssetContext timed out, using fallback');

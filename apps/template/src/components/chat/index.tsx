@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePioneer } from "@coinmasters/pioneer-react";
 import { Center, Spinner, Text, Flex, Input, Button } from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
@@ -20,6 +20,42 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
   const { state }: any = usePioneer();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
+
+  useEffect(() => {
+    if (state?.app?.events) {
+      console.log("🎯 Setting up Pioneer event listeners...");
+      
+      // Listen for all messages
+      state.app.events.on('message', (message: any) => {
+        console.log('📨 Received message event:', message);
+        setMessages(prev => [...prev, message]);
+      });
+
+      // Listen for support messages
+      state.app.events.on('keepkey-support', (message: any) => {
+        console.log('📨 Received support message:', message);
+        setMessages(prev => [...prev, message]);
+      });
+
+      // Listen for pioneer events
+      state.app.events.on('pioneer-events', (message: any) => {
+        console.log('📨 Received pioneer event:', message);
+        setMessages(prev => [...prev, message]);
+      });
+
+      return () => {
+        // Cleanup listeners on unmount
+        if (state?.app?.pioneer?.events) {
+          state.app.events.removeAllListeners('message');
+          state.app.events.removeAllListeners('keepkey-support');
+          state.app.events.removeAllListeners('pioneer-events');
+        }
+      };
+    } else {
+      console.log('events not found!')
+      console.log('state?.app?.pioneer: ',state?.app?.events)
+    }
+  }, [state?.app?.pioneer?.events]);
 
   if (!state?.app?.pioneer) {
     return (
