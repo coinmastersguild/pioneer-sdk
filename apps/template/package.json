@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^3.8.0",
+    "@chakra-ui/toast": "^7.0.2",
     "@coinmasters/pioneer-react": "workspace:*",
     "@coinmasters/types": "workspace:*",
     "@emotion/react": "^11.14.0",

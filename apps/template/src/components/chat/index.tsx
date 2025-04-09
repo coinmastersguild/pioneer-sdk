@@ -8,25 +8,22 @@ import {
   Text, 
   Input, 
   HStack, 
-  VStack, 
-  IconButton, 
-  type FlexProps, 
-  Button,
-  useDisclosure,
-  Textarea
+  IconButton
 } from '@chakra-ui/react';
+import { toaster } from "../ui/toaster";
 import { HiPaperAirplane } from 'react-icons/hi';
+import type { FlexProps } from '@chakra-ui/react';
 import { Avatar } from "../ui/avatar";
-import { Message } from './types';
-import MessageList from './MessageList';
-import { useParams } from 'next/navigation';
 
-interface Message {
+interface ChatMessage {
   id: string;
-  type: 'message' | 'system';
+  type: 'message' | 'system' | 'event';
   from: 'user' | 'computer';
   text: string;
   timestamp: Date;
+  icon?: string;
+  isSupport?: boolean;
+  ticketId?: string;
 }
 
 export interface ChatProps extends Omit<FlexProps, 'children'> {
@@ -34,385 +31,239 @@ export interface ChatProps extends Omit<FlexProps, 'children'> {
 }
 
 export function Chat({ usePioneer, ...rest }: ChatProps) {
-  const params = useParams();
-  const ticketId = params?.ticketId as string;
-  const pioneer = usePioneer;
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [eventsAvailable, setEventsAvailable] = useState<boolean>(false);
-  const [showDebug, setShowDebug] = useState<boolean>(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
-  
-  // Add state for Redis testing
-  const [showRedisForm, setShowRedisForm] = useState<boolean>(false);
-  const [redisChannel, setRedisChannel] = useState<string>('keepkey-support');
-  const [redisMessage, setRedisMessage] = useState<string>('{"type":"broadcast","message":"Test message from UI"}');
-  const [redisMessageType, setRedisMessageType] = useState<string>('broadcast');
-  const [redisMessageStatus, setRedisMessageStatus] = useState<string>('');
+  const [ticketId, setTicketId] = useState<string>('');
+  const [eventsAvailable, setEventsAvailable] = useState(false);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-  // Debug function to analyze the pioneer object
-  const analyzeObject = (obj: any, path = 'pioneer'): string => {
-    if (!obj) return `${path} is null or undefined`;
-    
-    let result = `${path} is type: ${typeof obj}\n`;
-    
-    if (typeof obj === 'object') {
-      result += `${path} has properties: ${Object.keys(obj).join(', ')}\n`;
-      
-      // Check for functions
-      const methods = Object.keys(obj).filter(key => typeof obj[key] === 'function');
-      if (methods.length > 0) {
-        result += `${path} has methods: ${methods.join(', ')}\n`;
-      }
-      
-      // Check state property specifically
-      if (obj.state) {
-        result += analyzeObject(obj.state, `${path}.state`);
-      }
-      
-      // Check app property specifically
-      if (obj.state?.app) {
-        result += analyzeObject(obj.state.app, `${path}.state.app`);
-      }
-      
-      // Check pioneer property specifically
-      if (obj.state?.app?.pioneer) {
-        result += analyzeObject(obj.state.app.pioneer, `${path}.state.app.pioneer`);
-      }
-    }
-    
-    return result;
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-  
-  // Collect debug info on pioneer object
-  useEffect(() => {
-    if (pioneer) {
-      const info = analyzeObject(pioneer);
-      setDebugInfo(info);
-    }
-  }, [pioneer]);
 
-  // Initialize with welcome message
   useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([{
-        id: 'welcome',
-        type: 'system',
-        from: 'computer',
-        text: 'Welcome to KeepKey support! How can I help you today?',
-        timestamp: new Date()
-      }]);
-    }
-  }, []);
+    scrollToBottom();
+  }, [messages]);
 
-  // Initialize message list and set up event listeners
+  // Initialize chat and connect to events
   useEffect(() => {
-    if (pioneer?.events) {
+    const initializeChat = async () => {
+      if (!usePioneer?.state?.app?.username) {
+        console.warn('No username available yet');
+        return;
+      }
+
       try {
-        setEventsAvailable(pioneer.events.isConnected);
-        
-        // Subscribe to messages from events system
-        pioneer.events.events.on('message', (message: any) => {
-          console.log('Event message received:', message);
-          
-          // Properly format the event message
-          const formattedMessage: Message = {
-            id: `event-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            type: 'event',
-            from: 'computer',
-            text: typeof message === 'string' ? message : JSON.stringify(message),
-            timestamp: new Date(),
-            icon: 'https://pioneers.dev/coins/keepkey.png'
-          };
-          
-          // Add message to chat
-          setMessages(prev => [...prev, formattedMessage]);
+        // Create or join ticket
+        const username = usePioneer.state.app.username;
+        const newTicketId = `${username}-${Date.now()}`;
+        console.log('🚀 Initializing chat for user:', username, 'with ticket:', newTicketId);
+        setTicketId(newTicketId);
+
+        // Create ticket
+        console.log('📝 Creating ticket...');
+        const createTicketResponse = await fetch('/api/support/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': usePioneer.state.app.token || ''
+          },
+          body: JSON.stringify({
+            id: newTicketId,
+            username,
+            description: 'Chat support session'
+          })
         });
-        
-        // Setup reconnection monitoring
-        pioneer.events.socket.on('connect', () => {
+
+        if (!createTicketResponse.ok) {
+          throw new Error('Failed to create ticket');
+        }
+        console.log('✅ Ticket created successfully');
+
+        // Join room
+        console.log('🔗 Joining chat room...');
+        const joinRoomResponse = await fetch('/api/support/join', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': usePioneer.state.app.token || ''
+          },
+          body: JSON.stringify({
+            ticketId: newTicketId,
+            username
+          })
+        });
+
+        if (!joinRoomResponse.ok) {
+          throw new Error('Failed to join room');
+        }
+
+        const joinData = await joinRoomResponse.json();
+        console.log('📥 Received room data:', joinData);
+        if (joinData.messages) {
+          setMessages(joinData.messages);
+        }
+
+        // Setup event listeners
+        if (usePioneer?.events) {
+          console.log('🎯 Setting up event listeners...');
           setEventsAvailable(true);
-          
-          // Add system message when reconnected
-          const reconnectMsg: Message = {
-            id: `system-${Date.now()}`,
-            type: 'system',
-            from: 'computer',
-            text: 'Events system connected successfully!',
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, reconnectMsg]);
+          usePioneer.events.events.on('message', (message: any) => {
+            console.log('📨 Received message event:', message);
+            if (message.ticketId === newTicketId) {
+              setMessages(prev => [...prev, message]);
+              toaster.create({
+                title: "New message",
+                description: "You have received a new message",
+                type: "info",
+                duration: 3000,
+              });
+            }
+          });
+          console.log('✅ Event listeners setup complete');
+        }
+      } catch (error) {
+        console.error('❌ Error initializing chat:', error);
+        toaster.create({
+          title: "Error",
+          description: "Failed to initialize chat. Please try again.",
+          type: "error",
+          duration: 5000,
         });
-        
-        pioneer.events.socket.on('disconnect', () => {
-          setEventsAvailable(false);
-          
-          // Add system message when disconnected
-          const disconnectMsg: Message = {
-            id: `system-${Date.now()}`,
-            type: 'system',
-            from: 'computer',
-            text: 'Events system disconnected. Attempting to reconnect...',
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, disconnectMsg]);
-        });
-      } catch (e) {
-        console.error('Error setting up event listeners:', e);
-        setEventsAvailable(false);
-      }
-    }
-    
-    // Clean up event listeners
-    return () => {
-      if (pioneer?.events?.events) {
-        pioneer.events.events.removeAllListeners('message');
-      }
-      if (pioneer?.events?.socket) {
-        pioneer.events.socket.off('connect');
-        pioneer.events.socket.off('disconnect');
+        setMessages([{
+          id: 'error',
+          type: 'system',
+          from: 'computer',
+          text: 'Failed to initialize chat. Please try again later.',
+          timestamp: new Date()
+        }]);
       }
     };
-  }, [pioneer]);
+
+    initializeChat();
+
+    return () => {
+      if (usePioneer?.events?.events) {
+        console.log('🧹 Cleaning up event listeners');
+        usePioneer.events.events.removeAllListeners('message');
+      }
+    };
+  }, [usePioneer?.state?.app?.username, toaster]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || !ticketId) return;
 
-    // Add user message
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      type: 'message',
-      from: 'user',
-      text: inputMessage,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const messageText = inputMessage.trim();
     setInputMessage('');
     setIsTyping(true);
 
     try {
-      // Add bot response
-      const botMessage: Message = {
-        id: `bot-${Date.now()}`,
+      console.log('📤 Sending message:', messageText);
+      // Send message through support endpoint
+      const response = await fetch('/api/support/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': usePioneer.state.app.token || ''
+        },
+        body: JSON.stringify({
+          ticketId,
+          message: messageText,
+          text: messageText
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      console.log('✅ Message sent successfully');
+      // Local message will be updated when we receive the event
+      const tempMessage: ChatMessage = {
+        id: `temp-${Date.now()}`,
         type: 'message',
-        from: 'computer',
-        text: 'Thank you for your message. Our support team will get back to you soon.',
-        timestamp: new Date()
+        from: 'user',
+        text: messageText,
+        timestamp: new Date(),
+        ticketId
       };
 
-      setMessages(prev => [...prev, botMessage]);
+      setMessages(prev => [...prev, tempMessage]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
+      toaster.create({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        type: "error",
+        duration: 3000,
+      });
+      // Show error in chat
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        type: 'system',
+        from: 'computer',
+        text: 'Failed to send message. Please try again.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  // Handle input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputMessage(e.target.value);
-  };
-
-  // Handle test event button
-  const handleTestEvent = async () => {
-    try {
-      if (!pioneer?.events) {
-        // If no events system, add a message about it
-        const noEventsMsg: Message = {
-          id: `system-${Date.now()}`,
-          type: 'system',
-          from: 'computer',
-          text: 'Events system not available. Please refresh the page or check connection.',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, noEventsMsg]);
-        return;
-      }
-      
-      // Check if events system is connected
-      if (!eventsAvailable) {
-        // Try to initialize if not connected
-        try {
-          await pioneer.events.init();
-          setEventsAvailable(true);
-        } catch (e: any) {
-          console.error('Failed to initialize events:', e);
-          const errorMsg: Message = {
-            id: `system-${Date.now()}`,
-            type: 'system',
-            from: 'computer',
-            text: `Failed to initialize events: ${e.message || e}`,
-            timestamp: new Date()
-          };
-          setMessages(prev => [...prev, errorMsg]);
-          return;
-        }
-      }
-      
-      // Send test event
-      const testEvent = {
-        type: 'test',
-        data: 'Hello from the test event button!',
-        timestamp: new Date().toISOString()
-      };
-      
-      // Add outgoing message
-      const outgoingMsg: Message = {
-        id: `event-out-${Date.now()}`,
-        type: 'message',
-        from: 'user',
-        text: `Sending test event: ${JSON.stringify(testEvent)}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, outgoingMsg]);
-      
-      // Send the event through socket
-      await pioneer.events.send('event', testEvent);
-      
-      // Add confirmation message
-      const confirmMsg: Message = {
-        id: `system-${Date.now()}`,
-        type: 'system',
-        from: 'computer',
-        text: 'Test event sent successfully!',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, confirmMsg]);
-    } catch (e: any) {
-      console.error('Error sending test event:', e);
-      // Add error message
-      const errorMsg: Message = {
-        id: `system-${Date.now()}`,
-        type: 'system',
-        from: 'computer',
-        text: `Error sending test event: ${e.message || e}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMsg]);
-    }
-  };
-
-  // Handle Redis Direct Message form submission
-  const handleSendRedisMessage = async () => {
-    try {
-      setRedisMessageStatus('Sending...');
-      
-      // Format the message based on type
-      let messagePayload: any;
-      
-      try {
-        // Try to parse as JSON first
-        messagePayload = JSON.parse(redisMessage);
-      } catch (e) {
-        // If not valid JSON, use as text
-        messagePayload = { message: redisMessage };
-      }
-      
-      // Add message type if not present
-      if (!messagePayload.type) {
-        messagePayload.type = redisMessageType;
-      }
-      
-      // Add logInChat flag to ensure the message appears in chat
-      messagePayload.logInChat = true;
-      
-      // Add timestamp if not present
-      if (!messagePayload.timestamp) {
-        messagePayload.timestamp = new Date().toISOString();
-      }
-      
-      // Create a message about what we're doing
-      const preparingMessage: Message = {
-        id: `redis-info-${Date.now()}`,
-        type: 'system',
-        from: 'computer',
-        text: `Sending message to ${redisChannel} channel: ${JSON.stringify(messagePayload)}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, preparingMessage]);
-      
-      // For simplicity, inform user to use the direct-push.sh script
-      // since browser might not have direct Redis access
-      const infoMessage: Message = {
-        id: `redis-help-${Date.now()}`,
-        type: 'system',
-        from: 'computer',
-        text: `To send this message manually, run this command from the terminal:\n\n/Users/highlander/WebstormProjects/keepkey-stack/skills/direct-push.sh ${redisChannel} '${JSON.stringify(messagePayload)}'`,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, infoMessage]);
-      
-      // Reset the form
-      setShowRedisForm(false);
-      setRedisMessageStatus('Command prepared for terminal');
-      
-      // Reset status after 3 seconds
-      setTimeout(() => {
-        setRedisMessageStatus('');
-      }, 3000);
-    } catch (e: any) {
-      console.error('Error preparing Redis message:', e);
-      setRedisMessageStatus(`Error: ${e.message || String(e)}`);
-      
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: `redis-error-${Date.now()}`,
-        type: 'system',
-        from: 'computer',
-        text: `Failed to prepare Redis message: ${e.message || String(e)}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    }
-  };
-  
-  // Update message template when type changes
-  const updateMessageTemplate = (type: string) => {
-    setRedisMessageType(type);
-    switch (type) {
-      case 'broadcast':
-        setRedisMessage('{"type":"broadcast","message":"Broadcast message to all users"}');
-        break;
-      case 'admin':
-        setRedisMessage('{"type":"admin","message":"Admin notification message"}');
-        break;
-      case 'event':
-        setRedisMessage('{"type":"event","eventType":"test","data":{"key":"value"}}');
-        break;
-      case 'message':
-        setRedisMessage('{"type":"message","ticketId":"room-id","message":"Message to specific room"}');
-        break;
-      default:
-        setRedisMessage('{"message":"Custom message"}');
-    }
-  };
-
-  // Main chat interface
   return (
     <Flex
       direction="column"
       h="full"
       bg="gray.900"
+      borderRadius="xl"
+      overflow="hidden"
+      boxShadow="xl"
       {...rest}
     >
       {/* Header */}
-      <Box p={4} borderBottom="1px" borderColor="gray.700">
-        <HStack>
+      <Box p={4} borderBottom="1px" borderColor="gray.700" bg="gray.800">
+        <HStack gap={3}>
           <Avatar src="https://pioneers.dev/coins/keepkey.png" />
-          <Text fontWeight="bold">KeepKey Support</Text>
+          <Box flex="1">
+            <Text fontWeight="bold" fontSize="lg">KeepKey Support</Text>
+            {ticketId && (
+              <Text fontSize="xs" color="gray.400">
+                Ticket ID: {ticketId}
+              </Text>
+            )}
+          </Box>
+          <Box
+            w="10px"
+            h="10px"
+            borderRadius="full"
+            bg={eventsAvailable ? 'green.400' : 'red.400'}
+            boxShadow={`0 0 10px ${eventsAvailable ? '#48BB78' : '#F56565'}`}
+            transition="all 0.2s"
+          />
         </HStack>
       </Box>
 
       {/* Messages */}
       <Flex
-        flex={1}
+        flex="1"
         direction="column"
         p={4}
         overflowY="auto"
         gap={4}
+        css={{
+          '&::-webkit-scrollbar': {
+            width: '4px',
+          },
+          '&::-webkit-scrollbar-track': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'gray.500',
+            borderRadius: '24px',
+          },
+        }}
       >
         {messages.map((msg) => (
           <Flex
@@ -425,25 +276,59 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
               color="white"
               p={3}
               borderRadius="lg"
+              boxShadow="md"
             >
-              <Text>{msg.text}</Text>
+              <Text fontSize="sm">{msg.text}</Text>
+              <Text fontSize="xs" color="whiteAlpha.700" mt={1}>
+                {new Date(msg.timestamp).toLocaleTimeString()}
+              </Text>
             </Box>
           </Flex>
         ))}
         {isTyping && (
-          <Text color="gray.500" fontSize="sm">
-            Support is typing...
-          </Text>
+          <Flex align="center" gap={2}>
+            <Box
+              w="2"
+              h="2"
+              borderRadius="full"
+              bg="blue.500"
+              animation="bounce 0.8s infinite"
+            />
+            <Box
+              w="2"
+              h="2"
+              borderRadius="full"
+              bg="blue.500"
+              animation="bounce 0.8s infinite"
+              style={{ animationDelay: '0.2s' }}
+            />
+            <Box
+              w="2"
+              h="2"
+              borderRadius="full"
+              bg="blue.500"
+              animation="bounce 0.8s infinite"
+              style={{ animationDelay: '0.4s' }}
+            />
+          </Flex>
         )}
+        <div ref={messagesEndRef} />
       </Flex>
 
       {/* Input */}
-      <Box p={4} borderTop="1px" borderColor="gray.700">
-        <HStack>
+      <Box p={4} borderTop="1px" borderColor="gray.700" bg="gray.800">
+        <HStack gap={3}>
           <Input
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Type your message..."
+            bg="gray.700"
+            border="none"
+            _focus={{
+              boxShadow: 'none',
+              ring: 2,
+              ringColor: 'blue.500'
+            }}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
                 handleSendMessage();
@@ -452,11 +337,13 @@ export function Chat({ usePioneer, ...rest }: ChatProps) {
           />
           <IconButton
             aria-label="Send message"
-            _icon={{ as: HiPaperAirplane }}
-            onClick={handleSendMessage}
-            isLoading={isTyping}
+            variant="solid"
             colorScheme="blue"
-          />
+            size="md"
+            onClick={handleSendMessage}
+          >
+            <HiPaperAirplane />
+          </IconButton>
         </HStack>
       </Box>
     </Flex>

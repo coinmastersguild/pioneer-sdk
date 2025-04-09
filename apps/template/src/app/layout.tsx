@@ -21,6 +21,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import React from 'react'
+import { Toaster } from "@/components/ui/toaster"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -286,6 +287,7 @@ export default function RootLayout({
               <DialogCloseTrigger ref={closeRef} />
             </DialogContent>
           </DialogRoot>
+          <Toaster />
         </Provider>
       </body>
     </html>

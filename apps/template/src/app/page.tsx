@@ -18,78 +18,38 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowRight } from '@fortawesome/free-solid-svg-icons'
 
 export default function Home() {
-  const pioneer = usePioneerContext()
+  const { app } = usePioneerContext()
   
   // Handle blockchains data - could be an array or a string
   const getBlockchainList = () => {
-    if (!pioneer?.state?.app?.blockchains) return [];
+    if (!app?.blockchains) return [];
     
     // If it's already an array, use it as is
-    if (Array.isArray(pioneer.state.app.blockchains)) {
-      return pioneer.state.app.blockchains;
+    if (Array.isArray(app.blockchains)) {
+      return app.blockchains;
     }
     
     // If it's a string, split it
-    if (typeof pioneer.state.app.blockchains === 'string') {
-      return pioneer.state.app.blockchains.split(',');
+    if (typeof app.blockchains === 'string') {
+      return app.blockchains.split(',');
     }
     
     // Fallback - return empty array
-    console.warn('Unexpected blockchains format:', pioneer.state.app.blockchains);
+    console.warn('Unexpected blockchains format:', app.blockchains);
     return [];
   }
   
   const blockchainList = getBlockchainList();
 
   useEffect(() => {
-    if (pioneer?.state?.app) {
-      console.log('pioneer initialized state', pioneer.state.app)
+    if (app) {
+      console.log('pioneer initialized state', app)
     }
-  }, [pioneer?.state?.app]);
+  }, [app]);
 
   return (
-    <Flex
-      direction="column"
-      minHeight="100vh"
-      alignItems="center"
-      justifyContent="space-between"
-      padding={{ base: "10px", md: "20px" }}
-      gap="64px"
-    >
-      <Box>
-            <Chat usePioneer={pioneer}></Chat>
-      </Box>
-
-      <Flex 
-        as="footer"
-        width="100%"
-        justifyContent="center"
-      >
-          <Flex
-              direction={{base: "column", md: "row"}}
-              alignItems="center"
-          >
-              <a
-                  href="https://docs.keepkey.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{textDecoration: 'none'}}
-              >
-                  <Button variant="outline">
-                      View Documentation
-                  </Button>
-              </a>
-              <Text fontSize="sm">Built with KeepKey SDK</Text>
-              <Text fontSize="sm">•</Text>
-              <a href="https://keepkey.com" target="_blank" rel="noopener noreferrer">
-                  <Text fontSize="sm" _hover={{textDecoration: "underline"}}>KeepKey Website</Text>
-              </a>
-              <Text fontSize="sm">•</Text>
-              <a href="https://github.com/keepkey" target="_blank" rel="noopener noreferrer">
-                  <Text fontSize="sm" _hover={{textDecoration: "underline"}}>GitHub</Text>
-              </a>
-          </Flex>
-      </Flex>
-    </Flex>
+    <Box height="100vh" bg="black">
+      <Chat usePioneer={app} />
+    </Box>
   );
 }
