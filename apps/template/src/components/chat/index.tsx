@@ -39,22 +39,79 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
     if (state?.app?.events) {
       console.log("🎯 Setting up Pioneer event listeners...");
       
+      // Process incoming message to ensure valid data
+      const processMessage = (message: any): Message => {
+        console.log('Processing message:', message);
+        
+        // If message is a string, try to parse it
+        if (typeof message === 'string') {
+          try {
+            message = JSON.parse(message);
+          } catch (e) {
+            console.error('Failed to parse message string:', e);
+          }
+        }
+        
+        // Handle case where the message comes in the format from the user's example
+        // {"type":"message","ticketId":"ticket_1744316629474_ulmnjzfbi","room":"ticket_1744316629474_ulmnjzfbi","message":"hey","user":"admin","isAdmin":true,"timestamp":"2025-04-10T22:24:56.117Z","id":"1041dd76-6b4c-4acf-8164-d3a97165c722","_alreadyBroadcast":true}
+        if (message.type === 'message' && message.user && typeof message.user === 'string') {
+          message.user = { 
+            username: message.user 
+          };
+        }
+        
+        // Ensure message has a valid ID
+        if (!message.id) {
+          message.id = Date.now().toString() + Math.random().toString(36).substring(2);
+        }
+        
+        // Make sure we have a timestamp
+        if (!message.timestamp) {
+          message.timestamp = new Date().toISOString();
+        }
+        
+        // Ensure message content exists
+        if (!message.message && !message.text) {
+          message.message = message.content || '';
+        }
+        
+        // Determine message type if not specified
+        if (!message.type) {
+          message.type = 'message';
+        }
+        
+        // Ensure user details
+        if (!message.user) {
+          message.user = {
+            username: message.username || message.from || 'unknown'
+          };
+        }
+        
+        // Fallback room
+        if (!message.room) {
+          message.room = chatId || 'general';
+        }
+        
+        console.log('Processed message:', message);
+        return message as Message;
+      };
+      
       // Listen for all messages
-      state.app.events.on('message', (message: Message) => {
+      state.app.events.on('message', (message: any) => {
         console.log('📨 Received message event:', message);
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => [...prev, processMessage(message)]);
       });
 
       // Listen for support messages
-      state.app.events.on('keepkey-support', (message: Message) => {
+      state.app.events.on('keepkey-support', (message: any) => {
         console.log('📨 Received support message:', message);
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => [...prev, processMessage(message)]);
       });
 
       // Listen for pioneer events
-      state.app.events.on('pioneer-events', (message: Message) => {
+      state.app.events.on('pioneer-events', (message: any) => {
         console.log('📨 Received pioneer event:', message);
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => [...prev, processMessage(message)]);
       });
 
       return () => {
@@ -69,7 +126,7 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
       console.log('events not found!')
       console.log('state?.app?.events: ', state?.app?.events)
     }
-  }, [state?.app?.events]);
+  }, [state?.app?.events, chatId]);
 
   if (!state?.app?.pioneer) {
     return (
@@ -144,30 +201,51 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
         <br />
       </Flex>
       <Flex flex="1" overflowY="auto" direction="column" p={4} gap={2}>
-        {messages.map((msg) => (
-          <Flex
-            key={msg.id}
-            alignSelf={msg.from === 'user' ? 'flex-end' : 'flex-start'}
-            bg={msg.from === 'user' ? 'blue.500' : 'gray.200'}
-            color={msg.from === 'user' ? 'white' : 'black'}
-            p={3}
-            borderRadius="lg"
-            maxWidth="80%"
-            wordBreak="break-word"
-            flexDirection="column">
-            <Text>{msg.message || msg.text || ''}</Text>
-            <Text
-              fontSize="xs"
-              opacity={0.8}
+        {messages.map((msg) => {
+          // Ensure we have a valid message content
+          const messageContent = msg.message || msg.text || '';
+          
+          // Get username from message
+          const username = msg.user?.username || 
+            (typeof msg.user === 'string' ? msg.user : 'Unknown');
+          
+          // Handle timestamp parsing safely
+          let formattedTime = 'Unknown time';
+          try {
+            if (msg.timestamp) {
+              const date = new Date(msg.timestamp);
+              if (!isNaN(date.getTime())) {
+                formattedTime = date.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+              }
+            }
+          } catch (e) {
+            console.error('Error formatting timestamp:', e);
+          }
+          
+          return (
+            <Flex
+              key={msg.id || Date.now().toString() + Math.random()}
               alignSelf={msg.from === 'user' ? 'flex-end' : 'flex-start'}
-              mt={1}>
-              {new Date(msg.timestamp).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </Flex>
-        ))}
+              bg={msg.from === 'user' ? 'blue.500' : 'gray.200'}
+              color={msg.from === 'user' ? 'white' : 'black'}
+              p={3}
+              borderRadius="lg"
+              maxWidth="80%"
+              wordBreak="break-word"
+              flexDirection="column">
+              <Flex justifyContent="space-between" mb={1}>
+                <Text fontSize="xs" fontWeight="bold">
+                  {username}
+                </Text>
+                <Text fontSize="xs">{formattedTime}</Text>
+              </Flex>
+              <Text>{messageContent}</Text>
+            </Flex>
+          );
+        })}
         {isSending && (
           <Flex alignSelf="flex-start" bg="gray.100" p={3} borderRadius="lg" mt={2}>
             <Text fontSize="sm" color="gray.500">
