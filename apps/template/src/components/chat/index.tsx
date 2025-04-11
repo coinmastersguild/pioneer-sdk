@@ -18,6 +18,7 @@ interface Message {
   timestamp: string;
   from?: 'user' | 'system' | 'support';
   text?: string;
+  isAdmin?: boolean;
 }
 
 export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: string]: any }) => {
@@ -42,6 +43,7 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
       // Process incoming message to ensure valid data
       const processMessage = (message: any): Message => {
         console.log('Processing message:', message);
+        console.log('Message user type:', typeof message.user);
         
         // If message is a string, try to parse it
         if (typeof message === 'string') {
@@ -205,32 +207,21 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
           // Ensure we have a valid message content
           const messageContent = msg.message || msg.text || '';
           
-          // Get username from message
-          const username = msg.user?.username || 
-            (typeof msg.user === 'string' ? msg.user : 'Unknown');
+          // Get username and admin status directly
+          const username = msg.user?.username || (typeof msg.user === 'string' ? msg.user : 'Unknown');
           
-          // Handle timestamp parsing safely
-          let formattedTime = 'Unknown time';
-          try {
-            if (msg.timestamp) {
-              const date = new Date(msg.timestamp);
-              if (!isNaN(date.getTime())) {
-                formattedTime = date.toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-              }
-            }
-          } catch (e) {
-            console.error('Error formatting timestamp:', e);
-          }
+          // Simple formatting for time
+          const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          }) || 'Unknown time';
           
           return (
             <Flex
               key={msg.id || Date.now().toString() + Math.random()}
               alignSelf={msg.from === 'user' ? 'flex-end' : 'flex-start'}
-              bg={msg.from === 'user' ? 'blue.500' : 'gray.200'}
-              color={msg.from === 'user' ? 'white' : 'black'}
+              bg={msg.from === 'user' ? 'blue.500' : msg.isAdmin ? 'purple.600' : 'gray.700'}
+              color="white"
               p={3}
               borderRadius="lg"
               maxWidth="80%"
@@ -238,7 +229,7 @@ export const Chat = ({ chatId = 'general', ...rest }: { chatId?: string; [key: s
               flexDirection="column">
               <Flex justifyContent="space-between" mb={1}>
                 <Text fontSize="xs" fontWeight="bold">
-                  {username}
+                  {msg.isAdmin ? username + ' (ADMIN)' : username}
                 </Text>
                 <Text fontSize="xs">{formattedTime}</Text>
               </Flex>
