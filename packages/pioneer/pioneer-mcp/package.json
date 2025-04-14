@@ -1,0 +1,51 @@
+{
+  "name": "pioneer-mcp",
+  "version": "1.0.0",
+  "description": "Pioneer MCP server for cryptocurrency wallet and blockchain operations",
+  "main": "dist/app.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "start-with-build": "npm run build && npm start",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:restart": "pm2 delete all || true && pm2 start ecosystem.config.js",
+    "pm2:logs": "pm2 logs --lines 20 --time 20",
+    "pm2:monit": "pm2 monit",
+    "dev": "npm run build && node dist/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "dependencies": {
+    "@coinmasters/pioneer-sdk": "^4.10.1",
+    "@coinmasters/types": "^4.10.1",
+    "@modelcontextprotocol/sdk": "^1.9.0",
+    "@pioneer-platform/pioneer-caip": "^9.2.38",
+    "@pioneer-platform/pioneer-coins": "^9.2.26",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.19.2",
+    "swagger-ui-express": "^5.0.0",
+    "tsoa": "^6.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.5",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.30",
+    "@types/swagger-ui-express": "^4.1.6",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.2"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "src"
+    ],
+    "ext": "ts",
+    "exec": "ts-node src/app.ts"
+  }
+}
