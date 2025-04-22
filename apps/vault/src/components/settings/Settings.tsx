@@ -6,8 +6,9 @@ import {
   HStack,
   Button,
   Image,
+  Input,
 } from '@chakra-ui/react';
-import { FaGithub, FaBook, FaHome, FaTrash, FaBroadcastTower, FaRedo, FaBomb } from 'react-icons/fa';
+import { FaGithub, FaBook, FaHome, FaTrash, FaBroadcastTower, FaRedo, FaBomb, FaSync } from 'react-icons/fa';
 import { usePioneerContext } from '@/components/providers/pioneer';
 
 // Theme colors - matching our dashboard theme
@@ -18,16 +19,6 @@ const theme = {
   goldHover: '#FFE135',
   border: '#222222',
 };
-
-// Log level options
-const logLevels = [
-  { value: 0, label: 'None - No logging' },
-  { value: 1, label: 'Error - Only errors' },
-  { value: 2, label: 'Warning - Errors and warnings' },
-  { value: 3, label: 'Info - Normal information (default)' },
-  { value: 4, label: 'Debug - Detailed debugging information' },
-  { value: 5, label: 'Trace - Very verbose execution flow' },
-];
 
 interface SettingsProps {
   onClose: () => void;
@@ -46,8 +37,10 @@ const Settings = ({ onClose }: SettingsProps) => {
     enableKeplrMasking: false,
   });
   
-  // State for log level
-  const [logLevel, setLogLevel] = useState(3); // Default to INFO
+  // State for Pioneer URL
+  const [pioneerUrl, setPioneerUrl] = useState('');
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [tempUrl, setTempUrl] = useState('');
 
   const handleToggle = async (setting: keyof typeof maskingSettings) => {
     try {
@@ -107,19 +100,51 @@ const Settings = ({ onClose }: SettingsProps) => {
     }
   };
   
-  // Handle log level change
-  const handleLogLevelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLevel = parseInt(e.target.value);
-    setLogLevel(newLevel);
-    
-    // Set the log level in the Pioneer SDK if app is available
-    if (app && typeof app.setLogLevel === 'function') {
-      app.setLogLevel(newLevel);
+  // Handle Pioneer URL update
+  const handlePioneerUrlUpdate = () => {
+    try {
+      // Save the URL to localStorage
+      localStorage.setItem('PIONEER_API_SPEC_URL', tempUrl);
+      setPioneerUrl(tempUrl);
+      setIsEditingUrl(false);
+      console.log(`Pioneer URL updated to: ${tempUrl}`);
+      
+      // Show success message
       setToastShown(true);
-      // Toast notification would be shown here
-      console.log(`Log level updated to: ${logLevels.find(l => l.value === newLevel)?.label}`);
+    } catch (error) {
+      console.error('Error updating Pioneer URL:', error);
     }
   };
+
+  // Handle reset to default Pioneer URL
+  const handleResetPioneerUrl = () => {
+    const defaultUrl = 'https://pioneers.dev/spec/swagger.json';
+    localStorage.setItem('PIONEER_API_SPEC_URL', defaultUrl);
+    setPioneerUrl(defaultUrl);
+    setTempUrl(defaultUrl);
+    console.log('Reset to default Pioneer URL');
+  };
+
+  // Handle restart Pioneer SDK
+  const handleRestartPioneerSdk = () => {
+    try {
+      setLoading(true);
+      // Force reload to restart the Pioneer SDK
+      window.location.reload();
+    } catch (error) {
+      console.error('Error restarting Pioneer SDK:', error);
+      setLoading(false);
+    }
+  };
+
+  // Get current Pioneer URL on component mount
+  useEffect(() => {
+    // Try to get from localStorage first, then fallback to environment or default
+    const storedUrl = localStorage.getItem('PIONEER_API_SPEC_URL');
+    const currentUrl = storedUrl || (app?.pioneerUrl || 'https://pioneers.dev/spec/swagger.json');
+    setPioneerUrl(currentUrl);
+    setTempUrl(currentUrl);
+  }, [app]);
 
   return (
     <Box height="100vh" bg={theme.bg}>
