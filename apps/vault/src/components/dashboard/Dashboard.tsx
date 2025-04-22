@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Flex,
@@ -19,6 +19,7 @@ import { usePioneerContext } from '@/components/providers/pioneer'
 import { DonutChart, DonutChartItem, ChartLegend } from '@/components/chart';
 import { useRouter } from 'next/navigation';
 import CountUp from 'react-countup';
+import ConnectionError from '@/components/error/ConnectionError';
 
 // Add sound effect imports
 const chachingSound = typeof Audio !== 'undefined' ? new Audio('/sounds/chaching.mp3') : null;
@@ -111,14 +112,40 @@ const NetworkSkeleton = () => (
 
 const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start as true for initial check
+  const [showConnectionError, setShowConnectionError] = useState(false); // State for timeout error
   const [activeSliceIndex, setActiveSliceIndex] = useState<number>(0);
   const [lastSync, setLastSync] = useState<number>(Date.now());
-  const [previousTotalValue, setPreviousTotalValue] = useState<number>(0);
   const pioneer = usePioneerContext();
   const { state } = pioneer;
   const { app } = state;
   const router = useRouter();
+
+  // Function to check if KeepKey Desktop is running
+  const checkDesktopRunning = async (): Promise<boolean> => {
+    console.log("🔍 [Dashboard] Checking if KeepKey Desktop is running...");
+    try {
+      const response = await fetch('http://localhost:1646/docs', {
+        method: 'GET', // Explicitly set method
+        signal: AbortSignal.timeout(2000) // 2-second timeout
+      });
+
+      if (response.status === 200) {
+        console.log("✅ [Dashboard] KeepKey Desktop is running.");
+        return true;
+      } else {
+        console.warn(`⚠️ [Dashboard] KeepKey Desktop check returned status: ${response.status}`);
+        return false;
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error("❌ [Dashboard] KeepKey Desktop check timed out.");
+      } else {
+        console.error("❌ [Dashboard] Error checking KeepKey Desktop:", error);
+      }
+      return false;
+    }
+  };
 
   // Format balance for display
   const formatBalance = (balance: string) => {
@@ -157,9 +184,8 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
 
   useEffect(() => {
     console.log('📊 [Dashboard] Component mounted');
-    fetchDashboard();
     return () => console.log('📊 [Dashboard] Component unmounting');
-  }, [app, app?.dashboard]);
+  }, []);
 
   // Add new useEffect to reload dashboard when assetContext becomes null
   useEffect(() => {
@@ -201,7 +227,7 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
         
         // Compare new total value with previous total value
         const newTotalValue = dashboard.totalValueUsd || 0;
-        const prevTotalValue = previousTotalValue;
+        const prevTotalValue = 0;
         
         // Check if portfolio value has increased
         if (newTotalValue > prevTotalValue && prevTotalValue > 0) {
@@ -213,7 +239,7 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
         }
         
         // Update previous total value for next comparison
-        setPreviousTotalValue(newTotalValue);
+        // setPreviousTotalValue(newTotalValue);
         
         setDashboard(dashboard);
         
@@ -300,6 +326,33 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
   const formatValueForChart = (value: number) => {
     return formatUsd(value);
   };
+
+  // Combined function for initial check and fetch
+  const performInitialCheckAndFetch = async () => {
+    const isRunning = await checkDesktopRunning();
+    if (isRunning) {
+      setShowConnectionError(false); // Ensure error is hidden if check succeeds
+      fetchDashboard();
+    } else {
+      setShowConnectionError(true);
+      setLoading(false); // Stop loading indicator if desktop is not running
+    }
+  };
+
+  // Run the initial check on mount
+  useEffect(() => {
+    performInitialCheckAndFetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
+  // If the connection error should be shown, render the error component
+  if (showConnectionError) {
+    return <ConnectionError onRetry={async () => {
+      setShowConnectionError(false);
+      setLoading(true); // Show loading spinner while retrying
+      await performInitialCheckAndFetch(); // Re-run the check and potentially fetch
+    }} />;
+  }
 
   return (
     <Box height="100vh" bg={theme.bg}>

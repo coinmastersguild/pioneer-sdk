@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import {
   Box,
@@ -24,7 +26,7 @@ interface ConnectionErrorProps {
   onRetry?: () => void;
 }
 
-const ConnectionError: React.FC<ConnectionErrorProps> = ({ onRetry }) => {
+function ConnectionError({ onRetry }: ConnectionErrorProps) {
   // Function to launch KeepKey Desktop using the custom URI scheme
   const launchKeepKeyDesktop = () => {
     try {
@@ -156,4 +158,4 @@ const ConnectionError: React.FC<ConnectionErrorProps> = ({ onRetry }) => {
   );
 };
 
-export default ConnectionError; 
+export default ConnectionError;

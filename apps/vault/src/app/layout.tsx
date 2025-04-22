@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Provider } from './provider';
+import ClientLayout from './client-layout';
 
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -77,7 +77,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <Provider>{children}</Provider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

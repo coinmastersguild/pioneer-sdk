@@ -160,7 +160,6 @@ export default function Home() {
             transition="all 0.3s ease"
           >
             <Dashboard 
-              key={`dashboard-${Date.now()}`}
               onSettingsClick={() => setIsSettingsOpen(true)}
               onAddNetworkClick={() => setIsAddBlockchainOpen(true)}
             />
