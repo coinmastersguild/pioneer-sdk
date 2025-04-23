@@ -14,6 +14,9 @@ import {
     Textarea,
     Spinner,
     CloseButton,
+    Grid,
+    GridItem,
+    HStack,
 } from '@chakra-ui/react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePioneerContext } from '@/components/providers/pioneer'
@@ -1882,7 +1885,7 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
         <Box
             width="100%"
             position="relative"
-            pb={8} // Add bottom padding to ensure content doesn't get cut off
+            pb={4} // Reduced bottom padding
         >
             {/* Transaction Building Overlay */}
             {isBuildingTx && (
@@ -2013,63 +2016,54 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
             </Box>
 
             {/* Main Content */}
-            <Box p={5}>
-                <Stack gap={6} align="center">
-                    {/* Asset Avatar and Info */}
-                    <Box
-                        bg={theme.cardBg}
-                        p={5}
-                        borderRadius={theme.borderRadius}
-                        boxShadow="lg"
-                        border="1px solid"
-                        borderColor={theme.border}
-                        width="100%"
-                    >
-                        <VStack align="center" gap={4}>
-                            <Box
-                                borderRadius="full"
-                                overflow="hidden"
-                                boxSize="70px"
-                                bg={theme.cardBg}
-                                boxShadow="lg"
-                                p={2}
-                                borderWidth="1px"
-                                borderColor={assetContext.color || theme.border}
-                            >
-                                <Image
-                                    src={assetContext.icon}
-                                    alt={`${assetContext.name} Icon`}
-                                    boxSize="100%"
-                                    objectFit="contain"
-                                />
-                            </Box>
-                            <Stack align="center" gap={1}>
-                                <Text fontSize="xl" fontWeight="bold" color="white">
-                                    {assetContext.name}
-                                </Text>
-                                <Stack>
-                                    <Text color="gray.400" fontSize="sm" textAlign="center">
-                                        Balance: {balance} {assetContext.symbol}
-                                    </Text>
-                                    <Text color={theme.gold} fontSize="md" textAlign="center" fontWeight="medium">
-                                        {formatUsd(totalBalanceUsd)}
-                                    </Text>
-                                </Stack>
-                            </Stack>
+            <Box p={3}>
+                {/* Asset Info - Condensed Header */}
+                <Grid templateColumns={{ base: "1fr", md: "auto 1fr" }} gap={3} mb={3} alignItems="center">
+                    <HStack gap={3}>
+                        <Box
+                            borderRadius="full"
+                            overflow="hidden"
+                            boxSize="50px"
+                            bg={theme.cardBg}
+                            boxShadow="md"
+                            p={1.5}
+                            borderWidth="1px"
+                            borderColor={assetContext.color || theme.border}
+                        >
+                            <Image
+                                src={assetContext.icon}
+                                alt={`${assetContext.name} Icon`}
+                                boxSize="100%"
+                                objectFit="contain"
+                            />
+                        </Box>
+                        <VStack align="start" gap={0}>
+                            <Text fontSize="lg" fontWeight="bold" color="white">
+                                {assetContext.name}
+                            </Text>
+                            <Text color="gray.400" fontSize="sm">
+                                Balance: {balance} {assetContext.symbol}
+                            </Text>
                         </VStack>
-                    </Box>
+                    </HStack>
+                    <Text color={theme.gold} fontSize="xl" fontWeight="bold" textAlign={{ base: "center", md: "right" }}>
+                        {formatUsd(totalBalanceUsd)}
+                    </Text>
+                </Grid>
 
-                    {/* Amount */}
+                {/* Form Fields in a more compact layout */}
+                <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={3}>
+                    {/* Amount - Left column on desktop */}
                     <Box
                         width="100%"
                         bg={theme.cardBg}
                         borderRadius={theme.borderRadius}
-                        p={theme.formPadding}
+                        p={3}
                         borderWidth="1px"
                         borderColor={theme.border}
                     >
-                        <Stack gap={3}>
-                            <Text color="white" fontWeight="medium">Amount</Text>
+                        <Stack gap={2}>
+                            <Text color="white" fontWeight="medium" fontSize="sm">Amount</Text>
                             <Flex>
                                 <Flex
                                     position="relative"
@@ -2091,8 +2085,8 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                                         _focus={{ borderColor: theme.gold }}
                                         p={3}
                                         pl={isUsdInput ? "28px" : "12px"}
-                                        height="50px"
-                                        fontSize="lg"
+                                        height="45px"
+                                        fontSize="md"
                                         flex="1"
                                     />
                                     {!isUsdInput && (
@@ -2102,13 +2096,14 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                                     )}
                                 </Flex>
                                 <Button
-                                    ml={3}
+                                    ml={2}
                                     bg={theme.cardBg}
                                     color={theme.gold}
                                     borderColor={theme.border}
                                     borderWidth="1px"
-                                    height="50px"
-                                    px={4}
+                                    height="45px"
+                                    px={3}
+                                    fontSize="sm"
                                     _hover={{
                                         bg: 'rgba(255, 215, 0, 0.1)',
                                         borderColor: theme.gold,
@@ -2119,9 +2114,8 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                                 </Button>
                             </Flex>
                             <Text
-                                fontSize="sm"
+                                fontSize="xs"
                                 color="gray.500"
-                                ml={2}
                                 cursor="pointer"
                                 _hover={{ color: theme.goldHover }}
                                 onClick={toggleInputMode}
@@ -2138,17 +2132,17 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                         </Stack>
                     </Box>
 
-                    {/* Recipient */}
+                    {/* Recipient - Right column on desktop */}
                     <Box
                         width="100%"
                         bg={theme.cardBg}
                         borderRadius={theme.borderRadius}
-                        p={theme.formPadding}
+                        p={3}
                         borderWidth="1px"
                         borderColor={theme.border}
                     >
-                        <Stack gap={3}>
-                            <Text color="white" fontWeight="medium">Recipient</Text>
+                        <Stack gap={2}>
+                            <Text color="white" fontWeight="medium" fontSize="sm">Recipient</Text>
                             <Input
                                 value={recipient}
                                 onChange={(e) => setRecipient(e.target.value)}
@@ -2158,55 +2152,59 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                                 _hover={{ borderColor: theme.goldHover }}
                                 _focus={{ borderColor: theme.gold }}
                                 p={3}
-                                height="50px"
+                                height="45px"
                                 fontSize="md"
                             />
                         </Stack>
                     </Box>
 
-                    {/* Memo/Tag (only for supported networks) */}
-                    {supportsMemo && (
-                        <Box
-                            width="100%"
-                            bg={theme.cardBg}
-                            borderRadius={theme.borderRadius}
-                            p={theme.formPadding}
-                            borderWidth="1px"
-                            borderColor={theme.border}
-                        >
-                            <Stack gap={3}>
-                                <Text color="white" fontWeight="medium">
-                                    {assetContext.networkId?.includes('cosmos') ? 'Memo' : 'Tag'} (Optional)
-                                </Text>
-                                <Input
-                                    value={memo}
-                                    onChange={(e) => setMemo(e.target.value)}
-                                    placeholder={assetContext.networkId?.includes('cosmos') ? 'Memo' : 'Destination Tag'}
-                                    color="white"
-                                    borderColor={theme.border}
-                                    _hover={{ borderColor: theme.goldHover }}
-                                    _focus={{ borderColor: theme.gold }}
-                                    p={3}
-                                    height="50px"
-                                    fontSize="md"
-                                />
-                            </Stack>
-                        </Box>
-                    )}
-
-                    {/* Fee Estimate */}
+                </Grid>
+                
+                {/* Optional Memo field - Full width */}
+                {supportsMemo && (
                     <Box
                         width="100%"
+                        bg={theme.cardBg}
+                        borderRadius={theme.borderRadius}
+                        p={3}
+                        borderWidth="1px"
+                        borderColor={theme.border}
+                        mt={3}
+                    >
+                        <Stack gap={2}>
+                            <Text color="white" fontWeight="medium" fontSize="sm">
+                                {assetContext.networkId?.includes('cosmos') ? 'Memo' : 'Tag'} (Optional)
+                            </Text>
+                            <Input
+                                value={memo}
+                                onChange={(e) => setMemo(e.target.value)}
+                                placeholder={assetContext.networkId?.includes('cosmos') ? 'Memo' : 'Destination Tag'}
+                                color="white"
+                                borderColor={theme.border}
+                                _hover={{ borderColor: theme.goldHover }}
+                                _focus={{ borderColor: theme.gold }}
+                                p={3}
+                                height="45px"
+                                fontSize="md"
+                            />
+                        </Stack>
+                    </Box>
+                )}
+
+                {/* Fee Estimate and Send Button in a grid layout */}
+                <Grid templateColumns={{ base: "1fr", md: "1fr auto" }} gap={3} mt={3} alignItems="center">
+                    {/* Fee Estimate - Left on desktop, full width on mobile */}
+                    <Box
                         bg="rgba(255, 215, 0, 0.05)"
                         borderRadius={theme.borderRadius}
-                        p={theme.formPadding}
+                        p={3}
                         borderWidth="1px"
                         borderColor="rgba(255, 215, 0, 0.2)"
                     >
                         <Flex justify="space-between" align="center">
-                            <Text color="gray.400">Estimated Fee</Text>
+                            <Text color="gray.400" fontSize="sm">Estimated Fee</Text>
                             <Stack gap={0} align="flex-end">
-                                <Text color={theme.gold} fontWeight="medium">
+                                <Text color={theme.gold} fontWeight="medium" fontSize="sm">
                                     {formatFeeDisplay(estimatedFee)} {assetContext.symbol}
                                 </Text>
                                 <Text color="gray.500" fontSize="xs">
@@ -2216,10 +2214,8 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                         </Flex>
                     </Box>
 
-                    {/* Send Button */}
+                    {/* Send Button - Right on desktop, full width on mobile */}
                     <Button
-                        mt={4}
-                        width="100%"
                         bg={theme.gold}
                         color="black"
                         _hover={{
@@ -2227,16 +2223,18 @@ const Send: React.FC<SendProps> = ({ onBackClick }) => {
                         }}
                         onClick={handleSend}
                         disabled={!amount || !recipient}
-                        height="56px"
-                        fontSize="lg"
+                        height="45px"
+                        fontSize="md"
                         boxShadow="0px 4px 12px rgba(255, 215, 0, 0.3)"
+                        width={{ base: "100%", md: "auto" }}
+                        px={{ md: 8 }}
                     >
-                        <Flex gap={3} align="center" justify="center">
+                        <Flex gap={2} align="center" justify="center">
                             <FaPaperPlane />
                             <Text>Send {assetContext.symbol}</Text>
                         </Flex>
                     </Button>
-                </Stack>
+                </Grid>
             </Box>
         </Box>
     );

@@ -14,6 +14,8 @@ import {
     Spinner,
     useDisclosure,
     Icon,
+    Grid,
+    GridItem,
 } from '@chakra-ui/react';
 
 // Add sound effect imports
@@ -329,14 +331,14 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
         <Box
             width="100%"
             position="relative"
-            pb={8} // Add bottom padding to ensure content doesn't get cut off
+            pb={4}
             maxHeight={{ base: "100vh", md: "auto" }}
             overflowY="auto"
         >
             <Box
                 borderBottom="1px"
                 borderColor={theme.border}
-                p={4}
+                p={3}
                 bg={theme.cardBg}
                 position="sticky"
                 top={0}
@@ -364,21 +366,19 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                 </HStack>
             </Box>
 
-            <VStack p={6} gap={6} align="stretch">
-                {/* Asset Info Card */}
-                <Box
-                    bg={theme.cardBg}
-                    p={6}
-                    borderRadius="2xl"
-                    boxShadow="lg"
-                    border="1px solid"
-                    borderColor={theme.border}
+            {/* Responsive layout using grid */}
+            <Box p={4}>
+                <Grid
+                    templateColumns={{ base: "1fr", md: "auto 1fr" }}
+                    gap={{ base: 6, md: 8 }}
+                    alignItems="start"
                 >
-                    <VStack align="center" gap={4}>
+                    {/* Left column - Asset icon and info */}
+                    <VStack align={{ base: "center", md: "center" }} gap={4}>
                         <Box
                             borderRadius="full"
                             overflow="hidden"
-                            boxSize="80px"
+                            boxSize={{ base: "80px", md: "100px" }}
                             bg={theme.cardBg}
                             boxShadow="lg"
                             p={2}
@@ -392,13 +392,19 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                                 objectFit="contain"
                             />
                         </Box>
-                        <Stack align="center" gap={1}>
+                        <VStack gap={0} align="center">
                             <Text fontSize="2xl" fontWeight="bold" color="white">
                                 {assetContext.name}
                             </Text>
                             <Text fontSize="md" color="gray.400">
                                 {assetContext.symbol}
                             </Text>
+                        </VStack>
+                    </VStack>
+
+                    {/* Right column - Balance and action buttons */}
+                    <VStack align="stretch" gap={4} w="100%">
+                        <VStack align={{ base: "center", md: "start" }} gap={1}>
                             <Text fontSize="3xl" fontWeight="bold" color={theme.gold}>
                                 $<CountUp
                                 key={`value-${lastSync}`}
@@ -406,66 +412,69 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                                 decimals={2}
                                 duration={1.5}
                                 separator=","
-                            />
+                                />
                             </Text>
                             <Text fontSize="md" color="white">
                                 {formatBalance(assetContext.balance)} {assetContext.symbol}
                             </Text>
-                        </Stack>
+                        </VStack>
+
+                        {/* Action Buttons in horizontal layout on larger screens */}
+                        <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={3}>
+                            <Button
+                                size="lg"
+                                bg={theme.cardBg}
+                                color={theme.gold}
+                                borderColor={theme.border}
+                                borderWidth="1px"
+                                _hover={{
+                                    bg: 'rgba(255, 215, 0, 0.1)',
+                                    borderColor: theme.gold,
+                                }}
+                                onClick={onSendClick}
+                                height="50px"
+                            >
+                                <Flex gap={2} align="center">
+                                    <FaPaperPlane />
+                                    <Text>Send</Text>
+                                </Flex>
+                            </Button>
+                            <Button
+                                size="lg"
+                                bg={theme.cardBg}
+                                color={theme.gold}
+                                borderColor={theme.border}
+                                borderWidth="1px"
+                                _hover={{
+                                    bg: 'rgba(255, 215, 0, 0.1)',
+                                    borderColor: theme.gold,
+                                }}
+                                onClick={onReceiveClick}
+                                height="50px"
+                            >
+                                <Flex gap={2} align="center">
+                                    <FaQrcode />
+                                    <Text>Receive</Text>
+                                </Flex>
+                            </Button>
+                        </Grid>
                     </VStack>
-                </Box>
-
-                {/* Action Buttons */}
-                <VStack gap={3}>
-                    <Button
-                        width="100%"
-                        size="lg"
-                        bg={theme.cardBg}
-                        color={theme.gold}
-                        borderColor={theme.border}
-                        borderWidth="1px"
-                        _hover={{
-                            bg: 'rgba(255, 215, 0, 0.1)',
-                            borderColor: theme.gold,
-                        }}
-                        onClick={onSendClick}
-                    >
-                        <Flex gap={2} align="center">
-                            <FaPaperPlane />
-                            <Text>Send</Text>
-                        </Flex>
-                    </Button>
-                    <Button
-                        width="100%"
-                        size="lg"
-                        bg={theme.cardBg}
-                        color={theme.gold}
-                        borderColor={theme.border}
-                        borderWidth="1px"
-                        _hover={{
-                            bg: 'rgba(255, 215, 0, 0.1)',
-                            borderColor: theme.gold,
-                        }}
-                        onClick={onReceiveClick}
-                    >
-                        <Flex gap={2} align="center">
-                            <FaQrcode />
-                            <Text>Receive</Text>
-                        </Flex>
-                    </Button>
-                </VStack>
-
-                {/* Asset Details Section - Now Collapsible */}
-                <Box
-                    bg={theme.cardBg}
-                    borderRadius="2xl"
-                    overflow="hidden"
-                    borderColor={theme.border}
-                    borderWidth="1px"
-                >
+                </Grid>
+            </Box>
+            
+            {/* Asset Details Section - Now Collapsible */}
+            <Box
+                bg={theme.cardBg}
+                borderRadius="xl"
+                overflow="hidden"
+                borderColor={theme.border}
+                borderWidth="1px"
+                mt={2}
+                mx={4}
+            >
                     {/* Clickable header */}
                     <Flex
-                        p={4}
+                        p={3}
                         borderBottom={isDetailsExpanded ? "1px" : "none"}
                         borderColor={theme.border}
                         justifyContent="space-between"
@@ -477,19 +486,19 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                         }}
                         transition="background 0.2s"
                     >
-                        <Text color={theme.gold} fontSize="lg" fontWeight="bold">
+                        <Text color={theme.gold} fontSize="md" fontWeight="bold">
                             Asset Details
                         </Text>
                         <Icon
                             as={isDetailsExpanded ? FaChevronUp : FaChevronDown}
                             color={theme.gold}
-                            boxSize={4}
+                            boxSize={3}
                         />
                     </Flex>
 
                     {/* Collapsible content */}
                     {isDetailsExpanded && (
-                        <VStack align="stretch" p={4} gap={4}>
+                        <VStack align="stretch" p={3} gap={3}>
                             {/* Network Info */}
                             <VStack align="stretch" gap={3}>
                                 <Text color="gray.400" fontSize="sm" fontWeight="medium">
@@ -639,8 +648,7 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                             )}
                         </VStack>
                     )}
-                </Box>
-            </VStack>
+            </Box>
         </Box>
     );
 };

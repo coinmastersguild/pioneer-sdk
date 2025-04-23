@@ -609,7 +609,10 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => <NetworkSkeleton key={i} />)
               ) : !dashboard || dashboard.networks.length === 0 ? (
-                <Text color="gray.500" textAlign="center" py={10}>No assets found.</Text>
+                <Flex direction="column" align="center" justify="center" py={10} gap={4}>
+                  <Image src="/gif/kk.gif" alt="KeepKey Logo Animation" boxSize="100px" />
+                  <Text color="gray.500" textAlign="center">Loading assets...</Text>
+                </Flex>
               ) : (
                 dashboard.networks
                   .sort((a, b) => b.totalValueUsd - a.totalValueUsd) 
