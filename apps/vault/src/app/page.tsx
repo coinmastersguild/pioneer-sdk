@@ -122,12 +122,14 @@ export default function Home() {
         justify="center" 
         align="center" 
         bg="black"
+        p={4} // Add some padding around the container
       >
         <Box 
-          width="375px" 
-          height="100vh"
+          width={{ base: '100%', sm: '375px', md: '800px', lg: '900px' }} 
+          height={{ base: 'auto', md: '75vh' }} // Fixed height on medium+ screens
+          maxH={{ base: 'none', md: '750px' }} // Maximum height constraint
           bg="black" 
-          overflow="hidden"
+          overflow="hidden" 
           position="relative"
           boxShadow="xl"
           borderRadius="2xl"

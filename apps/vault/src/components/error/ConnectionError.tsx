@@ -42,6 +42,12 @@ function ConnectionError({ onRetry }: ConnectionErrorProps) {
     }
   };
 
+  // Function to perform a full page reload
+  const handleFullReload = () => {
+    console.log('🔄 Performing full page reload');
+    window.location.reload();
+  };
+
   return (
     <Box 
       height="100vh" 
@@ -54,17 +60,30 @@ function ConnectionError({ onRetry }: ConnectionErrorProps) {
     >
       <VStack 
         gap={6} 
-        maxW="500px" 
+        width="400px"
+        maxW="90%"
         bg={theme.cardBg}
         p={8}
+        pt={6}
+        pb={10}
         borderRadius="xl"
         borderWidth="1px"
         borderColor={theme.border}
         position="relative"
+        boxShadow="0 4px 20px rgba(0,0,0,0.4)"
         _after={{
           content: '""',
           position: "absolute",
           bottom: "-1px",
+          left: "0",
+          right: "0",
+          height: "1px",
+          background: `linear-gradient(90deg, transparent 0%, ${theme.gold}40 50%, transparent 100%)`,
+        }}
+        _before={{
+          content: '""',
+          position: "absolute",
+          top: "-1px",
           left: "0",
           right: "0",
           height: "1px",
@@ -76,36 +95,44 @@ function ConnectionError({ onRetry }: ConnectionErrorProps) {
           alignItems="center"
           justifyContent="center"
           borderRadius="full"
-          p={4}
+          bg="rgba(255, 215, 0, 0.05)"
+          p={5}
+          boxSize="80px"
+          mx="auto"
         >
           <FaExclamationTriangle size="50px" color={theme.gold} />
         </Box>
 
-        <Heading size="lg" color={theme.gold} textAlign="center">
+        <Heading size="lg" color={theme.gold} textAlign="center" letterSpacing="wide">
           Connection Error
         </Heading>
 
-        <Image
-          src="/images/kk-icon-gold.png"
-          alt="KeepKey"
-          height="80px"
-          my={2}
-        />
+        <Box textAlign="center" width="100%">
+          <Image
+            src="/images/kk-icon-gold.png"
+            alt="KeepKey"
+            height="60px"
+            my={2}
+            mx="auto"
+          />
+        </Box>
 
-        <Text fontSize="md" color="gray.300" textAlign="center">
+        <Text fontSize="md" color="gray.300" textAlign="center" maxW="320px" mx="auto">
           Unable to connect to KeepKey Desktop. Please ensure the application is running on your computer.
         </Text>
 
-        <VStack gap={4} width="100%">
+        <VStack gap={3} width="100%" px={4}>
           <Button
             width="100%"
+            height="48px"
             variant="solid"
             color="black"
             bg={theme.gold}
             _hover={{ bg: theme.goldHover }}
             onClick={launchKeepKeyDesktop}
+            boxShadow="0 2px 10px rgba(255, 215, 0, 0.2)"
           >
-            <HStack>
+            <HStack gap={2}>
               <FaExternalLinkAlt />
               <Text>Launch KeepKey Desktop</Text>
             </HStack>
@@ -113,36 +140,45 @@ function ConnectionError({ onRetry }: ConnectionErrorProps) {
           
           <Button
             width="100%"
+            height="48px"
             variant="outline"
             color={theme.gold}
             borderColor={theme.gold}
             _hover={{ bg: 'rgba(255, 215, 0, 0.1)' }}
-            onClick={onRetry}
+            onClick={handleFullReload}
           >
-            <HStack>
+            <HStack gap={2}>
               <FaRedo />
               <Text>Try Again</Text>
             </HStack>
           </Button>
 
           {/* Divider */}
-          <Box width="100%" height="1px" bg={`${theme.border}`} opacity={0.3} my={1} />
+          <Box 
+            width="80%" 
+            height="1px" 
+            bg={`${theme.border}`} 
+            opacity={0.3} 
+            my={1} 
+            mx="auto"
+          />
           
           <Button
             width="100%"
+            height="40px"
             variant="ghost"
             color="gray.400"
             _hover={{ bg: 'rgba(255, 255, 255, 0.05)' }}
             onClick={() => window.open('https://www.keepkey.com/get-started', '_blank')}
           >
-            <HStack>
+            <HStack gap={2}>
               <FaDownload />
               <Text>Download KeepKey Desktop</Text>
             </HStack>
           </Button>
         </VStack>
 
-        <Text fontSize="sm" color="gray.500" textAlign="center">
+        <Text fontSize="xs" color="gray.500" textAlign="center" mt={1}>
           Need help? Visit our{' '}
           <Link
             color={theme.gold}

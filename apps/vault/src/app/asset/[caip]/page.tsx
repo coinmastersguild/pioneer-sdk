@@ -36,9 +36,14 @@ const scrollbarStyles = {
 const theme = {
   bg: '#000000',
   cardBg: '#111111',
+  cardBgHover: '#191919',
   gold: '#FFD700',
   goldHover: '#FFE135',
   border: '#222222',
+  text: '#FFFFFF',
+  textMuted: '#888888',
+  success: '#4CAF50',
+  danger: '#F44336',
 };
 
 // Define view types
@@ -54,6 +59,25 @@ export default function AssetPage() {
   
   // Track the current view instead of dialog state
   const [currentView, setCurrentView] = useState<ViewType>('asset')
+  
+  // Determine if we should use a wide layout based on screen size
+  const [isWideLayout, setIsWideLayout] = useState(false)
+  
+  // Effect to detect screen size for responsive layout
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsWideLayout(window.innerWidth >= 768); // md breakpoint
+    };
+    
+    // Initial check
+    checkScreenSize();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkScreenSize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, [])
   
   // Decode the parameter - it might be both URL-encoded AND Base64 encoded
   useEffect(() => {
@@ -313,16 +337,19 @@ export default function AssetPage() {
   }
 
   // Render the current view based on state
+
   return (
     <Flex 
       minH="100vh" 
       justify="center" 
       align="center" 
       bg="black"
+      p={4}
     >
       <Box 
-        width="375px" 
-        height="100vh"
+        width={{ base: '100%', sm: '100%', md: '800px', lg: '900px' }}
+        height={{ base: 'auto', md: '75vh' }}
+        maxH={{ base: 'none', md: '750px' }}
         bg="black" 
         overflow="hidden"
         position="relative"
@@ -335,7 +362,12 @@ export default function AssetPage() {
           height="100%" 
           overflowY="auto" 
           overflowX="hidden"
-          {...scrollbarStyles}
+          css={{
+            '&::-webkit-scrollbar': { width: '4px' },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': { background: '#333333', borderRadius: '24px' },
+            '&::-webkit-scrollbar-thumb:hover': { background: '#444444' },
+          }}
         >
           {currentView === 'asset' && (
             <Asset 

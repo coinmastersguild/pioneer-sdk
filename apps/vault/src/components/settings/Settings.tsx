@@ -224,40 +224,11 @@ const Settings = ({ onClose }: SettingsProps) => {
             </VStack>
           </Box>
 
-          {/* Log Level Settings */}
+          {/* Developer Settings */}
           <Box bg={theme.cardBg} p={4} borderRadius="xl" borderWidth="1px" borderColor={theme.border}>
             <Text fontWeight="bold" color={theme.gold} mb={3}>
               Developer Settings
             </Text>
-            
-            <Box mb={4}>
-              <Text color="gray.300" mb={1}>Log Level</Text>
-              <select 
-                value={logLevel} 
-                onChange={handleLogLevelChange}
-                style={{
-                  backgroundColor: "black",
-                  color: "white",
-                  borderColor: theme.border,
-                  padding: "8px",
-                  borderRadius: "4px",
-                  width: "100%"
-                }}
-              >
-                {logLevels.map(level => (
-                  <option key={level.value} value={level.value}>
-                    {level.label}
-                  </option>
-                ))}
-              </select>
-            </Box>
-            
-            <Box 
-              borderTop="1px" 
-              borderColor={theme.border} 
-              my={3}
-              pt={3}
-            />
 
           {/* Provider Settings */}
           <Box mb={4}>

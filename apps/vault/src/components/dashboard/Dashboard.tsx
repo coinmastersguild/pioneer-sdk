@@ -13,6 +13,7 @@ import {
   Grid,
   GridItem,
   useDisclosure,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import { Skeleton, SkeletonCircle } from "@/components/ui/skeleton"
 import { usePioneerContext } from '@/components/providers/pioneer'
@@ -53,9 +54,14 @@ const scrollbarStyles = {
 const theme = {
   bg: '#000000',
   cardBg: '#111111',
+  cardBgHover: '#191919',
   gold: '#FFD700',
   goldHover: '#FFE135',
   border: '#222222',
+  text: '#FFFFFF',
+  textMuted: '#888888',
+  success: '#4CAF50',
+  danger: '#F44336',
 };
 
 interface Network {
@@ -96,24 +102,91 @@ interface DashboardProps {
   onAddNetworkClick: () => void;
 }
 
+// Skeleton loader for network items in the assets list
 const NetworkSkeleton = () => (
   <HStack gap="4" p={5} bg={theme.cardBg} borderRadius="2xl" boxShadow="lg">
     <SkeletonCircle size="12" />
-    <Stack flex="1">
+    <Stack flex="1" gap={2}> 
       <Skeleton height="5" width="120px" />
       <Skeleton height="4" width="80px" />
     </Stack>
-    <Stack align="flex-end">
+    <Stack align="flex-end" gap={1}> 
       <Skeleton height="5" width="70px" />
       <Skeleton height="4" width="40px" />
     </Stack>
   </HStack>
 );
 
+// Skeleton loader for the portfolio chart
+const ChartSkeleton = () => (
+  <Box p={6} bg={theme.cardBg} borderRadius="xl" borderWidth="1px" borderColor={theme.border}>
+    <VStack gap={6} align="stretch">
+      <HStack justify="space-between">
+        <Stack gap={1}>
+          <Skeleton height="6" width="150px" />
+          <Skeleton height="8" width="120px" />
+        </Stack>
+        <SkeletonCircle size="10" />
+      </HStack>
+      
+      <Flex justify="center" align="center" h="200px">
+        <Box position="relative" width="200px" height="200px">
+          <Box 
+            position="absolute"
+            top="0"
+            left="0"
+            width="100%"
+            height="100%"
+            borderRadius="full"
+            bg="#222"
+          />
+          <Box 
+            position="absolute"
+            top="15%"
+            left="15%"
+            width="70%"
+            height="70%"
+            borderRadius="full"
+            bg={theme.bg}
+          />
+        </Box>
+      </Flex>
+      
+      <VStack gap={3}>
+        {[1, 2, 3].map((i) => (
+          <HStack key={i} width="100%" justify="space-between">
+            <HStack gap={2}>
+              <SkeletonCircle size="6" />
+              <Skeleton height="4" width="100px" />
+            </HStack>
+            <Skeleton height="4" width="60px" />
+          </HStack>
+        ))}
+      </VStack>
+    </VStack>
+  </Box>
+);
+
+// Skeleton loader for the assets list
+const AssetsListSkeleton = () => (
+  <VStack gap={3} align="stretch" width="100%">
+    <HStack justify="space-between" p={4}>
+      <Skeleton height="6" width="120px" />
+      <Skeleton height="4" width="60px" />
+    </HStack>
+    
+    <VStack gap={3} align="stretch" p={4} maxH="500px" overflowY="auto">
+      {[1, 2, 3, 4].map((i) => (
+        <NetworkSkeleton key={i} />
+      ))}
+    </VStack>
+  </VStack>
+);
+
 const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [loading, setLoading] = useState(true); // Start as true for initial check
-  const [showConnectionError, setShowConnectionError] = useState(false); // State for timeout error
+  const [loading, setLoading] = useState(true); 
+  const [showConnectionError, setShowConnectionError] = useState(false); 
   const [activeSliceIndex, setActiveSliceIndex] = useState<number>(0);
   const [lastSync, setLastSync] = useState<number>(Date.now());
   const pioneer = usePioneerContext();
@@ -121,13 +194,14 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
   const { app } = state;
   const router = useRouter();
 
-  // Function to check if KeepKey Desktop is running
+  const flexDirection = useBreakpointValue({ base: 'column', md: 'row' }) as 'column' | 'row';
+
   const checkDesktopRunning = async (): Promise<boolean> => {
     console.log("🔍 [Dashboard] Checking if KeepKey Desktop is running...");
     try {
       const response = await fetch('http://localhost:1646/docs', {
-        method: 'GET', // Explicitly set method
-        signal: AbortSignal.timeout(2000) // 2-second timeout
+        method: 'GET', 
+        signal: AbortSignal.timeout(2000) 
       });
 
       if (response.status === 200) {
@@ -147,33 +221,26 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
     }
   };
 
-  // Format balance for display
   const formatBalance = (balance: string) => {
     try {
-      const numericBalance = parseFloat(balance);
-      const safeBalance = isNaN(numericBalance) ? '0' : balance;
-      const [integer, decimal] = safeBalance.split('.');
-      const largePart = decimal?.slice(0, 4) || '0000';
-      const smallPart = decimal?.slice(4, 6) || '00';
-      return { integer, largePart, smallPart };
-    } catch (error) {
-      console.error('Error in formatBalance:', error);
-      return { integer: '0', largePart: '0000', smallPart: '00' };
+      if (!balance) return '0.00';
+      const num = parseFloat(balance);
+      if (isNaN(num)) return '0.00';
+      return num.toFixed(8);
+    } catch (e) {
+      console.error("Error formatting balance:", e);
+      return '0.00';
     }
   };
 
-  // Format USD value
   const formatUsd = (value: number | null | undefined) => {
-    if (value === null || value === undefined || isNaN(value)) return '0.00';
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue)) return '0.00';
-    return numValue.toLocaleString('en-US', {
+    if (value === null || value === undefined) return '$ --';
+    return `$${value.toLocaleString('en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    });
+    })}`;
   };
 
-  // Add a utility function for middle ellipsis
   const middleEllipsis = (text: string, visibleChars = 16) => {
     if (!text) return '';
     if (text.length <= visibleChars) return text;
@@ -187,7 +254,6 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
     return () => console.log('📊 [Dashboard] Component unmounting');
   }, []);
 
-  // Add new useEffect to reload dashboard when assetContext becomes null
   useEffect(() => {
     console.log('📊 [Dashboard] AssetContext changed:', app?.assetContext);
     if (!app?.assetContext) {
@@ -196,7 +262,6 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
     }
   }, [app?.assetContext]);
 
-  // Set up interval to sync market data every 15 seconds
   useEffect(() => {
     if (!app) return;
     
@@ -205,7 +270,6 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
         .syncMarket()
         .then(() => {
           console.log("📊 [Dashboard] syncMarket called from Dashboard");
-          // We now track real balance changes instead of artificial adjustments
           setLastSync(Date.now());
           fetchDashboard();
         })
@@ -225,11 +289,9 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
         const dashboard = app.dashboard;
         console.log('📊 [Dashboard] Dashboard data received:', dashboard);
         
-        // Compare new total value with previous total value
         const newTotalValue = dashboard.totalValueUsd || 0;
         const prevTotalValue = 0;
         
-        // Check if portfolio value has increased
         if (newTotalValue > prevTotalValue && prevTotalValue > 0) {
           console.log("💰 [Dashboard] Portfolio value increased!", { 
             previous: prevTotalValue, 
@@ -238,19 +300,14 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
           playSound(chachingSound);
         }
         
-        // Update previous total value for next comparison
-        // setPreviousTotalValue(newTotalValue);
-        
         setDashboard(dashboard);
         
-        // Set activeSliceIndex to the index of the top asset (with highest value)
         if (dashboard.networks && dashboard.networks.length > 0) {
           const sortedNetworks = [...dashboard.networks]
             .filter((network: Network) => parseFloat(network.totalNativeBalance) > 0)
             .sort((a, b) => b.totalValueUsd - a.totalValueUsd);
             
           if (sortedNetworks.length > 0) {
-            // Find the index of the top asset in the original filtered data
             const topAsset = sortedNetworks[0];
             const topAssetIndex = dashboard.networks
               .filter((network: Network) => parseFloat(network.totalNativeBalance) > 0)
@@ -273,7 +330,6 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
     }
   };
 
-  // Prepare data for donut chart
   const chartData = dashboard?.networks
     .filter(network => parseFloat(network.totalNativeBalance) > 0)
     .map(network => ({
@@ -282,19 +338,10 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
       color: network.color,
     })) || [];
 
-  // Handle slice or legend hover
   const handleHover = (index: number | null) => {
-    // Only update if hovering over a different asset or returning to the default
     if (index === null) {
-      // If we're currently not hovering over anything, maintain the current selection
-      // or revert to the top asset
-      
-      // Only reset if we actually have dashboard data
       if (dashboard?.networks && dashboard.networks.length > 0) {
-        // Use a slight delay for smoother transitions between hover states
-        // This prevents flickering when moving between elements
         setTimeout(() => {
-          // Only apply the reset if we're still not hovering over anything
           if (activeSliceIndex === null) {
             const sortedNetworks = [...dashboard.networks]
               .filter((network: Network) => parseFloat(network.totalNativeBalance) > 0)
@@ -311,299 +358,301 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                 return;
               }
             }
-            // Fallback to first item if we can't find top asset
             setActiveSliceIndex(0);
           }
         }, 50);
       }
     } else if (index !== activeSliceIndex) {
-      // Immediate update when hovering over a specific slice
       setActiveSliceIndex(index);
     }
   };
 
-  // Modify formatValueForChart to use CountUp
   const formatValueForChart = (value: number) => {
     return formatUsd(value);
   };
 
-  // Combined function for initial check and fetch
   const performInitialCheckAndFetch = async () => {
     const isRunning = await checkDesktopRunning();
     if (isRunning) {
-      setShowConnectionError(false); // Ensure error is hidden if check succeeds
+      setShowConnectionError(false); 
       fetchDashboard();
     } else {
       setShowConnectionError(true);
-      setLoading(false); // Stop loading indicator if desktop is not running
+      setLoading(false); 
     }
   };
 
-  // Run the initial check on mount
+  const handleRetry = async () => {
+    setShowConnectionError(false);
+    setLoading(true); 
+    await performInitialCheckAndFetch(); 
+  };
+
   useEffect(() => {
     performInitialCheckAndFetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, []); 
 
-  // If the connection error should be shown, render the error component
   if (showConnectionError) {
-    return <ConnectionError onRetry={async () => {
-      setShowConnectionError(false);
-      setLoading(true); // Show loading spinner while retrying
-      await performInitialCheckAndFetch(); // Re-run the check and potentially fetch
-    }} />;
+    return <ConnectionError onRetry={handleRetry} />;
   }
 
   return (
-    <Box height="100vh" bg={theme.bg}>
-      {/* Header */}
-      <Box 
-        borderBottom="1px" 
-        borderColor={theme.border}
-        p={4}
-        bg={theme.cardBg}
-        backdropFilter="blur(10px)"
-        position="relative"
-        _after={{
-          content: '""',
-          position: "absolute",
-          bottom: "-1px",
-          left: "0",
-          right: "0",
-          height: "1px",
-          background: `linear-gradient(90deg, transparent 0%, ${theme.gold}40 50%, transparent 100%)`,
-        }}
-      >
-        <HStack justify="space-between" align="center">
-          <HStack gap={3}>
-            <Image src="/images/kk-icon-gold.png" alt="KeepKey" height="24px" />
-            <Text fontSize="lg" fontWeight="bold" color={theme.gold}>
-              KeepKey Vault
-            </Text>
-          </HStack>
-          <Button
-            size="sm"
-            variant="ghost"
-            color={theme.gold}
-            _hover={{ color: theme.goldHover, bg: 'rgba(255, 215, 0, 0.1)' }}
-            onClick={onSettingsClick}
-          >
-            <HStack gap={2} align="center">
-              <Text>Settings</Text>
-              <Box 
-                w="2px" 
-                h="2px" 
-                borderRadius="full" 
-                bg={theme.gold} 
-              />
-            </HStack>
-          </Button>
+    <Box p={4} bg={theme.bg} minH="100vh" color="white">
+      <HStack justify="space-between" align="center" mb={6}>
+        <HStack gap={2} align="center">
+          <Image src="/images/kk-icon-gold.png" alt="KeepKey Logo" h="8" />
+          <Text color={theme.gold} fontWeight="bold" fontSize="lg">KeepKey Vault</Text>
         </HStack>
-      </Box>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onSettingsClick}
+          _hover={{ bg: theme.cardBg }}
+          aria-label="Settings"
+          px={3}
+        >
+          <HStack gap={2} align="center">
+            <Box as="span" fontSize="md">⚙️</Box>
+            <Text color="gray.400" fontSize="sm">Settings</Text>
+          </HStack>
+        </Button>
+      </HStack>
 
-      {/* Main Content */}
-      <Box 
-        height="calc(100% - 60px)" 
-        overflowY="auto" 
-        overflowX="hidden"
-        p={6}
-        {...scrollbarStyles}
+      <Flex 
+        direction={flexDirection}
+        gap={6} 
+        alignItems="stretch"
+        h={{ base: 'auto', md: 'calc(100vh - 100px)' }}
+        maxH={{ base: 'auto', md: '650px' }}
       >
-        <VStack gap={8} align="stretch">
-          {/* Portfolio Overview with Chart */}
-          <Box 
-            p={8} 
-            borderRadius="2xl" 
-            boxShadow={!loading && dashboard && chartData.length > 0 
-              ? `0 4px 20px ${chartData[0].color}20, inset 0 0 20px ${chartData[0].color}10`
-              : 'lg'
-            }
-            border="1px solid"
-            borderColor={!loading && dashboard && chartData.length > 0 
-              ? `${chartData[0].color}40`
-              : theme.border
-            }
-            position="relative"
-            overflow="hidden"
-            bg={!loading && dashboard && chartData.length > 0 ? `${chartData[0].color}15` : theme.cardBg}
-            _before={{
-              content: '""',
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: !loading && dashboard && chartData.length > 0
-                ? `linear-gradient(135deg, ${chartData[0].color}40 0%, ${chartData[0].color}20 100%)`
-                : 'none',
-              opacity: 0.6,
-              zIndex: 0,
-            }}
-            _after={{
-              content: '""',
-              position: "absolute",
-              top: "-50%",
-              left: "-50%",
-              right: "-50%",
-              bottom: "-50%",
-              background: "radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%)",
-              zIndex: 1,
-            }}
+        <VStack 
+          gap={0} 
+          align="stretch" 
+          flex={{ base: 'none', md: 1 }} 
+          w='100%'
+          h={{ base: 'auto', md: '100%' }}
+          overflow="hidden"
+          bg={theme.cardBg}
+          borderRadius="2xl"
+          boxShadow="lg"
+        >
+
+          <Flex 
+            direction="column" 
+            p={6}
+            borderBottom="1px solid"
+            borderColor="gray.800"
           >
-            <Flex 
-              justify="center" 
-              align="center" 
-              position="relative" 
-              zIndex={2}
-              direction="column"
-              gap={6}
-              width="100%"
-            >
+            <Flex justify="space-between" align="center" mb={6} w="100%">
+              <Text 
+                fontSize="lg" 
+                fontWeight="semibold"
+              >
+                Portfolio Distribution
+              </Text>
+              
               {loading ? (
-                <Flex direction="column" align="center" justify="center" py={6} width="100%">
-                  <SkeletonCircle size="180px" />
-                  <Skeleton height="4" width="140px" mt={4} />
-                </Flex>
-              ) : dashboard ? (
-                <>
-                  <Box 
-                    width="100%"
-                    maxWidth="210px"  
-                    height="210px" 
-                    mx="auto"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                  >
-                    <DonutChart 
-                      data={chartData} 
-                      formatValue={(value) => formatValueForChart(value)}
-                      height={210}
-                      width={210}
-                      activeIndex={activeSliceIndex}
-                      onHoverSlice={handleHover}
-                    />
-                  </Box>
-                  <Box 
-                    width="100%"
-                    maxWidth="400px"
-                    pt={2}
-                    mt={1}
-                    mx="auto"
-                    height="40px"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    borderTop="1px solid"
-                    borderColor="whiteAlpha.100"
-                  >
-                    <ChartLegend 
-                      data={chartData} 
-                      total={dashboard.totalValueUsd}
-                      formatValue={(value: any) => formatUsd(value)}
-                      activeIndex={activeSliceIndex}
-                      onHoverItem={handleHover}
-                    />
-                  </Box>
-                </>
+                <Skeleton height="32px" width="100px" />
               ) : (
-                <Text color={theme.gold}>No portfolio data available</Text>
+                <Text fontSize="2xl" fontWeight="bold" color={theme.gold}>
+                  {formatUsd(dashboard?.totalValueUsd)}
+                </Text>
               )}
             </Flex>
-          </Box>
+            {loading ? (
+              <Flex justify="center" align="center" h="220px">
+                <SkeletonCircle size="180px" />
+              </Flex>
+            ) : dashboard && dashboard.networks.length > 0 ? (
+              <Flex justify="center" align="center" h="220px">
+                <Box position="relative" w="200px" h="200px">
+                  <DonutChart
+                    data={dashboard.networks.map((network) => ({
+                      id: network.networkId,
+                      name: network.gasAssetSymbol, 
+                      value: network.totalValueUsd,
+                      label: network.gasAssetSymbol, 
+                      color: network.color,
+                    }))}
+                    activeIndex={activeSliceIndex}
+                  />
+                  <Flex 
+                    position="absolute" 
+                    top="50%" 
+                    left="50%" 
+                    transform="translate(-50%, -50%)" 
+                    direction="column"
+                    align="center"
+                    justify="center"
+                    bg="rgba(0,0,0,0.7)"
+                    borderRadius="full"
+                    w="100px"
+                    h="100px"
+                    backdropFilter="blur(5px)"
+                  >
+                    {activeSliceIndex !== null && dashboard.networks[activeSliceIndex] ? (
+                      <>
+                        <Text fontSize="xs" color="gray.300" mb={0.5}>
+                          {dashboard.networks[activeSliceIndex].gasAssetSymbol}
+                        </Text>
+                        <Text fontSize="md" fontWeight="bold" color={dashboard.networks[activeSliceIndex].color}>
+                          {formatUsd(dashboard.networks[activeSliceIndex].totalValueUsd)}
+                        </Text>
+                        <Text fontSize="2xs" color="gray.400" mt={0.5}>
+                          {dashboard.networkPercentages[activeSliceIndex]?.percentage.toFixed(1)}%
+                        </Text>
+                      </>
+                    ) : (
+                      <Text fontSize="sm" fontWeight="medium" color="gray.300">Hover for details</Text>
+                    )}
+                  </Flex>
+                </Box>
+              </Flex>
+            ) : (
+              <Flex justify="center" align="center" h="220px">
+                <Text color="gray.500">No assets found</Text>
+              </Flex>
+            )}
+          </Flex>
 
-          {/* Network List */}
-          <Box>
-            <HStack justify="space-between" mb={5}>
-              <HStack gap={2}>
-                <Text fontSize="md" color="gray.400">Your Assets</Text>
-                <Text fontSize="xs" color="gray.600">
-                  ({dashboard?.networks.length || 0})
-                </Text>
-              </HStack>
-              <Button
-                size="xs"
-                variant="ghost"
-                color={theme.gold}
-                _hover={{ color: theme.goldHover }}
+          {!loading && dashboard && dashboard.networks.length > 0 && (
+            <Box px={6} py={4} borderTop="1px solid" borderColor="gray.800">
+              <Flex justify="space-between" align="center" mb={2}>
+                <Text fontSize="xs" color="gray.500">Asset</Text>
+                <Text fontSize="xs" color="gray.500">Allocation</Text>
+              </Flex>
+              <VStack gap={2} align="stretch" maxH="100px" overflowY="auto" pr={2}
+                css={{
+                  '&::-webkit-scrollbar': { width: '3px' },
+                  '&::-webkit-scrollbar-track': { background: 'transparent' },
+                  '&::-webkit-scrollbar-thumb': { background: '#333', borderRadius: '10px' },
+                }}
               >
-                View All
-              </Button>
-            </HStack>
-            
-            <VStack gap={4}>
-              {loading || !dashboard ? (
-                <>
-                  <NetworkSkeleton />
-                  <NetworkSkeleton />
-                  <NetworkSkeleton />
-                </>
-              ) : (
-                dashboard?.networks
-                  .map((network) => {
-                    const { integer, largePart, smallPart } = formatBalance(network.totalNativeBalance);
-                    const percentage = dashboard.networkPercentages.find(
-                      np => np.networkId === network.networkId
-                    )?.percentage || 0;
+                {loading ? (
+                  <Skeleton height="40px" />
+                ) : (
+                  dashboard.networks
+                    .filter(n => n.totalValueUsd > 0)
+                    .sort((a, b) => b.totalValueUsd - a.totalValueUsd)
+                    .slice(0, 3)
+                    .map((network, index) => {
+                      const percentage = dashboard.networkPercentages.find(p => p.networkId === network.networkId)?.percentage ?? 0;
+                      return (
+                        <Flex 
+                          key={network.networkId}
+                          justify="space-between" 
+                          align="center"
+                          py={1}
+                          px={2}
+                          borderRadius="md"
+                          bg={activeSliceIndex === index ? `${network.color}15` : 'transparent'}
+                          cursor="pointer"
+                          transition="all 0.2s"
+                          onMouseEnter={() => handleHover(index)}
+                          onMouseLeave={() => handleHover(null)}
+                        >
+                          <HStack>
+                            <Box w="2px" h="16px" borderRadius="full" bg={network.color} mr={1} />
+                            <Text fontWeight="medium" fontSize="sm">{network.gasAssetSymbol}</Text>
+                          </HStack>
+                          <Text fontSize="sm" color={network.color} fontWeight="medium">{percentage.toFixed(1)}%</Text>
+                        </Flex>
+                      );
+                    })
+                )}
+              </VStack>
+            </Box>
+          )}
+        </VStack>
 
+        <VStack 
+          gap={4} 
+          align="stretch" 
+          flex={{ base: 'none', md: 1 }} 
+          w='100%'
+          h={{ base: 'auto', md: '100%' }} // Set height to 100% to match parent
+          overflow="hidden" 
+          bg={theme.cardBg}
+          borderRadius="2xl"
+          boxShadow="lg"
+          p={6}
+        >
+          <Flex justify="space-between" align="center" p={6} borderBottom="1px solid" borderColor="gray.800">
+            <HStack>
+              <Text fontSize="lg" fontWeight="semibold">
+                Your Assets
+              </Text>
+              {!loading && (
+                <Text color="gray.500" fontSize="md">
+                  ({dashboard?.networks?.length ?? 0})
+                </Text>
+              )}
+            </HStack>
+            <Button
+              variant="ghost"
+              size="sm"
+              color={theme.gold}
+              onClick={() => router.push('/assets')} 
+              _hover={{ color: theme.goldHover }}
+              h="28px"
+              minW="auto"
+              px={3}
+            >
+              View All
+            </Button>
+          </Flex>
+          
+          <Box 
+            flexGrow={1} 
+            overflowY="auto"
+            maxH={{ base: "350px", md: "calc(100% - 120px)" }}
+            px={6}
+            pb={2}
+            pt={4}
+            css={{
+              '&::-webkit-scrollbar': {
+                width: '4px',
+              },
+              '&::-webkit-scrollbar-track': {
+                width: '6px',
+                background: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: '#333333',
+                borderRadius: '24px',
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                background: '#444444',
+              },
+            }}
+          >
+            <VStack gap={3} align="stretch" w="100%">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => <NetworkSkeleton key={i} />)
+              ) : !dashboard || dashboard.networks.length === 0 ? (
+                <Text color="gray.500" textAlign="center" py={10}>No assets found.</Text>
+              ) : (
+                dashboard.networks
+                  .sort((a, b) => b.totalValueUsd - a.totalValueUsd) 
+                  .map((network, index) => {
+                    const percentage = dashboard.networkPercentages.find(p => p.networkId === network.networkId)?.percentage ?? 0;
+                    
                     return (
                       <Box 
                         key={network.networkId}
-                        w="100%"
-                        p={5}
-                        borderRadius="2xl"
-                        borderWidth="1px"
-                        borderColor={`${network.color}40`}
-                        boxShadow={`0 4px 20px ${network.color}20, inset 0 0 20px ${network.color}10`}
-                        position="relative"
-                        bg={`${network.color}15`}
-                        _before={{
-                          content: '""',
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          background: `linear-gradient(135deg, ${network.color}40 0%, ${network.color}20 100%)`,
-                          opacity: 0.6,
-                          borderRadius: "inherit",
-                          pointerEvents: "none",
-                        }}
-                        _after={{
-                          content: '""',
-                          position: "absolute",
-                          top: "-50%",
-                          left: "-50%",
-                          right: "-50%",
-                          bottom: "-50%",
-                          background: "radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%)",
-                          opacity: 0.5,
-                          borderRadius: "inherit",
-                          pointerEvents: "none",
-                        }}
-                        _hover={{ 
-                          transform: 'translateY(-2px)',
-                          boxShadow: `0 8px 24px ${network.color}30, inset 0 0 30px ${network.color}20`,
-                          borderColor: network.color,
-                          bg: `${network.color}25`,
-                          _before: {
-                            opacity: 0.8,
-                            background: `linear-gradient(135deg, ${network.color}50 0%, ${network.color}30 100%)`,
-                          },
-                          _after: {
-                            opacity: 0.7,
-                          },
-                        }}
-                        _active={{
-                          transform: 'scale(0.98) translateY(-1px)',
-                          boxShadow: `0 2px 12px ${network.color}20`,
-                          transition: 'all 0.1s ease-in-out',
-                        }}
-                        _focus={{
-                          outline: 'none',
-                          boxShadow: `0 0 0 2px ${network.color}, 0 8px 24px ${network.color}30`,
-                        }}
+                        p={2.5}
+                        bg="#151515" 
+                        borderRadius="xl"
+                        borderLeft="2px solid" 
+                        borderColor={network.color}
                         cursor="pointer"
+                        transition="all 0.2s ease-in-out"
+                        _hover={{
+                          bg: `${network.color}10`,
+                          transform: 'translateY(-1px)',
+                          boxShadow: `0 2px 8px ${network.color}20`
+                        }}
                         onClick={() => {
                           console.log('📋 [Dashboard] Navigating to asset page:', network);
                           
@@ -621,112 +670,57 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                           // Navigate using encoded parameters to the simplified route
                           router.push(`/asset/${encodedCaip}`);
                         }}
-                        role="button"
-                        aria-label={`Select ${network.gasAssetSymbol} network`}
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            router.push(`/asset/${btoa(network.gasAssetCaip)}`);
-                          }
-                        }}
-                        transition="all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
                       >
-                        <Flex align="center" justify="space-between" position="relative" zIndex={1}>
-                          <HStack gap={4}>
-                            <Box 
+                        <Flex justify="space-between" align="center">
+                          <HStack gap={3} align="center">
+                            <Image 
+                              src={network.icon} 
+                              alt={`${network.gasAssetSymbol} logo`} 
+                              boxSize="32px" 
                               borderRadius="full" 
-                              overflow="hidden" 
-                              boxSize="44px"
-                              bg={network.color}
-                              boxShadow={`lg, inset 0 0 10px ${network.color}40`}
-                              position="relative"
-                              _after={{
-                                content: '""',
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                background: `linear-gradient(135deg, ${network.color}40 0%, transparent 100%)`,
-                                opacity: 0.6,
-                                pointerEvents: "none",
-                              }}
-                            >
-                              <Image 
-                                src={network.icon} 
-                                alt={network.networkId}
-                                boxSize="44px"
-                                objectFit="cover"
-                              />
-                            </Box>
-                            <Stack gap={0.5}>
-                              <Text fontSize="md" fontWeight="bold" color={network.color}>
+                              p="1px"
+                              bg={`${network.color}20`}
+                            />
+                            <Stack gap={0}> 
+                              <Text 
+                                fontSize="md" 
+                                fontWeight="medium" 
+                                color="white"
+                                maxW="100px"
+                                truncate={true}
+                                title={network.gasAssetSymbol} 
+                              >
                                 {network.gasAssetSymbol}
                               </Text>
-                              <Text 
-                                fontSize="xs" 
-                                color="gray.500" 
-                                mb={1}
-                                title={network.gasAssetCaip || network.networkId}
-                                cursor="help"
-                                _hover={{
-                                  textDecoration: 'underline',
-                                  textDecorationStyle: 'dotted'
-                                }}
-                              >
-                                {middleEllipsis(network.gasAssetCaip || network.networkId, 14)}
+                              <Text fontSize="sm" color="gray.400">
+                                {parseFloat(network.totalNativeBalance).toFixed(6)}
                               </Text>
-                              <HStack gap={2} align="center">
-                                <Text fontSize="sm" color="gray.300">
-                                  {integer}.{largePart}
-                                  <Text as="span" fontSize="xs" color="gray.400">
-                                    {smallPart}
-                                  </Text>
-                                </Text>
-                                <Text fontSize="xs" color={network.color}>
-                                  {network.gasAssetSymbol}
-                                </Text>
-                              </HStack>
                             </Stack>
                           </HStack>
-                          <Stack 
-                            align="flex-end" 
-                            gap={0.5}
-                            p={1}
-                            borderRadius="md"
-                            position="relative"
-                            zIndex={2}
-                            transition="all 0.15s ease-in-out"
-                            _hover={{
-                              bg: `${network.color}30`,
-                              boxShadow: `0 0 8px ${network.color}40`,
-                            }}
-                          >
+                          <Stack align="flex-end" gap={1}>
                             <Text 
                               fontSize="md" 
                               color={network.color}
                               fontWeight="medium"
                             >
-                              $<CountUp 
-                                key={`network-${network.networkId}-${lastSync}`}
-                                end={network.totalValueUsd} 
-                                decimals={2}
-                                duration={1.5}
-                                separator=","
-                              />
+                              ${network.totalValueUsd.toFixed(2)}
                             </Text>
-                            <Text 
-                              fontSize="xs" 
-                              color={`${network.color}80`}
-                              fontWeight="medium"
-                              px={1}
+                            <Box 
+                              px={2}
                               py={0.5}
-                              borderRadius="sm"
+                              borderRadius="full"
                               bg={`${network.color}20`}
+                              minW="42px"
+                              textAlign="center"
                             >
-                              {percentage.toFixed(1)}%
-                            </Text>
+                              <Text 
+                                fontSize="xs" 
+                                color={network.color}
+                                fontWeight="medium"
+                              >
+                                {percentage.toFixed(1)}%
+                              </Text>
+                            </Box>
                           </Stack>
                         </Flex>
                       </Box>
@@ -736,52 +730,31 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
             </VStack>
           </Box>
 
-          {/* Add Network Button */}
-          <Box
-            p={6}
-            borderRadius="2xl"
-            borderStyle="dashed"
-            borderWidth="2px"
-            borderColor={theme.border}
-            position="relative"
-            _hover={{
-              borderColor: theme.gold,
-              bg: 'rgba(255, 215, 0, 0.05)',
-              _after: {
-                opacity: 0.3,
-              }
-            }}
-            _after={{
-              content: '""',
-              position: "absolute",
-              top: "-50%",
-              left: "-50%",
-              right: "-50%",
-              bottom: "-50%",
-              background: "radial-gradient(circle, transparent 30%, rgba(0,0,0,0.8) 100%)",
-              opacity: 0.2,
-              transition: "opacity 0.2s",
-            }}
-            transition="all 0.2s"
-            cursor="pointer"
-            onClick={onAddNetworkClick}
+          <Flex 
+            p={4} 
+            borderTop="1px solid"
+            borderColor="gray.800"
+            justify="center"
           >
-            <Flex justify="center" align="center" py={2}>
-              <Button
-                variant="ghost"
-                color={theme.gold}
-                size="lg"
-                _hover={{ bg: 'transparent', color: theme.goldHover }}
-              >
-                Add Network
-              </Button>
-            </Flex>
-          </Box>
-          
-          {/* Add some padding at the bottom for better scrolling */}
-          <Box height="20px" />
+            <Button
+              variant="outline"
+              borderStyle="dashed"
+              color={theme.gold}
+              size="md"
+              px={4}
+              _hover={{ bg: 'rgba(255, 215, 0, 0.05)' }}
+              onClick={onAddNetworkClick}
+              borderRadius="xl"
+              h="40px"
+            >
+              <HStack gap={2}>
+                <Box as="span" fontSize="lg">+</Box>
+                <Text>Add Network</Text>
+              </HStack>
+            </Button>
+          </Flex>
         </VStack>
-      </Box>
+      </Flex> 
     </Box>
   );
 };
