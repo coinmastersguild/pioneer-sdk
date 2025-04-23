@@ -170,16 +170,64 @@ const ChartSkeleton = () => (
   </Box>
 );
 
+// Skeleton loader for the portfolio distribution section
+const PortfolioDistributionSkeleton = () => (
+  <VStack align="stretch" width="100%" gap={0}>
+    <Flex 
+      direction="column" 
+      p={6}
+      borderBottom="1px solid"
+      borderColor="gray.800"
+    >
+      <Flex justify="space-between" align="center" mb={6} w="100%">
+        <Skeleton height="24px" width="180px" />
+        <Skeleton height="32px" width="100px" />
+      </Flex>
+      
+      <Flex justify="center" align="center" h="220px">
+        <Box position="relative">
+          <SkeletonCircle size="200px" />
+          <SkeletonCircle 
+            size="100px" 
+            position="absolute" 
+            top="50px" 
+            left="50px" 
+          />
+        </Box>
+      </Flex>
+    </Flex>
+    
+    <Box px={6} py={4}>
+      <Flex justify="space-between" align="center" mb={2}>
+        <Skeleton height="16px" width="60px" />
+        <Skeleton height="16px" width="80px" />
+      </Flex>
+      
+      <VStack gap={3} align="stretch">
+        {[1, 2, 3].map((i) => (
+          <Flex key={i} justify="space-between" align="center">
+            <HStack>
+              <SkeletonCircle size="20px" />
+              <Skeleton height="20px" width="80px" />
+            </HStack>
+            <Skeleton height="20px" width="60px" />
+          </Flex>
+        ))}
+      </VStack>
+    </Box>
+  </VStack>
+);
+
 // Skeleton loader for the assets list
 const AssetsListSkeleton = () => (
   <VStack gap={3} align="stretch" width="100%">
     <HStack justify="space-between" p={4}>
-      <Skeleton height="6" width="120px" />
-      <Skeleton height="4" width="60px" />
+      <Skeleton height="24px" width="120px" />
+      <Skeleton height="20px" width="60px" />
     </HStack>
     
     <VStack gap={3} align="stretch" p={4} maxH="500px" overflowY="auto">
-      {[1, 2, 3, 4].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <NetworkSkeleton key={i} />
       ))}
     </VStack>
@@ -499,8 +547,9 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                 </Box>
               </Flex>
             ) : (
-              <Flex justify="center" align="center" h="220px">
-                <Text color="gray.500">No assets found</Text>
+              <Flex justify="center" align="center" h="220px" direction="column" gap={4}>
+                <SkeletonCircle size="100px" />
+                <Skeleton height="20px" width="150px" />
               </Flex>
             )}
           </Flex>
@@ -608,10 +657,7 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => <NetworkSkeleton key={i} />)
               ) : !dashboard || dashboard.networks.length === 0 ? (
-                <Flex direction="column" align="center" justify="center" py={10} gap={4}>
-                  <Image src="/gif/kk.gif" alt="KeepKey Logo Animation" boxSize="100px" />
-                  <Text color="gray.500" textAlign="center">Loading assets...</Text>
-                </Flex>
+                  Array.from({ length: 5 }).map((_, i) => <NetworkSkeleton key={i} />)
               ) : (
                 dashboard.networks
                   .sort((a, b) => b.totalValueUsd - a.totalValueUsd) 

@@ -149,25 +149,6 @@ const Settings = ({ onClose }: SettingsProps) => {
   return (
     <Box height="100vh" bg={theme.bg}>
       {/* Header */}
-      <Box 
-        borderBottom="1px" 
-        borderColor={theme.border}
-        p={4}
-        bg={theme.cardBg}
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Text color={theme.gold} fontWeight="bold">Settings</Text>
-        <Button 
-          size="sm" 
-          variant="ghost" 
-          color={theme.gold}
-          onClick={onClose}
-        >
-          Close
-        </Button>
-      </Box>
       
       {/* Main Content */}
       <Box 
