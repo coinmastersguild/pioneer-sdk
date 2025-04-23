@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Flex, Spinner } from "@chakra-ui/react"
+import { Box, Flex, Spinner, Button } from "@chakra-ui/react"
 import Dashboard from '@/components/dashboard/Dashboard'
 import { usePioneerContext } from '@/components/providers/pioneer'
 import { useState, useEffect } from 'react'
@@ -111,7 +111,7 @@ export default function Home() {
   };
 
   return (
-    <Box bg="black" minHeight="100vh" width="100%">
+    <Box bg="black" minHeight="100vh" width="100%" position="relative">
       {/* Add structured data for SEO */}
       <ProductStructuredData />
       <OrganizationStructuredData />
@@ -206,6 +206,27 @@ export default function Home() {
           </DialogContent>
         </DialogRoot>
       </Flex>
+      
+      {/* Settings Button in bottom right corner */}
+      <Button
+        position="fixed"
+        bottom="20px"
+        right="20px"
+        size="md"
+        borderRadius="full"
+        bg="rgba(0,0,0,0.7)"
+        color="#FFD700"
+        width="50px"
+        height="50px"
+        onClick={() => setIsSettingsOpen(true)}
+        _hover={{ bg: 'rgba(0,0,0,0.9)', color: '#FFE135' }}
+        boxShadow="0 4px 12px rgba(0,0,0,0.5)"
+        border="1px solid"
+        borderColor="gray.800"
+        aria-label="Settings"
+      >
+        <Box as="span" fontSize="xl">⚙️</Box>
+      </Button>
     </Box>
   );
 }

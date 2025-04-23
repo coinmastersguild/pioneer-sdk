@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -10,34 +10,29 @@ import {
     Image,
     VStack,
     HStack,
-    Icon,
+    IconButton,
     Spinner,
-    useBreakpointValue,
+    useDisclosure,
+    Icon,
 } from '@chakra-ui/react';
+
+// Add sound effect imports
+const chachingSound = typeof Audio !== 'undefined' ? new Audio('/sounds/chaching.mp3') : null;
+
+// Play sound utility function
+const playSound = (sound: HTMLAudioElement | null) => {
+    if (sound) {
+        sound.currentTime = 0; // Reset to start
+        sound.play().catch(err => console.error('Error playing sound:', err));
+    }
+};
+
 import { usePioneerContext } from '@/components/providers/pioneer';
-import {
-    FaTimes,
-    FaChevronDown,
-    FaChevronUp,
-    FaPaperPlane,
-    FaQrcode,
-} from 'react-icons/fa';
+import { FaTimes, FaChevronDown, FaChevronUp, FaPaperPlane, FaQrcode } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import CountUp from 'react-countup';
 
-/* ------------------------------------------------------------------ */
-/*  Utilities                                                          */
-/* ------------------------------------------------------------------ */
-
-const chachingSound =
-    typeof Audio !== 'undefined' ? new Audio('/sounds/chaching.mp3') : null;
-
-const playSound = (sound: HTMLAudioElement | null) => {
-    if (!sound) return;
-    sound.currentTime = 0;
-    sound.play().catch((err) => console.error('Error playing sound:', err));
-};
-
+// Theme colors - matching our dashboard theme
 const theme = {
     bg: '#000000',
     cardBg: '#111111',
@@ -46,112 +41,198 @@ const theme = {
     border: '#222222',
 };
 
-const middleEllipsis = (text: string, visible = 16) => {
-    if (!text || text.length <= visible) return text;
-    const slice = Math.floor(visible / 2);
-    return `${text.slice(0, slice)}...${text.slice(-slice)}`;
-};
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
 interface AssetProps {
     onBackClick?: () => void;
     onSendClick?: () => void;
     onReceiveClick?: () => void;
 }
 
-export const Asset = ({
-                          onBackClick,
-                          onSendClick,
-                          onReceiveClick,
-                      }: AssetProps) => {
-    /* ---------------------------- state ---------------------------- */
-
+export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) => {
+    // State for managing the component's loading status
     const [loading, setLoading] = useState(true);
+    const [lastSync, setLastSync] = useState<number>(Date.now());
+    // Add state for tracking expanded/collapsed state of asset details
     const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
-    const [previousBalance, setPreviousBalance] = useState('0');
-    const [lastSync, setLastSync] = useState(Date.now());
+    // Add state to track previous balance for comparison
+    const [previousBalance, setPreviousBalance] = useState<string>('0');
 
+    // Access pioneer context in the same way as the Dashboard component
     const pioneer = usePioneerContext();
     const { state } = pioneer;
     const { app } = state;
     const assetContext = app?.assetContext;
 
     const router = useRouter();
-    const isMobile = useBreakpointValue({ base: true, md: false });
 
-    /* ------------------------ lifecycle --------------------------- */
+    // Format USD value
+    const formatUsd = (value: number | null | undefined) => {
+        if (value === null || value === undefined || isNaN(value)) return '0.00';
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        if (isNaN(numValue)) return '0.00';
+        return numValue.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    };
 
-    /** Wait for context to appear (hot-reload friendly) */
+    // Add component mount/unmount logging and handle loading state
     useEffect(() => {
+        console.log('🎯 [Asset] Component mounted with context:', assetContext);
+
+        // For debugging - log the Pioneer context
+        console.log('🎯 [Asset] Pioneer context:', {
+            app,
+            hasApp: !!app,
+            hasAssetContext: !!app?.assetContext,
+            hasSetAssetContext: !!app?.setAssetContext
+        });
+
+        // Check if asset context is already available
         if (assetContext) {
-            if (assetContext.balance) setPreviousBalance(assetContext.balance);
+            console.log('✅ [Asset] AssetContext already available on mount');
+            // Initialize previousBalance when asset context is available
+            if (assetContext.balance) {
+                setPreviousBalance(assetContext.balance);
+            }
             setLoading(false);
             return;
         }
 
-        let tries = 0;
-        const interval = setInterval(() => {
-            if (pioneer.state.app?.assetContext || tries > 5) {
+        // Set a timeout to wait for assetContext to be populated
+        let checkCount = 0;
+        const maxChecks = 10;
+
+        const checkAssetContext = () => {
+            // Re-access the latest context values
+            const currentApp = pioneer?.state?.app;
+            const currentAssetContext = currentApp?.assetContext;
+
+            if (currentAssetContext) {
+                console.log('✅ [Asset] AssetContext became available on check', checkCount);
                 setLoading(false);
-                clearInterval(interval);
+                return true;
             }
-            tries += 1;
-        }, 300);
 
-        return () => clearInterval(interval);
-    }, [assetContext, pioneer.state.app]);
+            checkCount++;
+            if (checkCount >= maxChecks) {
+                console.log('❌ [Asset] AssetContext still null after', maxChecks, 'checks');
+                console.log('❌ [Asset] Current app state:', {
+                    hasApp: !!currentApp,
+                    hasAssetContext: !!currentApp?.assetContext,
+                    hasSetAssetContext: !!currentApp?.setAssetContext,
+                    isDashboardAvailable: !!currentApp?.dashboard
+                });
+                setLoading(false);
+                return true;
+            }
 
-    /** 15-second market refresh */
+            return false;
+        };
+
+        // Immediately check once
+        if (checkAssetContext()) return;
+
+        // Then set up an interval for repeated checks
+        const timer = setInterval(() => {
+            if (checkAssetContext()) {
+                clearInterval(timer);
+            }
+        }, 500); // Check every 500ms
+
+        return () => {
+            console.log('👋 [Asset] Component unmounting');
+            clearInterval(timer);
+        };
+    }, [app, assetContext, pioneer]);
+
+    // Set up interval to sync market data every 15 seconds
     useEffect(() => {
         if (!app) return;
-        const id = setInterval(async () => {
-            try {
-                await app.syncMarket();
-                if (app.assetContext?.balance) {
-                    const cur = app.assetContext.balance;
-                    if (+cur > +previousBalance) playSound(chachingSound);
-                    setPreviousBalance(cur);
-                }
-                setLastSync(Date.now());
-            } catch (e) {
-                console.error('[Asset] syncMarket error:', e);
-            }
-        }, 15_000);
-        return () => clearInterval(id);
+
+        // Initialize previousBalance when component mounts
+        if (app.assetContext?.balance) {
+            setPreviousBalance(app.assetContext.balance);
+        }
+
+        const intervalId = setInterval(() => {
+            app
+                .syncMarket()
+                .then(() => {
+                    console.log("📊 [Asset] syncMarket called from Asset component");
+
+                    // Check if balance has increased
+                    if (app.assetContext?.balance) {
+                        const currentBalance = app.assetContext.balance;
+                        const prevBalance = previousBalance;
+
+                        console.log("💰 [Asset] Balance comparison:", {
+                            previous: prevBalance,
+                            current: currentBalance,
+                            increased: parseFloat(currentBalance) > parseFloat(prevBalance)
+                        });
+
+                        if (parseFloat(currentBalance) > parseFloat(prevBalance)) {
+                            console.log("🎵 [Asset] Balance increased! Playing chaching sound");
+                            playSound(chachingSound);
+                        }
+
+                        // Update previous balance for next comparison
+                        setPreviousBalance(currentBalance);
+                    }
+
+                    setLastSync(Date.now());
+                })
+                .catch((error: any) => {
+                    console.error("❌ [Asset] Error in syncMarket:", error);
+                });
+        }, 15000);
+
+        return () => clearInterval(intervalId);
     }, [app, previousBalance]);
 
-    /* ------------------------ handlers ---------------------------- */
+    const handleBack = () => {
+        if (onBackClick) {
+            // Use the provided onBackClick handler if available
+            console.log('🔙 [Asset] Using custom back handler');
+            onBackClick();
+        } else {
+            // Default behavior - navigate to dashboard
+            console.log('🔙 [Asset] Back button clicked, navigating to dashboard');
+            router.push('/');
+        }
+    };
 
-    const handleBack = () =>
-        onBackClick ? onBackClick() : router.push('/');
+    const handleClose = () => {
+        // Close button always goes to dashboard regardless of back button behavior
+        console.log('❌ [Asset] Close button clicked, navigating to dashboard');
+        router.push('/');
+    };
 
-    const handleClose = () => router.push('/');
+    // Add a utility function for middle ellipsis
+    const middleEllipsis = (text: string, visibleChars = 16) => {
+        if (!text) return '';
+        if (text.length <= visibleChars) return text;
 
-    const toggleDetails = () => setIsDetailsExpanded((p) => !p);
+        const charsToShow = Math.floor(visibleChars / 2);
+        return `${text.substring(0, charsToShow)}...${text.substring(text.length - charsToShow)}`;
+    };
 
-    /* ---------------------- helpers ------------------------------- */
-
-    const formatUsd = (v?: number | null) =>
-        v == null ? '$0.00' : `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    const formatBalance = (b: string | number) =>
-        (+b).toFixed(8);
-
-    /* ---------------------- render guards ------------------------- */
+    // Toggle details expanded/collapsed state
+    const toggleDetails = () => {
+        setIsDetailsExpanded(!isDetailsExpanded);
+    };
 
     if (loading) {
+        // Show loading state while waiting for context
         return (
             <Box
-                h="600px"
+                minHeight={{ base: "300px", sm: "400px", md: "600px" }}
                 bg={theme.bg}
                 display="flex"
-                flexDir="column"
-                align="center"
-                justify="center"
-                w="100%"
+                alignItems="center"
+                justifyContent="center"
+                flexDirection="column"
+                width="100%"
                 mx="auto"
             >
                 <Spinner color={theme.gold} size="xl" mb={4} />
@@ -161,21 +242,40 @@ export const Asset = ({
     }
 
     if (!assetContext) {
+        console.log('❌ [Asset] AssetContext is null or undefined');
+        console.log('❌ [Asset] This may indicate an issue with the context provider or URL parameters');
+
+        // Show a user-friendly error message with a back button
         return (
-            <Box h="600px" bg={theme.bg} w="100%" mx="auto">
-                <Box borderBottom="1px" borderColor={theme.border} p={4} bg={theme.cardBg}>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        color={theme.gold}
-                        onClick={handleBack}
-                        _hover={{ color: theme.goldHover }}
-                    >
-                        Back
-                    </Button>
+            <Box minHeight={{ base: "300px", sm: "400px", md: "600px" }} bg={theme.bg} width="100%" mx="auto">
+                <Box
+                    borderBottom="1px"
+                    borderColor={theme.border}
+                    p={4}
+                    bg={theme.cardBg}
+                >
+                    <HStack justify="space-between" align="center">
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            color={theme.gold}
+                            onClick={handleBack}
+                            _hover={{ color: theme.goldHover }}
+                        >
+                            <Text>Back</Text>
+                        </Button>
+                    </HStack>
                 </Box>
 
-                <Flex direction="column" align="center" justify="center" h="400px" p={8}>
+                <Box
+                    p={8}
+                    textAlign="center"
+                    display="flex"
+                    flexDirection="column"
+                    alignItems="center"
+                    justifyContent="center"
+                    minHeight={{ base: "200px", sm: "300px", md: "400px" }}
+                >
                     <Box
                         w="80px"
                         h="80px"
@@ -193,9 +293,8 @@ export const Asset = ({
                         Asset Data Not Found
                     </Text>
 
-                    <Text color="gray.400" maxW="sm" mb={6}>
-                        We couldn't load the asset data. This might be an invalid URL or a
-                        connection problem.
+                    <Text color="gray.400" maxWidth="sm" mb={6}>
+                        We couldn't load the asset data. This could be due to an invalid URL or a connection issue.
                     </Text>
 
                     <Button
@@ -204,34 +303,46 @@ export const Asset = ({
                         borderColor={theme.gold}
                         onClick={handleBack}
                     >
-                        Return
+                        Return to Previous Page
                     </Button>
-                </Flex>
+                </Box>
             </Box>
         );
     }
 
-    /* -------------------------- render ---------------------------- */
+    const formatBalance = (balance: string | number) => {
+        const numBalance = typeof balance === 'string' ? parseFloat(balance) : balance;
+        return numBalance.toFixed(8);
+    };
 
-    const usdValue =
-        assetContext.value ??
-        (assetContext.balance && assetContext.priceUsd
-            ? +assetContext.balance * assetContext.priceUsd
-            : 0);
+    // Calculate the USD value
+    const usdValue = (assetContext.value !== undefined && assetContext.value !== null)
+        ? assetContext.value
+        : (assetContext.balance && assetContext.priceUsd)
+            ? parseFloat(assetContext.balance) * assetContext.priceUsd
+            : 0;
+
+    // Calculate the price
+    const priceUsd = assetContext.priceUsd || 0;
 
     return (
-        <Box w="100%" pos="relative" pb={8}>
-            {/* Sticky toolbar */}
+        <Box
+            width="100%"
+            position="relative"
+            pb={8} // Add bottom padding to ensure content doesn't get cut off
+            maxHeight={{ base: "100vh", md: "auto" }}
+            overflowY="auto"
+        >
             <Box
                 borderBottom="1px"
                 borderColor={theme.border}
                 p={4}
                 bg={theme.cardBg}
-                pos="sticky"
+                position="sticky"
                 top={0}
                 zIndex={10}
             >
-                <HStack justify="space-between">
+                <HStack justify="space-between" align="center">
                     <Button
                         size="sm"
                         variant="ghost"
@@ -239,7 +350,7 @@ export const Asset = ({
                         onClick={handleBack}
                         _hover={{ color: theme.goldHover }}
                     >
-                        Back
+                        <Text>Back</Text>
                     </Button>
                     <Button
                         size="sm"
@@ -248,13 +359,13 @@ export const Asset = ({
                         onClick={handleClose}
                         _hover={{ color: theme.goldHover }}
                     >
-                        Close
+                        <Text>Close</Text>
                     </Button>
                 </HStack>
             </Box>
 
             <VStack p={6} gap={6} align="stretch">
-                {/* Info card ------------------------------------------------ */}
+                {/* Asset Info Card */}
                 <Box
                     bg={theme.cardBg}
                     p={6}
@@ -263,7 +374,7 @@ export const Asset = ({
                     border="1px solid"
                     borderColor={theme.border}
                 >
-                    <VStack gap={4}>
+                    <VStack align="center" gap={4}>
                         <Box
                             borderRadius="full"
                             overflow="hidden"
@@ -276,12 +387,11 @@ export const Asset = ({
                         >
                             <Image
                                 src={assetContext.icon}
-                                alt={`${assetContext.name} icon`}
+                                alt={`${assetContext.name} Icon`}
                                 boxSize="100%"
                                 objectFit="contain"
                             />
                         </Box>
-
                         <Stack align="center" gap={1}>
                             <Text fontSize="2xl" fontWeight="bold" color="white">
                                 {assetContext.name}
@@ -290,14 +400,13 @@ export const Asset = ({
                                 {assetContext.symbol}
                             </Text>
                             <Text fontSize="3xl" fontWeight="bold" color={theme.gold}>
-                                $
-                                <CountUp
-                                    key={`val-${lastSync}`}
-                                    end={usdValue}
-                                    decimals={2}
-                                    duration={1.5}
-                                    separator=","
-                                />
+                                $<CountUp
+                                key={`value-${lastSync}`}
+                                end={usdValue}
+                                decimals={2}
+                                duration={1.5}
+                                separator=","
+                            />
                             </Text>
                             <Text fontSize="md" color="white">
                                 {formatBalance(assetContext.balance)} {assetContext.symbol}
@@ -306,48 +415,67 @@ export const Asset = ({
                     </VStack>
                 </Box>
 
-                {/* Actions -------------------------------------------------- */}
-                <HStack gap={4}>
+                {/* Action Buttons */}
+                <VStack gap={3}>
                     <Button
-                        w="full"
-                        bg={theme.gold}
-                        color="black"
-                        _hover={{ bg: theme.goldHover }}
+                        width="100%"
+                        size="lg"
+                        bg={theme.cardBg}
+                        color={theme.gold}
+                        borderColor={theme.border}
+                        borderWidth="1px"
+                        _hover={{
+                            bg: 'rgba(255, 215, 0, 0.1)',
+                            borderColor: theme.gold,
+                        }}
                         onClick={onSendClick}
                     >
-                        <Icon as={FaPaperPlane} mr={2} />
-                        Send
+                        <Flex gap={2} align="center">
+                            <FaPaperPlane />
+                            <Text>Send</Text>
+                        </Flex>
                     </Button>
                     <Button
-                        w="full"
-                        variant="outline"
-                        borderColor={theme.gold}
+                        width="100%"
+                        size="lg"
+                        bg={theme.cardBg}
                         color={theme.gold}
-                        _hover={{ bg: 'rgba(255,215,0,0.1)' }}
+                        borderColor={theme.border}
+                        borderWidth="1px"
+                        _hover={{
+                            bg: 'rgba(255, 215, 0, 0.1)',
+                            borderColor: theme.gold,
+                        }}
                         onClick={onReceiveClick}
                     >
-                        <Icon as={FaQrcode} mr={2} />
-                        Receive
+                        <Flex gap={2} align="center">
+                            <FaQrcode />
+                            <Text>Receive</Text>
+                        </Flex>
                     </Button>
-                </HStack>
+                </VStack>
 
-                {/* Details -------------------------------------------------- */}
+                {/* Asset Details Section - Now Collapsible */}
                 <Box
-                    p={6}
                     bg={theme.cardBg}
-                    borderRadius="xl"
-                    borderWidth="1px"
+                    borderRadius="2xl"
+                    overflow="hidden"
                     borderColor={theme.border}
+                    borderWidth="1px"
                 >
+                    {/* Clickable header */}
                     <Flex
                         p={4}
-                        borderBottom={isDetailsExpanded ? '1px' : undefined}
+                        borderBottom={isDetailsExpanded ? "1px" : "none"}
                         borderColor={theme.border}
-                        align="center"
-                        justify="space-between"
-                        cursor="pointer"
-                        _hover={{ bg: 'rgba(255,215,0,0.05)' }}
+                        justifyContent="space-between"
+                        alignItems="center"
                         onClick={toggleDetails}
+                        cursor="pointer"
+                        _hover={{
+                            bg: 'rgba(255, 215, 0, 0.05)',
+                        }}
+                        transition="background 0.2s"
                     >
                         <Text color={theme.gold} fontSize="lg" fontWeight="bold">
                             Asset Details
@@ -359,23 +487,22 @@ export const Asset = ({
                         />
                     </Flex>
 
+                    {/* Collapsible content */}
                     {isDetailsExpanded && (
                         <VStack align="stretch" p={4} gap={4}>
-                            {/* Network info */}
+                            {/* Network Info */}
                             <VStack align="stretch" gap={3}>
                                 <Text color="gray.400" fontSize="sm" fontWeight="medium">
                                     Network Information
                                 </Text>
                                 <HStack justify="space-between">
                                     <Text color="gray.400">Network</Text>
-                                    <Text color="white">
-                                        {assetContext.networkName ?? 'Unknown'}
-                                    </Text>
+                                    <Text color="white">{assetContext.networkName || assetContext.networkId?.split(':').pop()}</Text>
                                 </HStack>
                                 <HStack justify="space-between">
                                     <Text color="gray.400">Chain ID</Text>
-                                    <Text color="white">
-                                        {assetContext.networkId ?? 'Unknown'}
+                                    <Text color="white" fontSize="sm" fontFamily="mono">
+                                        {assetContext.chainId}
                                     </Text>
                                 </HStack>
                                 <HStack justify="space-between">
@@ -384,14 +511,14 @@ export const Asset = ({
                                         color="white"
                                         fontSize="sm"
                                         fontFamily="mono"
-                                        title={assetContext.caip ?? assetContext.assetId}
+                                        title={assetContext.caip || assetContext.assetId}
                                         cursor="help"
-                                        _hover={{ textDecoration: 'underline dotted' }}
+                                        _hover={{
+                                            textDecoration: 'underline',
+                                            textDecorationStyle: 'dotted'
+                                        }}
                                     >
-                                        {middleEllipsis(
-                                            assetContext.caip ?? assetContext.assetId,
-                                            16,
-                                        )}
+                                        {middleEllipsis(assetContext.caip || assetContext.assetId, 16)}
                                     </Text>
                                 </HStack>
                                 <HStack justify="space-between">
@@ -402,14 +529,17 @@ export const Asset = ({
                                         fontFamily="mono"
                                         title={assetContext.assetId}
                                         cursor="help"
-                                        _hover={{ textDecoration: 'underline dotted' }}
+                                        _hover={{
+                                            textDecoration: 'underline',
+                                            textDecorationStyle: 'dotted'
+                                        }}
                                     >
                                         {middleEllipsis(assetContext.assetId, 16)}
                                     </Text>
                                 </HStack>
                             </VStack>
 
-                            {/* Asset info */}
+                            {/* Asset Info */}
                             <VStack align="stretch" gap={3}>
                                 <Text color="gray.400" fontSize="sm" fontWeight="medium">
                                     Asset Information
@@ -417,9 +547,7 @@ export const Asset = ({
                                 <HStack justify="space-between">
                                     <Text color="gray.400">Type</Text>
                                     <Text color="white">
-                                        {assetContext.networkId?.includes('eip155')
-                                            ? 'Token'
-                                            : 'Native Asset'}
+                                        {assetContext.networkId?.includes('eip155') ? 'Token' : 'Native Asset'}
                                     </Text>
                                 </HStack>
                                 <HStack justify="space-between">
@@ -429,28 +557,25 @@ export const Asset = ({
                                 <HStack justify="space-between">
                                     <Text color="gray.400">Price</Text>
                                     <Text color="white">
-                                        $
-                                        <CountUp
-                                            key={`price-${lastSync}`}
-                                            end={assetContext.priceUsd ?? 0}
-                                            decimals={2}
-                                            duration={1.5}
-                                            separator=","
-                                        />
+                                        $<CountUp
+                                        key={`price-${lastSync}`}
+                                        end={priceUsd}
+                                        decimals={2}
+                                        duration={1.5}
+                                        separator=","
+                                    />
                                     </Text>
                                 </HStack>
                             </VStack>
 
-                            {/* Wallet info */}
+                            {/* Address Info */}
                             {assetContext.pubkeys?.[0] && (
                                 <VStack align="stretch" gap={3}>
                                     <Text color="gray.400" fontSize="sm" fontWeight="medium">
                                         Wallet Information
                                     </Text>
                                     <VStack align="stretch" gap={2}>
-                                        <Text color="gray.400" fontSize="sm">
-                                            Address
-                                        </Text>
+                                        <Text color="gray.400" fontSize="sm">Address</Text>
                                         <Box
                                             p={3}
                                             bg={theme.bg}
@@ -458,19 +583,12 @@ export const Asset = ({
                                             borderWidth="1px"
                                             borderColor={theme.border}
                                         >
-                                            <Text
-                                                color="white"
-                                                fontSize="sm"
-                                                fontFamily="mono"
-                                                wordBreak="break-all"
-                                            >
+                                            <Text color="white" fontSize="sm" fontFamily="mono" wordBreak="break-all">
                                                 {assetContext.pubkeys[0].address}
                                             </Text>
                                         </Box>
                                         <HStack justify="space-between" mt={1}>
-                                            <Text color="gray.400" fontSize="xs">
-                                                Path
-                                            </Text>
+                                            <Text color="gray.400" fontSize="xs">Path</Text>
                                             <Text color="white" fontSize="xs" fontFamily="mono">
                                                 {assetContext.pubkeys[0].path}
                                             </Text>
@@ -479,7 +597,7 @@ export const Asset = ({
                                 </VStack>
                             )}
 
-                            {/* Explorer links */}
+                            {/* Explorer Links */}
                             {assetContext.explorer && (
                                 <VStack align="stretch" gap={3}>
                                     <Text color="gray.400" fontSize="sm" fontWeight="medium">
@@ -492,7 +610,7 @@ export const Asset = ({
                                             color={theme.gold}
                                             borderColor={theme.border}
                                             _hover={{
-                                                bg: 'rgba(255,215,0,0.1)',
+                                                bg: 'rgba(255, 215, 0, 0.1)',
                                                 borderColor: theme.gold,
                                             }}
                                             onClick={() => window.open(assetContext.explorer, '_blank')}
@@ -507,15 +625,10 @@ export const Asset = ({
                                                 color={theme.gold}
                                                 borderColor={theme.border}
                                                 _hover={{
-                                                    bg: 'rgba(255,215,0,0.1)',
+                                                    bg: 'rgba(255, 215, 0, 0.1)',
                                                     borderColor: theme.gold,
                                                 }}
-                                                onClick={() =>
-                                                    window.open(
-                                                        `${assetContext.explorerAddressLink}${assetContext.pubkeys[0].address}`,
-                                                        '_blank',
-                                                    )
-                                                }
+                                                onClick={() => window.open(`${assetContext.explorerAddressLink}${assetContext.pubkeys[0].address}`, '_blank')}
                                                 flex="1"
                                             >
                                                 View Address
@@ -532,4 +645,4 @@ export const Asset = ({
     );
 };
 
-export default Asset;
+export default Asset; 

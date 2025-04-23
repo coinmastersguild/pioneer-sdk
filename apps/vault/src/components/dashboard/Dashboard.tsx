@@ -399,25 +399,6 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
 
   return (
     <Box p={4} bg={theme.bg} minH="100vh" color="white">
-      <HStack justify="space-between" align="center" mb={6}>
-        <HStack gap={2} align="center">
-          <Image src="/images/kk-icon-gold.png" alt="KeepKey Logo" h="8" />
-          <Text color={theme.gold} fontWeight="bold" fontSize="lg">KeepKey Vault</Text>
-        </HStack>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onSettingsClick}
-          _hover={{ bg: theme.cardBg }}
-          aria-label="Settings"
-          px={3}
-        >
-          <HStack gap={2} align="center">
-            <Box as="span" fontSize="md">⚙️</Box>
-            <Text color="gray.400" fontSize="sm">Settings</Text>
-          </HStack>
-        </Button>
-      </HStack>
 
       <Flex 
         direction={flexDirection}
