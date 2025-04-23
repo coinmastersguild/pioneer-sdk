@@ -111,7 +111,7 @@ export default function Home() {
   };
 
   return (
-    <Box bg="black" minHeight="100vh" width="100%" position="relative">
+    <Box bg="#000000" minHeight="100vh" width="100%" position="relative">
       {/* Add structured data for SEO */}
       <ProductStructuredData />
       <OrganizationStructuredData />
@@ -121,12 +121,12 @@ export default function Home() {
         minH="100vh" 
         justify="center" 
         align="center" 
-        bg="black"
+        bg="#000000"
         p={4} // Add some padding around the container
       >
         <Box 
           width={{ base: '100%', sm: '375px', md: '800px', lg: '900px' }} 
-          bg="black" 
+          bg="#000000" 
           position="relative"
           boxShadow="xl"
           borderRadius="2xl"
