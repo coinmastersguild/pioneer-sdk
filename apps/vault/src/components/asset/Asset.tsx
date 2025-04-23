@@ -32,6 +32,7 @@ const playSound = (sound: HTMLAudioElement | null) => {
 import { usePioneerContext } from '@/components/providers/pioneer';
 import { FaTimes, FaChevronDown, FaChevronUp, FaPaperPlane, FaQrcode } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { useBreakpointValue } from '@chakra-ui/react';
 import CountUp from 'react-countup';
 
 // Theme colors - matching our dashboard theme
@@ -53,8 +54,12 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
     // State for managing the component's loading status
     const [loading, setLoading] = useState(true);
     const [lastSync, setLastSync] = useState<number>(Date.now());
+    // Detect if we're in wide mode (md or larger screens)
+    const isWideMode = useBreakpointValue({ base: false, md: true });
+    
     // Add state for tracking expanded/collapsed state of asset details
-    const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+    // Only expand by default in wide mode
+    const [isDetailsExpanded, setIsDetailsExpanded] = useState(isWideMode || false);
     // Add state to track previous balance for comparison
     const [previousBalance, setPreviousBalance] = useState<string>('0');
 

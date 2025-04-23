@@ -498,9 +498,31 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
               )}
             </Flex>
             {loading ? (
-              <Flex justify="center" align="center" h="220px">
-                <SkeletonCircle size="180px" />
-              </Flex>
+              <VStack gap={3} align="stretch" w="100%">
+                <Flex justify="center" align="center" h="220px">
+                  <Box position="relative" w="200px" h="200px">
+                    <Box position="absolute" top={0} left={0} right={0} bottom={0} borderRadius="full" bg="#222" />
+                    <Box position="absolute" top="25%" left="25%" width="50%" height="50%" borderRadius="full" bg={theme.bg} />
+                  </Box>
+                </Flex>
+                <Box px={6} py={4}>
+                  <Flex justify="space-between" align="center" mb={2}>
+                    <Skeleton height="16px" width="60px" />
+                    <Skeleton height="16px" width="80px" />
+                  </Flex>
+                  <VStack gap={3} align="stretch">
+                    {[1, 2, 3].map((i) => (
+                      <Flex key={i} justify="space-between" align="center">
+                        <HStack>
+                          <SkeletonCircle size="20px" />
+                          <Skeleton height="20px" width="80px" />
+                        </HStack>
+                        <Skeleton height="20px" width="60px" />
+                      </Flex>
+                    ))}
+                  </VStack>
+                </Box>
+              </VStack>
             ) : dashboard && dashboard.networks.length > 0 ? (
               <Flex justify="center" align="center" h="220px">
                 <Box position="relative" w="200px" h="200px">
