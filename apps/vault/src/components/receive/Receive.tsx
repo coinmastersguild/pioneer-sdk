@@ -483,23 +483,22 @@ export function Receive({ onBackClick }: ReceiveProps) {
                                         >
                                             {selectedAddress}
                                         </Text>
-
-                                        <Box position="absolute" top={2} right={2}>
-                                            <MotionBox
-                                                whileHover={{ scale: 1.1 }}
-                                                whileTap={{ scale: 0.9 }}
+                                    </Box>
+                                    <Box position="absolute" top={2} right={2}>
+                                        <MotionBox
+                                            whileHover={{ scale: 1.1 }}
+                                            whileTap={{ scale: 0.9 }}
+                                        >
+                                            <IconButton
+                                                aria-label="Copy address"
+                                                onClick={copyToClipboard}
+                                                size="sm"
+                                                colorScheme={hasCopied ? "green" : "gray"}
+                                                variant="ghost"
                                             >
-                                                <IconButton
-                                                    aria-label="Copy address"
-                                                    onClick={copyToClipboard}
-                                                    size="sm"
-                                                    colorScheme={hasCopied ? "green" : "gray"}
-                                                    variant="ghost"
-                                                >
-                                                    {hasCopied ? <FaCheck /> : <FaCopy />}
-                                                </IconButton>
-                                            </MotionBox>
-                                        </Box>
+                                                {hasCopied ? <FaCheck /> : <FaCopy />}
+                                            </IconButton>
+                                        </MotionBox>
                                     </Box>
                                 </VStack>
                             </VStack>

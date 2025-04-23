@@ -19,6 +19,7 @@ import { Skeleton, SkeletonCircle } from "@/components/ui/skeleton"
 import { usePioneerContext } from '@/components/providers/pioneer'
 import { DonutChart, DonutChartItem, ChartLegend } from '@/components/chart';
 import { useRouter } from 'next/navigation';
+import { Tooltip } from '@chakra-ui/react';
 import CountUp from 'react-countup';
 import ConnectionError from '@/components/error/ConnectionError';
 
@@ -72,6 +73,8 @@ interface Network {
   icon: string;
   color: string;
   totalNativeBalance: string;
+  // Add networkName for display purposes
+  networkName?: string;
 }
 
 interface NetworkPercentage {
@@ -182,6 +185,14 @@ const AssetsListSkeleton = () => (
     </VStack>
   </VStack>
 );
+
+// Helper function for middle ellipsis
+const middleEllipsis = (str: string, maxLength = 16) => {
+  if (str.length <= maxLength) return str;
+  const prefixLength = Math.floor((maxLength - 3) / 2);
+  const suffixLength = Math.ceil((maxLength - 3) / 2);
+  return `${str.slice(0, prefixLength)}...${str.slice(str.length - suffixLength)}`;
+};
 
 const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -567,18 +578,6 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                 </Text>
               )}
             </HStack>
-            <Button
-              variant="ghost"
-              size="sm"
-              color={theme.gold}
-              onClick={() => router.push('/assets')} 
-              _hover={{ color: theme.goldHover }}
-              h="28px"
-              minW="auto"
-              px={3}
-            >
-              View All
-            </Button>
           </Flex>
           
           <Box 
@@ -663,19 +662,31 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                               bg={`${network.color}20`}
                             />
                             <Stack gap={0}> 
-                              <Text 
-                                fontSize="md" 
-                                fontWeight="medium" 
-                                color="white"
-                                maxW="100px"
-                                truncate={true}
-                                title={network.gasAssetSymbol} 
-                              >
-                                {network.gasAssetSymbol}
-                              </Text>
-                              <Text fontSize="sm" color="gray.400">
-                                {parseFloat(network.totalNativeBalance).toFixed(6)}
-                              </Text>
+                              <HStack>
+                                <Text 
+                                  fontSize="md" 
+                                  fontWeight="medium" 
+                                  color="white"
+                                  maxW="100px"
+                                  truncate={true}
+                                  title={network.gasAssetSymbol} 
+                                >
+                                  {network.gasAssetSymbol}
+                                </Text>
+                                <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                                  {network.networkName || network.networkId.split(':')[0]}
+                                </Text>
+                              </HStack>
+                              <HStack gap={1}>
+                                <Text fontSize="sm" color="gray.400">
+                                  {parseFloat(network.totalNativeBalance).toFixed(6)}
+                                </Text>
+                                <Box as="span" title={network.gasAssetCaip}>
+                                  <Text fontSize="xs" color="gray.500">
+                                    {middleEllipsis(network.gasAssetCaip, 16)}
+                                  </Text>
+                                </Box>
+                              </HStack>
                             </Stack>
                           </HStack>
                           <Stack align="flex-end" gap={1}>
