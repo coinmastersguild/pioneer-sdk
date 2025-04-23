@@ -398,25 +398,22 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
   }
 
   return (
-    <Box p={4} bg={theme.bg} minH="100vh" color="white">
+    <Box bg={theme.bg} color="white">
 
       <Flex 
         direction={flexDirection}
         gap={6} 
         alignItems="stretch"
-        h={{ base: 'auto', md: 'calc(100vh - 100px)' }}
-        maxH={{ base: 'auto', md: '650px' }}
       >
         <VStack 
           gap={0} 
           align="stretch" 
           flex={{ base: 'none', md: 1 }} 
           w='100%'
-          h={{ base: 'auto', md: '100%' }}
-          overflow="hidden"
           bg={theme.cardBg}
           borderRadius="2xl"
           boxShadow="lg"
+          overflow="visible"
         >
 
           <Flex 
@@ -552,12 +549,12 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
           align="stretch" 
           flex={{ base: 'none', md: 1 }} 
           w='100%'
-          h={{ base: 'auto', md: '100%' }} // Set height to 100% to match parent
-          overflow="hidden" 
           bg={theme.cardBg}
           borderRadius="2xl"
           boxShadow="lg"
-          p={6}
+          overflow="visible"
+          display="flex"
+          flexDirection="column"
         >
           <Flex justify="space-between" align="center" p={6} borderBottom="1px solid" borderColor="gray.800">
             <HStack>
@@ -587,7 +584,7 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
           <Box 
             flexGrow={1} 
             overflowY="auto"
-            maxH={{ base: "350px", md: "calc(100% - 120px)" }}
+            maxH={{ base: "350px", md: "400px" }}
             px={6}
             pb={2}
             pt={4}
@@ -712,10 +709,12 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
           </Box>
 
           <Flex 
-            p={4} 
+            p={6} 
             borderTop="1px solid"
             borderColor="gray.800"
             justify="center"
+            w="100%"
+            mt="auto"
           >
             <Button
               variant="outline"

@@ -126,15 +126,13 @@ export default function Home() {
       >
         <Box 
           width={{ base: '100%', sm: '375px', md: '800px', lg: '900px' }} 
-          height={{ base: 'auto', md: '75vh' }} // Fixed height on medium+ screens
-          maxH={{ base: 'none', md: '750px' }} // Maximum height constraint
           bg="black" 
-          overflow="hidden" 
           position="relative"
           boxShadow="xl"
           borderRadius="2xl"
           border="1px solid"
           borderColor="gray.800"
+          p={4} // Add consistent padding around the inside cards
         >
           <Box
             position="absolute"
