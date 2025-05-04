@@ -9,7 +9,7 @@ const viteConfig = thorswapViteConfig(name, {
       entry: resolve(__dirname, 'src/index.ts'),
     },
     rollupOptions: {
-      exports: 'default',
+      // Allow both named and default exports
     },
   },
 });

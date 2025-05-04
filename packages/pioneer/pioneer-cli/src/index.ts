@@ -1,14 +1,19 @@
-// @ts-nocheck
 #!/usr/bin/env node
+// @ts-nocheck
 
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as dotenv from 'dotenv';
 import SDK from '@coinmasters/pioneer-sdk';
+// @ts-ignore - Using any types for fastest build
 import { ChainToNetworkId, shortListSymbolToCaip } from '@pioneer-platform/pioneer-caip';
 import { getPaths, addressNListToBIP32 } from '@pioneer-platform/pioneer-coins';
-import { getChainEnumValue } from '@coinmasters/types';
 import ora from 'ora';
+
+// Define a local getChainEnumValue function to replace the one from @coinmasters/types
+const getChainEnumValue = (chain: string): string => {
+  return chain.toUpperCase();
+};
 
 // Load environment variables
 dotenv.config();

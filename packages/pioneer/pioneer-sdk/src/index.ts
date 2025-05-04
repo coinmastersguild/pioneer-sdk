@@ -20,7 +20,7 @@ import EventEmitter from 'events';
 
 import { getCharts } from './getCharts.js';
 //internal
-import { getPubkey } from './getPubkey.js';
+import { getPubkey } from './getPubkey';
 import { TransactionManager } from './TransactionManager.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
 
@@ -59,7 +59,7 @@ function formatTime(durationMs: number): string {
   return formatted.trim();
 }
 
-export class SDK {
+class SDK {
   public status: string;
   public username: string;
   public queryKey: string;

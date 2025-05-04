@@ -2,10 +2,7 @@ import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { resolve } from 'path';
-
-import { name, peerDependencies } from './package.json';
-
-const external = Object.keys(peerDependencies);
+import { name } from './package.json';
 
 export default defineConfig({
   base: './',
@@ -22,7 +19,6 @@ export default defineConfig({
     },
     commonjsOptions: { transformMixedEsModules: true },
     rollupOptions: {
-      external,
       output: {
         preserveModules: false,
         sourcemap: true,

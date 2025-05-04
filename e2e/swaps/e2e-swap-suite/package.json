@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@coinmasters/pioneer-sdk": "workspace:*",
-    "@coinmasters/types": "workspace:^",
+
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.31",
     "@pioneer-platform/pioneer-coins": "^9.2.26",
@@ -29,8 +29,10 @@
     "wait-promise": "^0.4.1"
   },
   "devDependencies": {
-    "@internal/config": "workspace:*",
-    "@pioneer-platform/helpers": "^4.0.12"
+    "@pioneer-platform/helpers": "^4.0.12",
+    "vite": "^4.5.0",
+    "vite-plugin-dts": "^3.6.0",
+    "vite-plugin-node-polyfills": "^0.15.0"
   },
   "gitHead": "54da909f74f91cd10e6161a06aa75638c147ff96"
 }

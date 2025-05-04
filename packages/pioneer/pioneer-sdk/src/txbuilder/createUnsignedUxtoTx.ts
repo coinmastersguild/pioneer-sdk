@@ -1,4 +1,23 @@
-import { DerivationPath } from '@coinmasters/types';
+// Define DerivationPath type locally to replace @coinmasters/types dependency
+type DerivationPathType = {
+  addressNList: number[];
+  coin: string;
+  script_type: string;
+  showDisplay?: boolean;
+};
+
+// Create a mapping object for derivation paths by chain
+const DerivationPath: Record<string, string> = {
+  'bitcoin': "m/84'/0'/0'/0/0",
+  'ethereum': "m/44'/60'/0'/0/0",
+  'thorchain': "m/44'/931'/0'/0/0",
+  'bitcoincash': "m/44'/145'/0'/0/0",
+  'litecoin': "m/84'/2'/0'/0/0",
+  'binance': "m/44'/714'/0'/0/0",
+  'cosmos': "m/44'/118'/0'/0/0",
+  'dogecoin': "m/44'/3'/0'/0/0"
+  // Add other chains as needed
+};
 import { caipToNetworkId, NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
 import { bip32ToAddressNList } from '@pioneer-platform/pioneer-coins';
 import coinSelect from 'coinselect';

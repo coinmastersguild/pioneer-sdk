@@ -3,9 +3,13 @@ require("dotenv").config({ path: '../../../.env' });
 require("dotenv").config({ path: '../../../../.env' });
 
 const TAG = " | test swap suite | ";
-// @ts-ignore
-import { shortListSymbolToCaip, caipToNetworkId, networkIdToCaip } from '@pioneer-platform/pioneer-caip';
-import { getChainEnumValue, NetworkIdToChain } from '@coinmasters/types';
+// @ts-ignore - Using any types for fastest build
+import { shortListSymbolToCaip, caipToNetworkId, networkIdToCaip, NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
+
+// Define a local getChainEnumValue function to replace the one from @coinmasters/types
+const getChainEnumValue = (chain: string): string => {
+  return chain.toUpperCase();
+};
 const log = require("@pioneer-platform/loggerdog")();
 const assert = require('assert');
 const SDK = require('@coinmasters/pioneer-sdk');

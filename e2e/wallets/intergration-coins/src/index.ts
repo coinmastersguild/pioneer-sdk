@@ -17,10 +17,12 @@ require("dotenv").config({path:'../../../.env'})
 require("dotenv").config({path:'../../../../.env'})
 
 const TAG  = " | intergration-test | "
-import { WalletOption, availableChainsByWallet, getChainEnumValue, NetworkIdToChain, Chain } from '@coinmasters/types';
+
 //@ts-ignore
 import { AssetValue } from '@pioneer-platform/helpers';
 import type { AssetValue as AssetValueType } from '@pioneer-platform/helpers';
+// @ts-ignore - Using any types for fastest build
+import { NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
 // import { AssetValue as AssetValueType } from '@coinmasters/core';
 
 const log = require("@pioneer-platform/loggerdog")()

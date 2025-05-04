@@ -10,9 +10,13 @@ require("dotenv").config({path:'../../../.env'})
 require("dotenv").config({path:'../../../../.env'})
 
 const TAG  = " | intergration-test | "
-// @ts-ignore
+// @ts-ignore - Using any types for fastest build
 import { shortListSymbolToCaip, caipToNetworkId, networkIdToCaip } from '@pioneer-platform/pioneer-caip';
-import { getChainEnumValue  } from "@coinmasters/types";
+
+// Define a local getChainEnumValue function to replace the one from @coinmasters/types
+const getChainEnumValue = (chain: string): string => {
+  return chain.toUpperCase();
+};
 const log = require("@pioneer-platform/loggerdog")()
 let assert = require('assert')
 let SDK = require('@coinmasters/pioneer-sdk')

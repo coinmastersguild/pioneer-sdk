@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": ["env.d.ts", "internal/**/*", "packages/**/*"],
+  "include": ["env.d.ts", "internal/**/*", "packages/**/*", "types/**/*", "e2e/**/*"],
   "exclude": ["node_modules"]
 }

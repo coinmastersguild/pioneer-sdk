@@ -1,4 +1,7 @@
-import { Chain, NetworkIdToChain } from '@coinmasters/types';
+import { NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
+
+// Define Chain type locally to replace @coinmasters/types dependency
+type Chain = string;
 import {
   addressNListToBIP32,
   //@ts-ignore
@@ -119,3 +122,4 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     throw error;
   }
 };
+
