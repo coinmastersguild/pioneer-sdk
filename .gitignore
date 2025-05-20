@@ -19,6 +19,11 @@ internal/**/.turbo
 coverage/
 .DS_Store
 *.log
+
+# Turbo
 .turbo
+**/.turbo
+**/**/.turbo
+**/**/**/.turbo
 
 docs/
