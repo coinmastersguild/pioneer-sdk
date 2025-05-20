@@ -27,3 +27,5 @@ coverage/
 **/**/**/.turbo
 
 docs/
+/*/.next
+apps/template/.next
