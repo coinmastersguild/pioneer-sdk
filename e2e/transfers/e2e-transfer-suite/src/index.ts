@@ -68,10 +68,10 @@ const test_service = async function (this: any) {
             // 'BSC',
             // 'XRP', //BROKE unable to broadcast
             // 'ETH',
-            // 'MAYA',   //Amount is wrong
+            'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
-            'BTC',
+            // 'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -269,12 +269,22 @@ const test_service = async function (this: any) {
             //force sync balance for asset
             await app.getBalance(app.blockchains[i])
 
+            //set context again to ensure balance is propagated
+            await app.setAssetContext({caip})
+
             // Fetch initial balance
             let balances = app.balances.filter((e: any) => e.caip === caip);
             log.info(tag,'app.assetContext: ', app.assetContext)
             let balance = app.assetContext.balance
             log.info(tag,'Balance: ', balance)
-            assert(balance, `${tag} Balance not found for ${caip}`);
+            
+            // If balance is still undefined, try to get it from the balances array
+            if (!balance && balances.length > 0) {
+                balance = balances[0].balance;
+                log.info(tag,'Using balance from balances array: ', balance);
+            }
+            
+            assert(balance, `${tag} Balance not found for ${caip}. Available balances: ${app.balances.map((b: any) => b.caip).join(', ')}`);
             log.info(tag, 'Balance before: ', balance);
             let balanceBefore = balance;
             if(balanceBefore === 0) throw Error("YOU ARE BROKE!")
@@ -321,6 +331,17 @@ const test_service = async function (this: any) {
             log.info(tag,'assetContext.priceUsd: ', assetContext.priceUsd);
             log.info(tag,'assetContext.valueUsd: ', assetContext.valueUsd);
 
+            const sendPayload = {
+                caip,
+                isMax: false,
+                to: FAUCET_ADDRESS,
+                amount: TEST_AMOUNT,
+                feeLevel: 5 // Options
+            };
+
+            log.info(tag, 'Send TEST_AMOUNT: ', TEST_AMOUNT);
+
+            //max is balance
             // const sendPayload = {
             //     caip,
             //     isMax: true,
@@ -328,18 +349,7 @@ const test_service = async function (this: any) {
             //     amount: balance,
             //     feeLevel: 5 // Options
             // };
-
-            log.info(tag, 'Send balance: ', balance);
-
-            //max is balance
-            const sendPayload = {
-                caip,
-                isMax: true,
-                to: FAUCET_ADDRESS,
-                amount: balance,
-                feeLevel: 5 // Options
-            };
-            log.info(tag, 'Send Payload: ', sendPayload);
+            // log.info(tag, 'Send Payload: ', sendPayload);
 
             //Test as portfolio
             // Execute the transaction

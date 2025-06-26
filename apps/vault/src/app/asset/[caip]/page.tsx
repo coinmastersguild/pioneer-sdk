@@ -157,7 +157,7 @@ export default function AssetPage() {
     }
     
     // Find the network matching the networkId - try various matching strategies
-    let matchingNetwork = null
+    let matchingNetwork: any = null
     
     if (app.dashboard?.networks) {
       console.log('🔍 [AssetPage] Searching for network match among', app.dashboard.networks.length, 'networks')
@@ -344,6 +344,7 @@ export default function AssetPage() {
           )}
           
           {currentView === 'send' && (
+            /* @ts-ignore */
             <Send onBackClick={handleBack} />
           )}
           

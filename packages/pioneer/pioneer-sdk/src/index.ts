@@ -1270,15 +1270,35 @@ export class SDK {
           };
         }
 
-        // Look for price information in balances
+        // Look for price and balance information in balances
         const matchingBalance = this.balances.find(b => b.caip === asset.caip);
-        if (matchingBalance && matchingBalance.priceUsd) {
-          console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
-          assetInfo.priceUsd = matchingBalance.priceUsd;
+        if (matchingBalance) {
+          if (matchingBalance.priceUsd) {
+            console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
+            assetInfo.priceUsd = matchingBalance.priceUsd;
+          }
+          if (matchingBalance.balance !== undefined) {
+            console.log(tag, 'detected balance from balance:', matchingBalance.balance);
+            assetInfo.balance = matchingBalance.balance;
+          }
+          if (matchingBalance.valueUsd !== undefined) {
+            console.log(tag, 'detected valueUsd from balance:', matchingBalance.valueUsd);
+            assetInfo.valueUsd = matchingBalance.valueUsd;
+          }
         }
 
+        // Filter balances and pubkeys for this asset
+        const assetBalances = this.balances.filter(b => b.caip === asset.caip);
+        const assetPubkeys = this.pubkeys.filter(p => p.networks.includes(caipToNetworkId(asset.caip)) || 
+          (caipToNetworkId(asset.caip).includes('eip155') && p.networks.some(n => n.startsWith('eip155'))));
+
         // Combine the user-provided asset with any additional info we have
-        this.assetContext = { ...assetInfo, ...asset };
+        this.assetContext = { 
+          ...assetInfo, 
+          ...asset, 
+          pubkeys: assetPubkeys,
+          balances: assetBalances
+        };
         
         // Set blockchain context based on asset
         if (asset.caip) {
@@ -1328,11 +1348,21 @@ export class SDK {
           };
         }
         
-        // Look for price information in balances
+        // Look for price and balance information in balances
         const matchingBalance = this.balances.find(b => b.caip === asset.caip);
-        if (matchingBalance && matchingBalance.priceUsd) {
-          console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
-          assetInfo.priceUsd = matchingBalance.priceUsd;
+        if (matchingBalance) {
+          if (matchingBalance.priceUsd) {
+            console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
+            assetInfo.priceUsd = matchingBalance.priceUsd;
+          }
+          if (matchingBalance.balance !== undefined) {
+            console.log(tag, 'detected balance from balance:', matchingBalance.balance);
+            assetInfo.balance = matchingBalance.balance;
+          }
+          if (matchingBalance.valueUsd !== undefined) {
+            console.log(tag, 'detected valueUsd from balance:', matchingBalance.valueUsd);
+            assetInfo.valueUsd = matchingBalance.valueUsd;
+          }
         }
 
         console.log(tag, 'CHECKPOINT 1');
