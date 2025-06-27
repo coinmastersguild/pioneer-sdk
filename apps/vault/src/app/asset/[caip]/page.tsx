@@ -193,23 +193,40 @@ export default function AssetPage() {
         
         console.log('🪙 [AssetPage] Determined token network:', tokenNetworkId);
         
+        // For Maya tokens, also get the MAYA native balance
+        let nativeBalance = null;
+        let nativeSymbol = '';
+        if (tokenNetworkId === 'cosmos:mayachain-mainnet-v1') {
+          // Find MAYA native balance
+          const mayaBalance = app.balances?.find((balance: any) => 
+            balance.caip === 'cosmos:mayachain-mainnet-v1/slip44:maya'
+          );
+          if (mayaBalance) {
+            nativeBalance = mayaBalance.balance;
+            nativeSymbol = 'MAYA';
+            console.log('🪙 [AssetPage] Found MAYA native balance:', nativeBalance);
+          }
+        }
+        
         // Create asset context for the token
         const tokenAssetContextData = {
           networkId: tokenNetworkId,
           chainId: tokenNetworkId,
           assetId: caip,
           caip: caip,
-          name: tokenBalance.symbol || tokenBalance.ticker || 'TOKEN',
+          name: tokenBalance.name || tokenBalance.symbol || tokenBalance.ticker || 'TOKEN',
           networkName: tokenNetworkId.split(':').pop() || '',
-          symbol: tokenBalance.symbol || tokenBalance.ticker || 'TOKEN',
-          icon: tokenBalance.icon || 'https://pioneers.dev/coins/pioneer.png',
+          symbol: tokenBalance.ticker || tokenBalance.symbol || 'TOKEN',
+          icon: tokenBalance.icon || tokenBalance.image || 'https://pioneers.dev/coins/pioneer.png',
           color: tokenBalance.color || '#FFD700',
           balance: tokenBalance.balance || '0',
           value: tokenBalance.valueUsd || 0,
-          precision: 18,
+          precision: tokenBalance.precision || 18,
           priceUsd: parseFloat(tokenBalance.priceUsd || 0),
           isToken: true, // Add flag to indicate this is a token
           type: 'token',
+          nativeBalance: nativeBalance, // Add native balance for display
+          nativeSymbol: nativeSymbol, // Add native symbol for display
           explorer: tokenNetworkId.startsWith('eip155') 
             ? `https://${tokenNetworkId.split(':').pop()?.toLowerCase()}.etherscan.io`
             : tokenNetworkId.startsWith('cosmos')

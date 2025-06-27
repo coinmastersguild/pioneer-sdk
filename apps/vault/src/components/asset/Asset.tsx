@@ -393,7 +393,7 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                     src={(() => {
                       // Map networkId to network icon
                       const networkId = assetContext.networkId;
-                      if (networkId.includes('mayachain')) return 'https://pioneers.dev/coins/mayachain.png';
+                      if (networkId.includes('mayachain')) return 'https://pioneers.dev/coins/maya.png';
                       if (networkId.includes('thorchain')) return 'https://pioneers.dev/coins/thorchain.png';
                       if (networkId.includes('osmosis')) return 'https://pioneers.dev/coins/osmosis.png';
                       if (networkId.includes('eip155:1')) return 'https://pioneers.dev/coins/ethereum.png';
@@ -488,9 +488,30 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                   separator=","
                 />
               </Text>
-              <Text fontSize="md" color="white">
-                {formatBalance(assetContext.balance)} {assetContext.symbol}
-              </Text>
+              
+              {/* For Maya tokens, show MAYA balance as primary */}
+              {assetContext.isToken && assetContext.nativeBalance && assetContext.networkId?.includes('mayachain') ? (
+                <>
+                  <Text fontSize="md" color="white">
+                    {formatBalance(assetContext.nativeBalance)} {assetContext.nativeSymbol}
+                  </Text>
+                  <Text fontSize="sm" color="gray.400">
+                    Token: {formatBalance(assetContext.balance)} {assetContext.symbol}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text fontSize="md" color="white">
+                    {formatBalance(assetContext.balance)} {assetContext.symbol}
+                  </Text>
+                  {/* Show native balance for other tokens if available */}
+                  {assetContext.isToken && assetContext.nativeBalance && (
+                    <Text fontSize="sm" color="gray.400">
+                      Native: {formatBalance(assetContext.nativeBalance)} {assetContext.nativeSymbol}
+                    </Text>
+                  )}
+                </>
+              )}
             </Stack>
           </VStack>
         </Box>
