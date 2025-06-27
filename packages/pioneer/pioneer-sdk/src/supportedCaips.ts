@@ -9,12 +9,12 @@ export const UTXO_SUPPORT = [
 ];
 
 export const TENDERMINT_SUPPORT = [
-  'cosmos:mayachain-mainnet-v1/slip44:931',
-  'cosmos:mayachain-mainnet-v1/slip44:maya', // Maya token support
+  'cosmos:mayachain-mainnet-v1/slip44:931', // CACAO (native)
+  'cosmos:mayachain-mainnet-v1/denom:maya', // MAYA token
   'cosmos:osmosis-1/slip44:118',
   'cosmos:cosmoshub-4/slip44:118',
   'cosmos:kaiyo-1/slip44:118',
-  'cosmos:thorchain-mainnet-v1/slip44:931', // supportedCaips.ts
+  'cosmos:thorchain-mainnet-v1/slip44:931',
 ];
 
 // Mapping of CAIP identifiers to KeepKey coin names for UTXO chains

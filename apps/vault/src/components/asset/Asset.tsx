@@ -489,28 +489,77 @@ export const Asset = ({ onBackClick, onSendClick, onReceiveClick }: AssetProps) 
                 />
               </Text>
               
-              {/* For Maya tokens, show MAYA balance as primary */}
-              {assetContext.isToken && assetContext.nativeBalance && assetContext.networkId?.includes('mayachain') ? (
-                <>
-                  <Text fontSize="md" color="white">
-                    {formatBalance(assetContext.nativeBalance)} {assetContext.nativeSymbol}
-                  </Text>
-                  <Text fontSize="sm" color="gray.400">
-                    Token: {formatBalance(assetContext.balance)} {assetContext.symbol}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text fontSize="md" color="white">
-                    {formatBalance(assetContext.balance)} {assetContext.symbol}
-                  </Text>
-                  {/* Show native balance for other tokens if available */}
-                  {assetContext.isToken && assetContext.nativeBalance && (
-                    <Text fontSize="sm" color="gray.400">
-                      Native: {formatBalance(assetContext.nativeBalance)} {assetContext.nativeSymbol}
+              {/* For tokens, show BOTH balances clearly */}
+              {assetContext.isToken ? (
+                <VStack gap={2}>
+                  {/* Token Balance */}
+                  <Box textAlign="center">
+                    <Text fontSize="lg" fontWeight="bold" color="white">
+                      {formatBalance(assetContext.balance)} {assetContext.symbol}
                     </Text>
-                  )}
-                </>
+                    <Text fontSize="xs" color="gray.500">Token Balance</Text>
+                  </Box>
+                  
+                  {/* Native Balance with warning if zero */}
+                  <Box 
+                    textAlign="center"
+                    p={2}
+                    borderRadius="md"
+                    borderWidth={assetContext.nativeBalance && parseFloat(assetContext.nativeBalance) === 0 ? "2px" : "0"}
+                    borderColor="red.500"
+                    position="relative"
+                    _hover={assetContext.nativeBalance && parseFloat(assetContext.nativeBalance) === 0 ? {
+                      '& .warning-tooltip': { opacity: 1, visibility: 'visible' }
+                    } : {}}
+                  >
+                    <Text fontSize="md" color={assetContext.nativeBalance && parseFloat(assetContext.nativeBalance) === 0 ? "red.400" : "gray.300"}>
+                      {assetContext.nativeBalance ? formatBalance(assetContext.nativeBalance) : '0'} {assetContext.nativeSymbol || 'GAS'}
+                    </Text>
+                    <Text fontSize="xs" color="gray.500">Gas Balance</Text>
+                    
+                    {/* Warning tooltip for zero balance */}
+                    {assetContext.nativeBalance && parseFloat(assetContext.nativeBalance) === 0 && (
+                      <Box
+                        className="warning-tooltip"
+                        position="absolute"
+                        top="-40px"
+                        left="50%"
+                        transform="translateX(-50%)"
+                        bg="red.600"
+                        color="white"
+                        px={3}
+                        py={1}
+                        borderRadius="md"
+                        fontSize="xs"
+                        whiteSpace="nowrap"
+                        opacity={0}
+                        visibility="hidden"
+                        transition="all 0.2s"
+                        zIndex={10}
+                        _before={{
+                          content: '""',
+                          position: 'absolute',
+                          bottom: '-4px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 0,
+                          height: 0,
+                          borderLeft: '4px solid transparent',
+                          borderRight: '4px solid transparent',
+                          borderTop: '4px solid',
+                          borderTopColor: 'red.600',
+                        }}
+                      >
+                        ⚠️ Gas required to transfer tokens
+                      </Box>
+                    )}
+                  </Box>
+                </VStack>
+              ) : (
+                /* Native Asset Balance */
+                <Text fontSize="md" color="white">
+                  {formatBalance(assetContext.balance)} {assetContext.symbol}
+                </Text>
               )}
             </Stack>
           </VStack>

@@ -768,8 +768,8 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
               // ERC20 tokens have contract addresses (0x followed by 40 hex chars)
               if (caip.includes('eip155:') && /0x[a-fA-F0-9]{40}/.test(caip)) return true;
               
-              // Maya tokens: slip44:maya identifies Maya tokens (MAYA.CACAO, MAYA.MAYA, etc.)
-              if (caip.includes('cosmos:mayachain-mainnet-v1/slip44:maya')) return true;
+                  // Maya tokens: denom:maya identifies Maya tokens (MAYA.CACAO, MAYA.MAYA, etc.)
+    if (caip.includes('cosmos:mayachain-mainnet-v1/denom:maya')) return true;
               
               // Cosmos ecosystem tokens (not using slip44 format)
               if (caip.includes('MAYA.') || caip.includes('THOR.') || caip.includes('OSMO.')) return true;
@@ -956,7 +956,7 @@ const Dashboard = ({ onSettingsClick, onAddNetworkClick }: DashboardProps) => {
                      
                      // Set fallback icon and color based on token type if not provided
                      if (!tokenIcon || !tokenColor) {
-                       if (token.caip?.includes('MAYA.') || token.caip?.includes('cosmos:mayachain-mainnet-v1/slip44:maya')) {
+                       if (token.caip?.includes('MAYA.') || token.caip?.includes('cosmos:mayachain-mainnet-v1/denom:maya')) {
                          tokenIcon = tokenIcon || 'https://pioneers.dev/coins/maya.png';
                          tokenColor = tokenColor || '#00D4AA';
                        } else if (token.caip?.includes('THOR.')) {

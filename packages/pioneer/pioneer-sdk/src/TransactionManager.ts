@@ -218,7 +218,8 @@ export class TransactionManager {
               //deposit
               break;
             }
-            case 'cosmos:mayachain-mainnet-v1/slip44:931': {
+            case 'cosmos:mayachain-mainnet-v1/slip44:931': // CACAO (native)
+            case 'cosmos:mayachain-mainnet-v1/denom:maya': { // MAYA token
               //console.log(tag, ' mayachain tx detected! ');
               if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgSend') {
                 //console.log(tag, 'transfer:');

@@ -157,6 +157,9 @@ export default function AssetPage() {
       // Cosmos ecosystem tokens (not using slip44 format)
       if (caip.includes('MAYA.') || caip.includes('THOR.') || caip.includes('OSMO.')) return true;
       
+      // Cosmos tokens using denom or ibc format
+      if (caip.includes('/denom:') || caip.includes('/ibc:')) return true;
+      
       // Any CAIP that doesn't use slip44 format is likely a token
       if (!caip.includes('slip44:') && caip.includes('.')) return true;
       
@@ -181,30 +184,62 @@ export default function AssetPage() {
         let tokenNetworkId = '';
         if (caip.includes('MAYA.')) {
           tokenNetworkId = 'cosmos:mayachain-mainnet-v1';
+        } else if (caip.includes('cosmos:mayachain-mainnet-v1')) {
+          // Handle new MAYA token format
+          tokenNetworkId = 'cosmos:mayachain-mainnet-v1';
         } else if (caip.includes('THOR.')) {
+          tokenNetworkId = 'cosmos:thorchain-mainnet-v1';
+        } else if (caip.includes('cosmos:thorchain-mainnet-v1')) {
           tokenNetworkId = 'cosmos:thorchain-mainnet-v1';
         } else if (caip.includes('OSMO.')) {
           tokenNetworkId = 'cosmos:osmosis-1';
+        } else if (caip.includes('cosmos:osmosis-1')) {
+          tokenNetworkId = 'cosmos:osmosis-1';
         } else if (caip.includes('eip155:')) {
           // Extract network from ERC20 token CAIP
+          const parts = caip.split('/');
+          tokenNetworkId = parts[0];
+        } else if (caip.includes('cosmos:')) {
+          // Generic Cosmos token handling
           const parts = caip.split('/');
           tokenNetworkId = parts[0];
         }
         
         console.log('🪙 [AssetPage] Determined token network:', tokenNetworkId);
         
-        // For Maya tokens, also get the MAYA native balance
+        // Get the native balance for the token's network
         let nativeBalance = null;
         let nativeSymbol = '';
-        if (tokenNetworkId === 'cosmos:mayachain-mainnet-v1') {
-          // Find MAYA native balance
-          const mayaBalance = app.balances?.find((balance: any) => 
-            balance.caip === 'cosmos:mayachain-mainnet-v1/slip44:maya'
+        
+        // Map network to native asset CAIP and symbol
+        const nativeAssetMap: { [key: string]: { caip: string, symbol: string } } = {
+          'cosmos:mayachain-mainnet-v1': { caip: 'cosmos:mayachain-mainnet-v1/slip44:931', symbol: 'CACAO' }, // CACAO is the gas asset, not MAYA
+          'cosmos:thorchain-mainnet-v1': { caip: 'cosmos:thorchain-mainnet-v1/slip44:931', symbol: 'RUNE' },
+          'cosmos:osmosis-1': { caip: 'cosmos:osmosis-1/slip44:118', symbol: 'OSMO' },
+          'eip155:1': { caip: 'eip155:1/slip44:60', symbol: 'ETH' },
+          'eip155:137': { caip: 'eip155:137/slip44:60', symbol: 'MATIC' },
+          'eip155:43114': { caip: 'eip155:43114/slip44:60', symbol: 'AVAX' },
+          'eip155:56': { caip: 'eip155:56/slip44:60', symbol: 'BNB' },
+          'eip155:8453': { caip: 'eip155:8453/slip44:60', symbol: 'ETH' },
+          'eip155:10': { caip: 'eip155:10/slip44:60', symbol: 'ETH' },
+          'eip155:42161': { caip: 'eip155:42161/slip44:60', symbol: 'ETH' },
+        };
+        
+        const nativeAssetInfo = nativeAssetMap[tokenNetworkId];
+        if (nativeAssetInfo) {
+          // Find native balance
+          const nativeAssetBalance = app.balances?.find((balance: any) => 
+            balance.caip === nativeAssetInfo.caip
           );
-          if (mayaBalance) {
-            nativeBalance = mayaBalance.balance;
-            nativeSymbol = 'MAYA';
-            console.log('🪙 [AssetPage] Found MAYA native balance:', nativeBalance);
+          if (nativeAssetBalance) {
+            nativeBalance = nativeAssetBalance.balance;
+            nativeSymbol = nativeAssetInfo.symbol;
+            console.log('🪙 [AssetPage] Found native balance for', nativeSymbol, ':', nativeBalance);
+          } else {
+            // If no balance found, set to 0
+            nativeBalance = '0';
+            nativeSymbol = nativeAssetInfo.symbol;
+            console.log('⚠️ [AssetPage] No native balance found for', nativeSymbol, ', setting to 0');
           }
         }
         
@@ -350,11 +385,11 @@ export default function AssetPage() {
         correctPriceUsd = parseFloat(nativeAssetBalance.priceUsd || correctPriceUsd);
       }
       
-      // Special handling for MAYA native asset
-      if (networkId === 'cosmos:mayachain-mainnet-v1' && fullCaip.includes('slip44:maya')) {
-        correctSymbol = 'MAYA';
-        correctName = 'MAYA';
-        correctIcon = 'https://pioneers.dev/coins/maya.png';
+      // Special handling for MAYA chain native asset (CACAO)
+      if (networkId === 'cosmos:mayachain-mainnet-v1' && fullCaip.includes('slip44:931')) {
+        correctSymbol = 'CACAO';
+        correctName = 'CACAO';
+        correctIcon = 'https://pioneers.dev/coins/cacao.png';
       }
       
       // Create the asset context with the correct CAIP

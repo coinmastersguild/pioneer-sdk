@@ -1,7 +1,7 @@
 {
   "author": "highlander",
   "name": "@coinmasters/pioneer-sdk",
-  "version": "4.10.0",
+  "version": "4.10.2",
   "dependencies": {
     "@coinmasters/api": "workspace:*",
     "@coinmasters/tokens": "workspace:*",

@@ -129,6 +129,16 @@ export async function createUnsignedTendermintTx(
       }
 
       case 'cosmos:mayachain-mainnet-v1': {
+        // Determine the correct asset based on CAIP
+        let mayaAsset: string;
+        if (caip.includes('/denom:maya')) {
+          mayaAsset = 'MAYA.MAYA'; // MAYA token
+        } else if (caip.includes('/slip44:931')) {
+          mayaAsset = 'MAYA.CACAO'; // CACAO (native)
+        } else {
+          throw new Error(`Unsupported Maya chain CAIP: ${caip}`);
+        }
+
         if (isMax) {
           const fee = Math.floor(fees[networkId] * 1e10); // Convert fee to smallest unit and floor to int
           amount = Math.max(0, Math.floor(balanceInfo.data * 1e10) - fee); // Floor to ensure no decimals
@@ -136,7 +146,7 @@ export async function createUnsignedTendermintTx(
           amount = Math.max(Math.floor(amount * 1e10), 0); // Floor the multiplication result
         }
 
-        //console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}`);
+        //console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}, asset: ${mayaAsset}`);
         return to
           ? mayachainTransferTemplate({
               account_number,
@@ -152,7 +162,7 @@ export async function createUnsignedTendermintTx(
               },
               from_address: fromAddress,
               to_address: to,
-              asset: 'MAYA.CACAO',
+              asset: mayaAsset,
               amount: amount.toString(),
               memo,
               sequence,
@@ -170,7 +180,7 @@ export async function createUnsignedTendermintTx(
                 ],
               },
               from_address: fromAddress,
-              asset: 'MAYA.CACAO',
+              asset: mayaAsset,
               amount: amount.toString(),
               memo,
               sequence,

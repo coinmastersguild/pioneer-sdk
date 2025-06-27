@@ -971,7 +971,7 @@ export class SDK {
         //add gas assets to map
         
         // Add missing MAYA token manually until it's added to assetData
-        const mayaTokenCaip = 'cosmos:mayachain-mainnet-v1/slip44:maya';
+        const mayaTokenCaip = 'cosmos:mayachain-mainnet-v1/denom:maya';
         if (!this.assetsMap.has(mayaTokenCaip)) {
           const mayaToken = {
             caip: mayaTokenCaip,
@@ -986,7 +986,9 @@ export class SDK {
             explorer: 'https://explorer.mayachain.info',
             explorerAddressLink: 'https://explorer.mayachain.info/address/{{address}}',
             explorerTxLink: 'https://explorer.mayachain.info/tx/{{txid}}',
-            type: 'token'
+            type: 'token',
+            isToken: true,
+            denom: 'maya'
           };
           this.assetsMap.set(mayaTokenCaip, mayaToken);
           console.log(tag, 'Added MAYA token to assetsMap');
@@ -1262,6 +1264,55 @@ export class SDK {
           pubkeys: assetPubkeys,
           balances: assetBalances
         };
+        
+        // For tokens, we need to also set the native gas balance and symbol
+        if (asset.isToken || asset.type === 'token' || assetInfo.isToken || assetInfo.type === 'token') {
+          // Get the native asset for this network
+          const networkId = asset.networkId || assetInfo.networkId;
+          
+          // Determine the native gas symbol based on the network
+          let nativeSymbol = 'GAS'; // default fallback
+          let nativeCaip = '';
+          
+          if (networkId.includes('mayachain')) {
+            nativeSymbol = 'CACAO';
+            nativeCaip = 'cosmos:mayachain-mainnet-v1/slip44:931';
+          } else if (networkId.includes('thorchain')) {
+            nativeSymbol = 'RUNE';
+            nativeCaip = 'cosmos:thorchain-mainnet-v1/slip44:931';
+          } else if (networkId.includes('cosmoshub')) {
+            nativeSymbol = 'ATOM';
+            nativeCaip = 'cosmos:cosmoshub-4/slip44:118';
+          } else if (networkId.includes('osmosis')) {
+            nativeSymbol = 'OSMO';
+            nativeCaip = 'cosmos:osmosis-1/slip44:118';
+          } else if (networkId.includes('eip155:1')) {
+            nativeSymbol = 'ETH';
+            nativeCaip = 'eip155:1/slip44:60';
+          } else if (networkId.includes('eip155:137')) {
+            nativeSymbol = 'MATIC';
+            nativeCaip = 'eip155:137/slip44:60';
+          } else if (networkId.includes('eip155:56')) {
+            nativeSymbol = 'BNB';
+            nativeCaip = 'eip155:56/slip44:60';
+          } else if (networkId.includes('eip155:43114')) {
+            nativeSymbol = 'AVAX';
+            nativeCaip = 'eip155:43114/slip44:60';
+          }
+          
+          // Set the native symbol
+          this.assetContext.nativeSymbol = nativeSymbol;
+          
+          // Try to find the native balance
+          if (nativeCaip) {
+            const nativeBalance = this.balances.find(b => b.caip === nativeCaip);
+            if (nativeBalance) {
+              this.assetContext.nativeBalance = nativeBalance.balance || '0';
+            } else {
+              this.assetContext.nativeBalance = '0';
+            }
+          }
+        }
         
         // Set blockchain context based on asset
         if (asset.caip) {

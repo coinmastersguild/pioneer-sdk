@@ -83,10 +83,10 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
               // Extract the networkId from the assetCaip for special token formats like MAYA
               let extractedNetworkId = token.networkId;
               
-              // Special handling for MAYA tokens with slip44:maya format
-              if (token.assetCaip.includes('/slip44:maya')) {
-                // Extract the network part before /slip44:maya
-                const parts = token.assetCaip.split('/slip44:maya');
+                        // Special handling for MAYA tokens with denom:maya format
+          if (token.assetCaip.includes('/denom:maya')) {
+            // Extract the network part before /denom:maya
+            const parts = token.assetCaip.split('/denom:maya');
                 if (parts.length > 0) {
                   extractedNetworkId = parts[0];
                 }
@@ -163,7 +163,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
       if (mayaPubkey && mayaPubkey.address) {
         // Check if MAYA token is already in balances
         const hasMayaToken = balances.some((b: any) => 
-          b.caip === 'cosmos:mayachain-mainnet-v1/slip44:maya'
+                        b.caip === 'cosmos:mayachain-mainnet-v1/denom:maya'
         );
         
         if (!hasMayaToken && blockchains.includes('cosmos:mayachain-mainnet-v1')) {
@@ -176,7 +176,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
             // First try GetPortfolioBalances with MAYA token CAIP
             const mayaBalanceResponse = await pioneer.GetPortfolioBalances([
               { 
-                caip: 'cosmos:mayachain-mainnet-v1/slip44:maya', 
+                caip: 'cosmos:mayachain-mainnet-v1/denom:maya', 
                 pubkey: mayaPubkey.address 
               }
             ]);
@@ -187,7 +187,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
               console.log(tag, 'Found MAYA token balances:', mayaBalanceResponse.data.length);
               
               for (const mayaBalance of mayaBalanceResponse.data) {
-                if (mayaBalance.caip === 'cosmos:mayachain-mainnet-v1/slip44:maya') {
+                if (mayaBalance.caip === 'cosmos:mayachain-mainnet-v1/denom:maya') {
                   const mayaTokenBalance = {
                     context: context,
                     chart: 'pioneer',
