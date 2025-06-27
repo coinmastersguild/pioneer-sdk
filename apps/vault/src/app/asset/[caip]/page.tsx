@@ -328,21 +328,50 @@ export default function AssetPage() {
       // Always use the full CAIP passed in the URL
       const fullCaip = caip
       
+      // For native assets, we should also check if we have the balance in app.balances
+      let nativeAssetBalance = app.balances?.find((balance: any) => balance.caip === fullCaip);
+      
+      // Determine the correct symbol based on the network
+      let correctSymbol = matchingNetwork.gasAssetSymbol;
+      let correctName = matchingNetwork.gasAssetSymbol;
+      let correctIcon = matchingNetwork.icon;
+      let correctBalance = matchingNetwork.totalNativeBalance;
+      let correctValue = matchingNetwork.totalValueUsd;
+      let correctPriceUsd = matchingNetwork.totalValueUsd / parseFloat(matchingNetwork.totalNativeBalance);
+      
+      // Override with balance data if available (more accurate)
+      if (nativeAssetBalance) {
+        console.log('🔍 [AssetPage] Found native asset balance data:', nativeAssetBalance);
+        correctSymbol = nativeAssetBalance.ticker || nativeAssetBalance.symbol || correctSymbol;
+        correctName = nativeAssetBalance.name || correctSymbol;
+        correctIcon = nativeAssetBalance.icon || nativeAssetBalance.image || correctIcon;
+        correctBalance = nativeAssetBalance.balance || correctBalance;
+        correctValue = parseFloat(nativeAssetBalance.valueUsd || correctValue);
+        correctPriceUsd = parseFloat(nativeAssetBalance.priceUsd || correctPriceUsd);
+      }
+      
+      // Special handling for MAYA native asset
+      if (networkId === 'cosmos:mayachain-mainnet-v1' && fullCaip.includes('slip44:maya')) {
+        correctSymbol = 'MAYA';
+        correctName = 'MAYA';
+        correctIcon = 'https://pioneers.dev/coins/maya.png';
+      }
+      
       // Create the asset context with the correct CAIP
       const assetContextData = {
         networkId: networkId, // The network part (e.g. "eip155:1")
         chainId: networkId,
         assetId: fullCaip, // The full CAIP (e.g. "eip155:1/slip44:60")
         caip: fullCaip,  // The full CAIP (e.g. "eip155:1/slip44:60")
-        name: matchingNetwork.gasAssetSymbol,
+        name: correctName,
         networkName: networkId.split(':').pop() || '',
-        symbol: matchingNetwork.gasAssetSymbol,
-        icon: matchingNetwork.icon,
+        symbol: correctSymbol,
+        icon: correctIcon,
         color: matchingNetwork.color,
-        balance: matchingNetwork.totalNativeBalance,
-        value: matchingNetwork.totalValueUsd,
-        precision: 18,
-        priceUsd: matchingNetwork.totalValueUsd / parseFloat(matchingNetwork.totalNativeBalance),
+        balance: correctBalance,
+        value: correctValue,
+        precision: nativeAssetBalance?.precision || 18,
+        priceUsd: correctPriceUsd,
         explorer: networkId.startsWith('eip155') 
           ? `https://${networkId.split(':').pop()?.toLowerCase()}.etherscan.io`
           : networkId.startsWith('cosmos')
