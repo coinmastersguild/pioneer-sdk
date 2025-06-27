@@ -103,7 +103,6 @@ export class SDK {
   public setOutboundAssetContext: (asset?: any) => Promise<any>;
   public keepkeyApiKey: string | undefined;
   public isPioneer: string | null;
-  public loadBalanceCache: (balances: any) => Promise<void>;
   public loadPubkeyCache: (pubkeys: any) => Promise<void>;
   public getPubkeys: (wallets?: string[]) => Promise<any[]>;
   public getBalances: (filter?: any) => Promise<any[]>;
@@ -122,7 +121,6 @@ export class SDK {
   private getGasAssets: () => Promise<any>;
   private transactions: any;
   private transfer: (sendPayload: any) => Promise<any>;
-  private clearCache: () => Promise<boolean>;
   private sync: () => Promise<boolean>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
   private followTransaction: (
@@ -219,10 +217,7 @@ export class SDK {
           this.keepkeyApiKey = keepkeyApiKey;
           this.keepKeySdk = keepKeySdk;
           this.context = 'keepkey:' + features.label + '.json';
-          let pubkeysCache = await this.keepKeySdk.storage.getPubkeys().catch((error) => {
-            //console.error('Error fetching pubkeysCache:', error);
-            return [];
-          });
+          let pubkeysCache = []
           await this.loadPubkeyCache(pubkeysCache);
         } catch (e) {
           console.error(e);
@@ -297,13 +292,6 @@ export class SDK {
             //add to paths
             this.paths = this.paths.concat(paths);
 
-            for (let j = 0; j < paths.length; j++) {
-              let path = paths[j];
-              //console.log(tag, 'Adding path to cache: ', path);
-              await this.keepKeySdk.storage.createPath(path).catch((error) => {
-                console.error('Error creating path:', error);
-              });
-            }
           }
         }
 
@@ -504,54 +492,6 @@ export class SDK {
         //console.log(tag, `Total pubkeys after loading cache: ${this.pubkeys.length}`);
       } catch (e) {
         console.error(tag, 'Error loading pubkey cache:', e);
-        throw e;
-      }
-    };
-    this.clearCache = async function () {
-      let tag = `${TAG} | clearCache | `;
-      try {
-        await this.keepKeySdk.storage
-          .clearCollection({ name: 'pubkeys' })
-          .catch((error) => console.error('Error clearing pubkeys:', error));
-
-        await this.keepKeySdk.storage
-          .clearCollection({ name: 'balances' })
-          .catch((error) => console.error('Error clearing balances:', error));
-
-        return true;
-      } catch (e) {
-        console.error(tag, 'e: ', e);
-        throw e;
-      }
-    };
-    this.loadBalanceCache = async function (balances) {
-      const tag = `${TAG} | loadBalanceCache | `;
-      try {
-        if (!Array.isArray(balances)) {
-          throw new Error('Invalid balances input, expected an array.');
-        }
-
-        // Filter balances by enabled blockchains
-        const enabledNetworkIds = new Set(this.blockchains);
-        const filteredBalances = balances.filter((balance: any) => {
-          const networkId = balance.networkId || caipToNetworkId(balance.caip);
-          return enabledNetworkIds.has(networkId);
-        });
-
-        // Deduplicate by `identifier` field
-        const uniqueBalances = new Map();
-        for (const balance of [...this.balances, ...filteredBalances]) {
-          if (!uniqueBalances.has(balance.identifier)) {
-            uniqueBalances.set(balance.identifier, balance);
-          }
-        }
-
-        // Update this.balances with unique values
-        this.balances = Array.from(uniqueBalances.values());
-
-        //console.log(tag, `Total balances after loading cache: ${this.balances.length}`);
-      } catch (e) {
-        console.error(tag, 'Error loading balance cache:', e);
         throw e;
       }
     };
@@ -1029,6 +969,29 @@ export class SDK {
         }
 
         //add gas assets to map
+        
+        // Add missing MAYA token manually until it's added to assetData
+        const mayaTokenCaip = 'cosmos:mayachain-mainnet-v1/slip44:maya';
+        if (!this.assetsMap.has(mayaTokenCaip)) {
+          const mayaToken = {
+            caip: mayaTokenCaip,
+            networkId: 'cosmos:mayachain-mainnet-v1',
+            chainId: 'mayachain-mainnet-v1',
+            symbol: 'MAYA',
+            name: 'Maya Token',
+            precision: 4,
+            decimals: 4,
+            color: '#00D4AA',
+            icon: 'https://pioneers.dev/coins/maya.png',
+            explorer: 'https://explorer.mayachain.info',
+            explorerAddressLink: 'https://explorer.mayachain.info/address/{{address}}',
+            explorerTxLink: 'https://explorer.mayachain.info/tx/{{txid}}',
+            type: 'token'
+          };
+          this.assetsMap.set(mayaTokenCaip, mayaToken);
+          console.log(tag, 'Added MAYA token to assetsMap');
+        }
+        
         return this.assetsMap;
       } catch (e) {
         console.error(e);

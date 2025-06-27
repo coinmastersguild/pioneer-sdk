@@ -23,11 +23,13 @@ import {
 } from '@/components/SEO/StructuredData'
 
 export default function Home() {
+  const pioneer = usePioneerContext();
   const { 
-    app, 
-    isTransitioning,
-    currentView 
-  } = usePioneerContext();
+    state = {},
+    isTransitioning = false,
+  } = pioneer || {};
+  
+  const { app } = state;
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddBlockchainOpen, setIsAddBlockchainOpen] = useState(false);
@@ -40,11 +42,12 @@ export default function Home() {
 
   useEffect(() => {
     console.log('🔄 [Page] State update:', {
-      currentView,
+      hasApp: !!app,
+      hasAssetContext: !!app?.assetContext,
       isTransitioning,
-      hasAssetContext: !!app?.assetContext
+      hasPioneer: !!pioneer
     });
-  }, [currentView, isTransitioning, app?.assetContext]);
+  }, [app, isTransitioning, pioneer]);
 
   // Handle settings dialog open state
   const handleSettingsOpenChange = (details: { open: boolean }) => {
@@ -55,6 +58,22 @@ export default function Home() {
   const handleAddBlockchainOpenChange = (details: { open: boolean }) => {
     setIsAddBlockchainOpen(details.open);
   };
+
+  // Show loading state if pioneer is not ready
+  if (!pioneer) {
+    return (
+      <Box bg="black" minHeight="100vh" width="100%">
+        <Flex 
+          minH="100vh" 
+          justify="center" 
+          align="center" 
+          bg="black"
+        >
+          <Spinner size="xl" color="gold" />
+        </Flex>
+      </Box>
+    );
+  }
 
   return (
     <Box bg="black" minHeight="100vh" width="100%">
@@ -106,7 +125,6 @@ export default function Home() {
             transition="all 0.3s ease"
           >
             <Dashboard 
-              key={`dashboard-${Date.now()}`}
               onSettingsClick={() => setIsSettingsOpen(true)}
               onAddNetworkClick={() => setIsAddBlockchainOpen(true)}
             />

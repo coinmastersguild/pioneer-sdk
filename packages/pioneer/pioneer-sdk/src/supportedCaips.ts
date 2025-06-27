@@ -10,6 +10,7 @@ export const UTXO_SUPPORT = [
 
 export const TENDERMINT_SUPPORT = [
   'cosmos:mayachain-mainnet-v1/slip44:931',
+  'cosmos:mayachain-mainnet-v1/slip44:maya', // Maya token support
   'cosmos:osmosis-1/slip44:118',
   'cosmos:cosmoshub-4/slip44:118',
   'cosmos:kaiyo-1/slip44:118',

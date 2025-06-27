@@ -88,7 +88,7 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
 
       let keepkeyApiKey = localStorage.getItem('keepkeyApiKey');
       if (!keepkeyApiKey) keepkeyApiKey = '123';
-      //console.log(tag, '(from localstorage) keepkeyApiKey: ', keepkeyApiKey);
+      console.log(tag, '(from localstorage) keepkeyApiKey: ', keepkeyApiKey);
 
       const walletType = WalletOption.KEEPKEY;
       const allSupported = availableChainsByWallet[walletType];
@@ -104,9 +104,12 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
       const wss = setup.wss || 'wss://pioneers.dev';
 
       //@ts-ignore
-      //console.log(tag, 'spec: ', spec);
-      //console.log(tag, 'wss: ', wss);
+      console.log(tag, 'spec: ', spec);
+      console.log(tag, 'wss: ', wss);
+      console.log(tag, 'blockchains: ', blockchains);
+      console.log(tag, 'paths length: ', paths.length);
 
+      console.log(tag, 'Creating Pioneer SDK instance...');
       const appInit = new SDK(spec, {
         spec,
         wss,
@@ -118,8 +121,10 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
         queryKey,
         paths,
       });
+      console.log(tag, 'Pioneer SDK instance created, calling init...');
 
       const api = await appInit.init([], setup);
+      console.log(tag, 'Pioneer SDK init completed, api:', !!api);
       // Only store the keepkeyApiKey if it exists
       if (appInit.keepkeyApiKey) {
         localStorage.setItem('keepkeyApiKey', appInit.keepkeyApiKey);
@@ -152,6 +157,7 @@ export const PioneerProvider = ({ children }: { children: React.ReactNode }): JS
         //console.log(TAG, 'Event:', action, data);
       });
 
+      console.log(tag, 'Pioneer-react onStart completed successfully!');
       return appInit.events;
     } catch (e) {
       console.error('Failed to start app!', e);

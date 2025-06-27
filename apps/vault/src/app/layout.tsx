@@ -14,6 +14,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1
+};
+
 export const metadata: Metadata = {
   title: "KeepKey Vault | Secure Crypto Wallet Management",
   description: "KeepKey Vault - The secure way to manage your cryptocurrency wallet. Store, send and receive crypto with confidence using the trusted hardware wallet solution.",
@@ -57,20 +63,17 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/images/kk-icon-gold.png" }
+      { url: "/images/kk-icon-gold.png", sizes: "32x32", type: "image/png" },
+      { url: "/images/kk-icon-gold.png", sizes: "16x16", type: "image/png" }
     ],
     apple: [
-      { url: "/images/logos/keepkey-logo-square.png" }
-    ]
+      { url: "/images/logos/keepkey-logo-square.png", sizes: "180x180", type: "image/png" }
+    ],
+    shortcut: "/images/kk-icon-gold.png"
   },
   robots: {
     index: true,
     follow: true
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1
   },
   category: "Finance"
 };

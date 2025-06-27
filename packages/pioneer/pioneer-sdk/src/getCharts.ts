@@ -4,90 +4,23 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
   const tag = `| getCharts-Internal | `;
   try {
     let balances: any = [];
-    pubkeys = pubkeys.filter((e) => e.networks.includes('eip155:*'));
-    if (!pubkeys[0]) {
-      console.error(tag, 'No ETH address found, not charting');
+    
+    // Find the primary address for portfolio lookup
+    // Prefer EVM address if available, but don't filter out other pubkeys
+    const evmPubkey = pubkeys.find((e: any) => e.networks.includes('eip155:*'));
+    const primaryAddress = evmPubkey?.address || evmPubkey?.master || pubkeys[0]?.address || pubkeys[0]?.master;
+    
+    if (!primaryAddress) {
+      console.error(tag, 'No address found for portfolio lookup');
       return [];
     }
 
-    const address = pubkeys[0].address || pubkeys[0].master;
-    if (!address) throw Error('No address found in pubkeys for chain eip155:*');
-    // Filter out chains that are not EVM-compatible or are ignored
-    // const evmChains = blockchains
-    //   .filter((chain) => chain.includes('eip155'))
-    //   .filter((chain) => !['eip155:137'].includes(chain.networkId));
-    //
-    // const withTimeout = (promise, chain) =>
-    //   new Promise((resolve) => {
-    //     const timer = setTimeout(() => {
-    //       console.error(
-    //         `${tag} Timeout: NetworkId ${chain} took longer than ${TIMEOUT / 1000} seconds`,
-    //       );
-    //       resolve({ chain, result: { data: { items: [] } } });
-    //     }, TIMEOUT);
-    //
-    //     promise
-    //       .then((result) => {
-    //         clearTimeout(timer);
-    //         resolve({ chain, result });
-    //       })
-    //       .catch((error) => {
-    //         clearTimeout(timer);
-    //         console.error(tag, `Error fetching NFTs for chain ${chain}:`, error);
-    //         resolve(null);
-    //       });
-    //   });
-
-    // for (const chain of evmChains) {
-    //   console.time(`${tag} NetworkId ${chain}`);
-    //   const { chain: chainId, result } = await withTimeout(
-    //     pioneer.GetCovalentNfts({ address, networkId: chain }),
-    //     chain,
-    //   );
-    //
-    //   console.timeEnd(`${tag} NetworkId ${chainId}`);
-    //
-    //   if (result?.data?.items?.length) {
-    //     result.data.items.forEach((item) => {
-    //       if (item.nft_data) {
-    //         item.nft_data.forEach((nft) => {
-    //           if (item.contract_address && nft.token_id && nft.external_data) {
-    //             const balanceString = {
-    //               context: context,
-    //               chart: 'covalent',
-    //               contextType: context.split(':')[0],
-    //               collection: item.contract_name,
-    //               caip: `${chainId}/erc721:${item.contract_address}:${nft.token_id}`,
-    //               tokenId: nft.token_id,
-    //               image: nft.external_data.image,
-    //               pubkey: address,
-    //               ticker: item.contract_ticker_symbol,
-    //               ref: `${context}${chainId}/erc721:${item.contract_address}:${nft.token_id}`,
-    //               identifier: 'unsupported',
-    //               networkId: chainId,
-    //               symbol: item.contract_ticker_symbol,
-    //               type: 'nft',
-    //               balance: item.balance || 1,
-    //               priceUsd: item.floor_price_quote || 0,
-    //               valueUsd: item.floor_price_quote || 0,
-    //               updated: new Date().getTime(),
-    //             };
-    //
-    //             if (!item.is_spam && blockchains.includes(chainId)) {
-    //               const exists = balances.some((b) => b.caip === balanceString.caip);
-    //               if (!exists) {
-    //                 balances.push(balanceString);
-    //               }
-    //             }
-    //           }
-    //         });
-    //       }
-    //     });
-    //   }
-    // }
+    console.log(tag, 'Using primary address for portfolio:', primaryAddress);
+    console.log(tag, 'Total pubkeys available:', pubkeys.length);
+    console.log(tag, 'Blockchains to process:', blockchains);
 
     try {
-      let portfolio = await pioneer.GetPortfolio({ address });
+      let portfolio = await pioneer.GetPortfolio({ address: primaryAddress });
       portfolio = portfolio.data;
       //console.log(tag, 'portfolio: ', portfolio);
 
@@ -95,9 +28,9 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
         for (const balance of portfolio.balances) {
           if (balance.caip && balance.networkId && blockchains.includes(balance.networkId)) {
             balance.context = context;
-            balance.identifier = balance.caip + ':' + address;
+            balance.identifier = balance.caip + ':' + primaryAddress;
             balance.contextType = 'keepkey';
-            balance.pubkey = address;
+            balance.pubkey = primaryAddress;
             balance.chain = balance.networkId;
             balance.balance = balance.balance.toString();
             balance.valueUsd = balance.valueUsd.toString();
@@ -121,50 +54,178 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
           }
         }
 
-        // for (const token of portfolio.tokens) {
-        //   //console.log(tag, 'token: ', token);
-        //   if (token.assetCaip && token.networkId) {
-        //     const balanceString = {
-        //       context: context,
-        //       chart: 'zapier',
-        //       contextType: context.split(':')[0],
-        //       name: token.token.coingeckoId,
-        //       caip: token.assetCaip,
-        //       icon: '',
-        //       pubkey: address,
-        //       ticker: token.token.symbol,
-        //       ref: `${context}${token.assetCaip}`,
-        //       networkId: token.networkId.split('/')[0] || token.networkId,
-        //       symbol: token.token.symbol,
-        //       type: 'token',
-        //       balance: token.token.balance.toString(),
-        //       priceUsd: token.token.price || 0,
-        //       valueUsd: token.token.balanceUSD,
-        //       updated: new Date().getTime(),
-        //     };
-        //
-        //     if (blockchains.includes(balanceString.networkId)) {
-        //       //console.log(tag, 'WINNING! balances match!!! saving!!!! ', balanceString);
-        //       balances.push(balanceString);
-        //       // const exists = balances.some((b) => b.caip === balanceString.caip);
-        //       // if (!exists) {
-        //       //   //console.log(tag,'adding balance!', balanceString)
-        //       //   balances.push(balanceString);
-        //       // } else {
-        //       //   //already exists!
-        //       // }
-        //     } else {
-        //       console.error(tag, 'network not live in blockchains:', balanceString.networkId);
-        //     }
-        //   } else {
-        //     console.error(tag, 'Invalid token:', token);
-        //   }
-        // }
+        // Process tokens from portfolio (if they exist)
+        if (portfolio.tokens && portfolio.tokens.length > 0) {
+          console.log(tag, 'Processing portfolio.tokens:', portfolio.tokens.length);
+          
+          // Debug: Log all tokens to see what we're getting
+          console.log(tag, 'DEBUG: All tokens from portfolio:');
+          portfolio.tokens.forEach((token: any, index: number) => {
+            console.log(tag, `DEBUG: Token ${index}:`, {
+              assetCaip: token.assetCaip,
+              networkId: token.networkId,
+              symbol: token.token?.symbol,
+              balance: token.token?.balance,
+              balanceUSD: token.token?.balanceUSD,
+              isMayaRelated: token.assetCaip && (
+                token.assetCaip.includes('maya') || 
+                token.assetCaip.includes('MAYA') ||
+                token.assetCaip.includes('cosmos:mayachain') ||
+                token.token?.symbol === 'MAYA' ||
+                token.token?.symbol === 'CACAO'
+              )
+            });
+          });
+          
+          for (const token of portfolio.tokens) {
+            //console.log(tag, 'token: ', token);
+            if (token.assetCaip && token.networkId) {
+              // Extract the networkId from the assetCaip for special token formats like MAYA
+              let extractedNetworkId = token.networkId;
+              
+              // Special handling for MAYA tokens with slip44:maya format
+              if (token.assetCaip.includes('/slip44:maya')) {
+                // Extract the network part before /slip44:maya
+                const parts = token.assetCaip.split('/slip44:maya');
+                if (parts.length > 0) {
+                  extractedNetworkId = parts[0];
+                }
+              } else if (token.networkId && token.networkId.includes('/')) {
+                // For other tokens, split by / and take the first part
+                extractedNetworkId = token.networkId.split('/')[0];
+              }
+              
+              const balanceString = {
+                context: context,
+                chart: 'pioneer',
+                contextType: context.split(':')[0],
+                name: token.token?.coingeckoId || token.token?.name || 'Unknown',
+                caip: token.assetCaip,
+                icon: token.token?.icon || '',
+                pubkey: primaryAddress,
+                ticker: token.token?.symbol || 'UNK',
+                ref: `${context}${token.assetCaip}`,
+                identifier: token.assetCaip + ':' + primaryAddress,
+                networkId: extractedNetworkId,
+                symbol: token.token?.symbol || 'UNK',
+                type: 'token',
+                balance: token.token?.balance?.toString() || '0',
+                priceUsd: token.token?.price || 0,
+                valueUsd: token.token?.balanceUSD || 0,
+                updated: new Date().getTime(),
+              };
+
+              // Debug logging for MAYA tokens
+              if (token.assetCaip.includes('maya') || token.assetCaip.includes('MAYA')) {
+                console.log(tag, 'Processing MAYA token:', {
+                  assetCaip: token.assetCaip,
+                  originalNetworkId: token.networkId,
+                  extractedNetworkId: extractedNetworkId,
+                  blockchains: blockchains,
+                  isIncluded: blockchains.includes(extractedNetworkId)
+                });
+              }
+
+              if (blockchains.includes(balanceString.networkId)) {
+                //console.log(tag, 'WINNING! balances match!!! saving!!!! ', balanceString);
+                // Check if already exists
+                const exists = balances.some((b: any) => b.caip === balanceString.caip && b.pubkey === balanceString.pubkey);
+                if (!exists) {
+                  balances.push(balanceString);
+                  // Debug: Log when MAYA token is added
+                  if (token.assetCaip.includes('maya') || token.assetCaip.includes('MAYA')) {
+                    console.log(tag, 'DEBUG: Successfully added MAYA token to balances');
+                  }
+                }
+              } else {
+                console.error(tag, 'network not live in blockchains:', balanceString.networkId);
+                // Debug: Log when MAYA token is filtered out
+                if (token.assetCaip.includes('maya') || token.assetCaip.includes('MAYA')) {
+                  console.error(tag, 'DEBUG: MAYA token filtered out - network not in blockchains');
+                }
+              }
+            } else {
+              console.error(tag, 'Invalid token:', token);
+            }
+          }
+        }
       } else {
         console.error(tag, 'No portfolio.balances found:', portfolio);
       }
     } catch (e) {
       console.error(tag, 'Error fetching portfolio:', e);
+    }
+
+    // WORKAROUND: Check if MAYA tokens are missing and fetch them separately
+    try {
+      // Check if we have a MAYA address
+      const mayaPubkey = pubkeys.find((p: any) => p.networks.includes('cosmos:mayachain-mainnet-v1'));
+      if (mayaPubkey && mayaPubkey.address) {
+        // Check if MAYA token is already in balances
+        const hasMayaToken = balances.some((b: any) => 
+          b.caip === 'cosmos:mayachain-mainnet-v1/slip44:maya'
+        );
+        
+        if (!hasMayaToken && blockchains.includes('cosmos:mayachain-mainnet-v1')) {
+          console.log(tag, 'MAYA token not found in portfolio, fetching separately...');
+          console.log(tag, 'MAYA pubkey address:', mayaPubkey.address);
+          
+          // Try to get MAYA token balance via a separate call
+          // This is a workaround for the portfolio API not returning MAYA tokens
+          try {
+            // First try GetPortfolioBalances with MAYA token CAIP
+            const mayaBalanceResponse = await pioneer.GetPortfolioBalances([
+              { 
+                caip: 'cosmos:mayachain-mainnet-v1/slip44:maya', 
+                pubkey: mayaPubkey.address 
+              }
+            ]);
+            
+            console.log(tag, 'MAYA balance response:', JSON.stringify(mayaBalanceResponse?.data, null, 2));
+            
+            if (mayaBalanceResponse?.data && mayaBalanceResponse.data.length > 0) {
+              console.log(tag, 'Found MAYA token balances:', mayaBalanceResponse.data.length);
+              
+              for (const mayaBalance of mayaBalanceResponse.data) {
+                if (mayaBalance.caip === 'cosmos:mayachain-mainnet-v1/slip44:maya') {
+                  const mayaTokenBalance = {
+                    context: context,
+                    chart: 'pioneer',
+                    contextType: context.split(':')[0],
+                    name: 'Maya Token',
+                    caip: mayaBalance.caip,
+                    icon: 'https://pioneers.dev/coins/maya.png',
+                    pubkey: mayaPubkey.address,
+                    ticker: 'MAYA',
+                    ref: `${context}${mayaBalance.caip}`,
+                    identifier: mayaBalance.caip + ':' + mayaPubkey.address,
+                    networkId: 'cosmos:mayachain-mainnet-v1',
+                    symbol: 'MAYA',
+                    type: 'token',
+                    balance: mayaBalance.balance?.toString() || '0',
+                    priceUsd: parseFloat(mayaBalance.priceUsd) || 0,
+                    valueUsd: parseFloat(mayaBalance.valueUsd) || 0,
+                    updated: new Date().getTime(),
+                  };
+                  
+                  console.log(tag, 'Adding MAYA token to balances:', mayaTokenBalance);
+                  balances.push(mayaTokenBalance);
+                } else {
+                  console.log(tag, 'Unexpected balance in MAYA response:', mayaBalance);
+                }
+              }
+            } else {
+              console.log(tag, 'No MAYA token balance returned from GetPortfolioBalances API');
+            }
+          } catch (mayaError) {
+            console.error(tag, 'Error fetching MAYA token balance:', mayaError);
+          }
+        } else if (!hasMayaToken) {
+          console.log(tag, 'MAYA network not in blockchains list, skipping MAYA token fetch');
+        }
+      }
+    } catch (e) {
+      console.error(tag, 'Error in MAYA token workaround:', e);
     }
 
     return balances;
