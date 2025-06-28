@@ -1,6 +1,6 @@
 {
   "name": "keepkey-vault",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "engines": {
     "node": "^22.0.0",
@@ -15,7 +15,6 @@
   "dependencies": {
     "@chakra-ui/react": "^3.8.0",
     "@chakra-ui/react-types": "^2.0.6",
-    "@coinmasters/pioneer-react": "workspace:*",
     "@coinmasters/pioneer-sdk": "workspace:*",
     "@coinmasters/types": "workspace:*",
     "@emotion/react": "^11.14.0",

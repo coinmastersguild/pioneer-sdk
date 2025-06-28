@@ -1,5 +1,11 @@
 # @swapkit/types
 
+## 4.10.1
+
+### Patch Changes
+
+- Maintenance release - updating dependencies and removing deprecated pioneer-react package
+
 ## 4.10.0
 
 ### Minor Changes

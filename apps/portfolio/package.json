@@ -1,6 +1,6 @@
 {
   "name": "keepkey-portfolio-v6",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^3.1.2",
-    "@coinmasters/pioneer-react": "workspace:*",
     "@coinmasters/types": "workspace:*",
     "@emotion/react": "^11.13.3",
     "@pioneer-platform/helpers": "^4.0.13",

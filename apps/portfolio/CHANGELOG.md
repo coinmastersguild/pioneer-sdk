@@ -1,5 +1,12 @@
 # keepkey-portfolio-v6
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @coinmasters/types@4.10.1
+
 ## 0.3.0
 
 ### Minor Changes
