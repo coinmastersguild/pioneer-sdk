@@ -1,5 +1,99 @@
 # @coinmasters/integration-coins
 
+## 1.12.8
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.8
+
+## 1.12.7
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.7
+
+## 1.12.6
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.6
+
+## 1.12.5
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.5
+
+## 1.12.4
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.4
+
+## 1.12.3
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.3
+
+## 1.12.2
+
+### Patch Changes
+
+- buimp
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.2
+
+## 1.12.1
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.1
+
+## 1.12.0
+
+### Minor Changes
+
+- bump
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.0
+
+## 1.11.0
+
+### Minor Changes
+
+- bump
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.11.0
+
 ## 1.10.1
 
 ### Patch Changes

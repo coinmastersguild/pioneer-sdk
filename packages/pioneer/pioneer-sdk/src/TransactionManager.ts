@@ -165,30 +165,80 @@ export class TransactionManager {
         case 'TENDERMINT': {
           switch (caip) {
             case 'cosmos:cosmoshub-4/slip44:118': {
-              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+              const msgType = unsignedTx.signDoc.msgs[0].type;
+              if (msgType === 'cosmos-sdk/MsgSend') {
                 //console.log(tag, 'transfer:');
                 //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.cosmos.cosmosSignAmino(unsignedTx);
                 //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgDelegate') {
+                //console.log(tag, 'delegate:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.cosmos.cosmosSignAminoDelegate(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgUndelegate') {
+                //console.log(tag, 'undelegate:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.cosmos.cosmosSignAminoUndelegate(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgBeginRedelegate') {
+                //console.log(tag, 'redelegate:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.cosmos.cosmosSignAminoRedelegate(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgWithdrawDelegationReward') {
+                //console.log(tag, 'claim rewards:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.cosmos.cosmosSignAminoWithdrawDelegatorRewardsAll(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
               } else {
                 throw new Error(
-                  `Unsupported CosmosHub message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                  `Unsupported CosmosHub message type: ${msgType}`,
                 );
               }
               break;
             }
             case 'cosmos:osmosis-1/slip44:118': {
               //console.log(tag, 'Osmosis transaction');
-              if (unsignedTx.signDoc.msgs[0].type === 'cosmos-sdk/MsgSend') {
+              const msgType = unsignedTx.signDoc.msgs[0].type;
+              if (msgType === 'cosmos-sdk/MsgSend') {
                 //console.log(tag, 'osmosis transfer:');
                 //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.osmosis.osmosisSignAmino(unsignedTx);
                 //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgDelegate') {
+                //console.log(tag, 'osmosis delegate:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.osmosis.osmoSignAminoDelegate(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgUndelegate') {
+                //console.log(tag, 'osmosis undelegate:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.osmosis.osmoSignAminoUndelegate(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgBeginRedelegate') {
+                //console.log(tag, 'osmosis redelegate:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.osmosis.osmoSignAminoRedelegate(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
+              } else if (msgType === 'cosmos-sdk/MsgWithdrawDelegationReward') {
+                //console.log(tag, 'osmosis claim rewards:');
+                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
+                const responseSign = await this.keepKeySdk.osmosis.osmoSignAminoWithdrawDelegatorRewardsAll(unsignedTx);
+                //console.log(tag, 'responseSign:', responseSign);
+                signedTx = responseSign.serialized;
               } else {
                 throw new Error(
-                  `Unsupported Osmosis message type: ${unsignedTx.signDoc.msgs[0].type}`,
+                  `Unsupported Osmosis message type: ${msgType}`,
                 );
               }
               break;

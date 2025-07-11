@@ -23,6 +23,7 @@ import { getCharts } from './getCharts.js';
 import { getPubkey } from './getPubkey.js';
 import { TransactionManager } from './TransactionManager.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
+import { createUnsignedStakingTx, type StakingTxParams } from './txbuilder/createUnsignedStakingTx.js';
 
 const TAG = ' | Pioneer-sdk | ';
 
@@ -123,7 +124,7 @@ export class SDK {
   private transfer: (sendPayload: any) => Promise<any>;
   private sync: () => Promise<boolean>;
   private swap: (swapPayload: any, waitOnConfirm?: boolean) => Promise<any>;
-  private followTransaction: (
+  public followTransaction: (
     caip: string,
     txid: string,
   ) => Promise<{
@@ -137,9 +138,13 @@ export class SDK {
     timeToDetect: string | null;
     timeToConfirm: string | null;
   }>;
-  private broadcastTx: (caip: string, signedTx: any) => Promise<any>;
-  private signTx: (unsignedTx: any) => Promise<any>;
+  public broadcastTx: (caip: string, signedTx: any) => Promise<any>;
+  public signTx: (unsignedTx: any) => Promise<any>;
   private buildTx: (sendPayload: any) => Promise<any>;
+  public buildDelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildUndelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildClaimRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildClaimAllRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
   private estimateMax: (sendPayload: any) => Promise<void>;
   private syncMarket: () => Promise<boolean>;
   private getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
@@ -194,56 +199,121 @@ export class SDK {
         if (!this.wss) throw Error('wss required!');
         if (!this.wallets) throw Error('wallets required!');
         if (!this.paths) throw Error('wallets required!');
+        console.log('🚀 [DEBUG INIT] Creating Pioneer client with config:', {
+          spec: this.spec,
+          queryKey: config.queryKey ? 'PRESENT' : 'MISSING',
+          username: config.username ? 'PRESENT' : 'MISSING'
+        });
+        
         const PioneerClient = new Pioneer(this.spec, config);
+        console.log('🚀 [DEBUG INIT] Pioneer client created, calling init()...');
+        
         this.pioneer = await PioneerClient.init();
-        if (!this.pioneer) throw Error('Fialed to init pioneer server!');
+        console.log('🚀 [DEBUG INIT] Pioneer client init completed');
+        
+        if (!this.pioneer) {
+          console.error('🚀 [DEBUG INIT] ❌ Pioneer client initialization returned null/undefined');
+          throw Error('Failed to init pioneer server!');
+        }
+        
+        console.log('🚀 [DEBUG INIT] Pioneer client methods available:', Object.keys(this.pioneer).length);
+        console.log('🚀 [DEBUG INIT] Checking for GetPortfolioBalances...');
+        
+        if (typeof this.pioneer.GetPortfolioBalances === 'function') {
+          console.log('🚀 [DEBUG INIT] ✅ GetPortfolioBalances method found!');
+        } else {
+          console.error('🚀 [DEBUG INIT] ❌ GetPortfolioBalances method NOT found!');
+          console.error('🚀 [DEBUG INIT] Available methods containing "Portfolio":', 
+            Object.keys(this.pioneer).filter(key => key.toLowerCase().includes('portfolio')));
+          console.error('🚀 [DEBUG INIT] First 10 available methods:', Object.keys(this.pioneer).slice(0, 10));
+        }
         this.paths.concat(getPaths(this.blockchains));
         //get Assets
+        console.log('🚀 [DEBUG INIT] Starting getGasAssets...');
         await this.getGasAssets();
+        console.log('🚀 [DEBUG INIT] ✅ getGasAssets completed');
+        
+        console.log('🚀 [DEBUG INIT] Preparing KeepKey SDK config...');
         const configKeepKey = {
           apiKey: this.keepkeyApiKey || 'keepkey-api-key',
           pairingInfo: {
             name: 'KeepKey SDK Demo App',
             imageUrl: 'https://pioneers.dev/coins/keepkey.png',
-            basePath: spec,
+            basePath: 'http://localhost:1646/spec/swagger.json',
             url: 'http://localhost:1646',
           },
         };
+        console.log('🚀 [DEBUG INIT] KeepKey config:', JSON.stringify(configKeepKey, null, 2));
+        
         try {
+          console.log('🚀 [DEBUG INIT] About to call KeepKeySdk.create() - this will show "verified" log...');
           //@ts-ignore
           const keepKeySdk = await KeepKeySdk.create(configKeepKey);
+          console.log('🚀 [DEBUG INIT] ✅ KeepKeySdk.create() completed successfully!');
+          
           const keepkeyApiKey = configKeepKey.apiKey;
+          console.log('🚀 [DEBUG INIT] About to call getFeatures()...');
           const features = await keepKeySdk.system.info.getFeatures();
+          console.log('🚀 [DEBUG INIT] ✅ getFeatures() completed:', features ? 'SUCCESS' : 'NULL');
+          
           this.keepkeyApiKey = keepkeyApiKey;
           this.keepKeySdk = keepKeySdk;
           this.context = 'keepkey:' + features.label + '.json';
+          console.log('🚀 [DEBUG INIT] Set context:', this.context);
+          
+          console.log('🚀 [DEBUG INIT] About to call loadPubkeyCache()...');
           let pubkeysCache = []
           await this.loadPubkeyCache(pubkeysCache);
+          console.log('🚀 [DEBUG INIT] ✅ loadPubkeyCache() completed');
         } catch (e) {
+          console.error('🚀 [DEBUG INIT] ❌ KeepKey SDK initialization failed:', e);
           console.error(e);
         }
+        
+        console.log('🚀 [DEBUG INIT] Emitting SET_STATUS event...');
         this.events.emit('SET_STATUS', 'init');
 
+        console.log('🚀 [DEBUG INIT] Preparing WebSocket Events...');
         let configWss = {
           // queryKey:TEST_QUERY_KEY_2,
           username: this.username,
           queryKey: this.queryKey,
           wss: this.wss,
         };
+        console.log('🚀 [DEBUG INIT] WSS config:', JSON.stringify(configWss, null, 2));
+        
         let clientEvents = new Events(configWss);
-        //console.log(tag, 'clientEvents: ', clientEvents);
+        console.log('🚀 [DEBUG INIT] About to call clientEvents.init()...');
         await clientEvents.init();
+        console.log('🚀 [DEBUG INIT] ✅ clientEvents.init() completed');
+        
+        console.log('🚀 [DEBUG INIT] About to call setUsername()...');
         await clientEvents.setUsername(this.username);
+        console.log('🚀 [DEBUG INIT] ✅ setUsername() completed');
 
+        console.log('🚀 [DEBUG INIT] Setting up event handlers...');
         //events
         clientEvents.events.on('message', (request) => {
           //console.log(tag, 'request: ', request);
           this.events.emit('message', request);
         });
 
+        console.log('🚀 [DEBUG INIT] About to call getGasAssets() (second time)...');
         await this.getGasAssets();
+        console.log('🚀 [DEBUG INIT] ✅ getGasAssets() (second time) completed');
 
-        if (this.keepKeySdk) await this.sync();
+        console.log('🚀 [DEBUG INIT] About to check keepKeySdk and call sync()...');
+        console.log('🚀 [DEBUG INIT] keepKeySdk exists:', !!this.keepKeySdk);
+        
+        if (this.keepKeySdk) {
+          console.log('🚀 [DEBUG INIT] Starting sync() - this is where it might hang...');
+          await this.sync();
+          console.log('🚀 [DEBUG INIT] ✅ sync() completed successfully!');
+        } else {
+          console.log('🚀 [DEBUG INIT] ⚠️ No keepKeySdk, skipping sync()');
+        }
+        
+        console.log('🚀 [DEBUG INIT] ✅ init() completed successfully, returning pioneer');
         return this.pioneer;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -277,9 +347,15 @@ export class SDK {
     this.sync = async function () {
       const tag = `${TAG} | sync | `;
       try {
-        //console.log(tag, 'Syncing Wallet (Checkpoint1)');
+        console.log('🚀 [DEBUG SYNC] Starting sync() function...');
+        console.log('🚀 [DEBUG SYNC] Current blockchains:', this.blockchains);
+        console.log('🚀 [DEBUG SYNC] Current paths length:', this.paths.length);
+        console.log('🚀 [DEBUG SYNC] Current pubkeys length:', this.pubkeys.length);
+        
+        console.log('🚀 [DEBUG SYNC] About to call getPubkeys() - this might hang...');
         //at least 1 path per chain
         await this.getPubkeys();
+        console.log('🚀 [DEBUG SYNC] ✅ getPubkeys() completed successfully!');
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
@@ -459,38 +535,46 @@ export class SDK {
     this.loadPubkeyCache = async function (pubkeys) {
       const tag = `${TAG} | loadPubkeyCache | `;
       try {
+        console.log('🚀 [DEBUG CACHE] loadPubkeyCache called with:', pubkeys ? pubkeys.length : 'NULL', 'pubkeys');
+        
         if (!pubkeys || !Array.isArray(pubkeys)) {
-          throw new Error('Invalid pubkeys input, expected an array.');
+          console.log('🚀 [DEBUG CACHE] Empty or invalid pubkeys input, using empty array');
+          pubkeys = [];
         }
 
         // Use a Map for efficient duplicate checking
         const pubkeyMap = new Map();
 
         // Add existing pubkeys to the Map
+        console.log('🚀 [DEBUG CACHE] Existing this.pubkeys count:', this.pubkeys.length);
         for (const existingPubkey of this.pubkeys) {
           pubkeyMap.set(existingPubkey.pubkey, existingPubkey);
         }
 
         // Filter the pubkeys by enabled blockchains
         const enabledNetworkIds = new Set(this.blockchains);
+        console.log('🚀 [DEBUG CACHE] Enabled networks:', Array.from(enabledNetworkIds));
+        
         const filteredPubkeys = pubkeys.filter((pubkey) => {
           // pubkey.networks is an array of networkIds
           return pubkey.networks.some((networkId) => enabledNetworkIds.has(networkId));
         });
+        console.log('🚀 [DEBUG CACHE] Filtered pubkeys count:', filteredPubkeys.length);
 
         // Add new pubkeys from the cache, avoiding duplicates
         for (const newPubkey of filteredPubkeys) {
           if (!pubkeyMap.has(newPubkey.pubkey)) {
             pubkeyMap.set(newPubkey.pubkey, newPubkey);
           } else {
-            //console.log(tag, `Duplicate pubkey found: ${newPubkey.pubkey}, skipping.`);
+            console.log('🚀 [DEBUG CACHE] Duplicate pubkey found, skipping');
           }
         }
 
         // Update this.pubkeys with the unique values
         this.pubkeys = Array.from(pubkeyMap.values());
-        //console.log(tag, `Total pubkeys after loading cache: ${this.pubkeys.length}`);
+        console.log('🚀 [DEBUG CACHE] ✅ loadPubkeyCache completed, total pubkeys:', this.pubkeys.length);
       } catch (e) {
+        console.error('🚀 [DEBUG CACHE] ❌ Error in loadPubkeyCache:', e);
         console.error(tag, 'Error loading pubkey cache:', e);
         throw e;
       }
@@ -519,6 +603,90 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let unsignedTx = await txManager.transfer(sendPayload);
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildDelegateTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildDelegateTx | ';
+      try {
+        const delegateParams = {
+          ...params,
+          type: 'delegate' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          delegateParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildUndelegateTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildUndelegateTx | ';
+      try {
+        const undelegateParams = {
+          ...params,
+          type: 'undelegate' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          undelegateParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildClaimRewardsTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildClaimRewardsTx | ';
+      try {
+        const claimParams = {
+          ...params,
+          type: 'claim_rewards' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          claimParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildClaimAllRewardsTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildClaimAllRewardsTx | ';
+      try {
+        const claimAllParams = {
+          ...params,
+          type: 'claim_all_rewards' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          claimAllParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
         //console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
       } catch (e) {
@@ -1003,39 +1171,57 @@ export class SDK {
     this.getPubkeys = async function () {
       const tag = `${TAG} | getPubkeys | `;
       try {
+        console.log('🚀 [DEBUG SDK] getPubkeys() starting...')
+        console.log('🚀 [DEBUG SDK] Paths length:', this.paths.length)
+        console.log('🚀 [DEBUG SDK] Blockchains length:', this.blockchains.length)
+        
         if (this.paths.length === 0) throw new Error('No paths found!');
 
         const pubkeys: any[] = [];
 
         for (let i = 0; i < this.blockchains.length; i++) {
           const blockchain = this.blockchains[i];
-          //console.log(tag, `Processing blockchain: ${blockchain}`);
+          console.log('🚀 [DEBUG SDK] Processing blockchain', i+1, '/', this.blockchains.length, ':', blockchain);
 
           // Filter paths related to the current blockchain
           const pathsForChain = this.paths.filter((path) => path.networks.includes(blockchain));
-          //console.log(tag, 'pathsForChain: ', pathsForChain.length);
+          console.log('🚀 [DEBUG SDK] Found', pathsForChain.length, 'paths for blockchain:', blockchain);
+          
           for (let j = 0; j < pathsForChain.length; j++) {
             const path = pathsForChain[j];
-            //console.log(tag, `Processing path: ${JSON.stringify(path)}`);
-            const pubkey = await getPubkey(blockchain, path, this.keepKeySdk, this.context);
-            // try{
-            //   await this.keepKeySdk.storage
-            //     .createPubkey(pubkey)
-            //     .catch((error) => console.error('Error creating pubkey:', error));
-            // }catch(e){}
-            pubkeys.push(pubkey);
+            console.log('🚀 [DEBUG SDK] Processing path', j+1, '/', pathsForChain.length, ':', JSON.stringify(path));
+            console.log('🚀 [DEBUG SDK] About to call getPubkey for blockchain:', blockchain);
+            
+            try {
+              const pubkey = await getPubkey(blockchain, path, this.keepKeySdk, this.context);
+              console.log('🚀 [DEBUG SDK] ✅ Got pubkey for path', j+1, ':', pubkey ? 'SUCCESS' : 'NULL');
+              if (pubkey) {
+                console.log('🚀 [DEBUG SDK] Pubkey details:', {
+                  path: pubkey.path || 'NO_PATH',
+                  networks: pubkey.networks || 'NO_NETWORKS',
+                  pubkey_length: pubkey.pubkey ? pubkey.pubkey.length : 'NO_PUBKEY'
+                });
+              }
+              pubkeys.push(pubkey);
+            } catch (pathError) {
+              console.error('🚀 [DEBUG SDK] ❌ Error getting pubkey for path', j+1, ':', pathError);
+              throw pathError;
+            }
           }
         }
 
+        console.log('🚀 [DEBUG SDK] Total pubkeys collected:', pubkeys.length);
+
         // Merge newly fetched pubkeys with existing ones
         this.pubkeys = [...this.pubkeys, ...pubkeys];
-        //console.log(tag, 'Final pubkeys:', pubkeys);
+        console.log('🚀 [DEBUG SDK] Final pubkeys array length:', this.pubkeys.length);
 
         // Emit event to notify that pubkeys have been set
         this.events.emit('SET_PUBKEYS', pubkeys);
 
         return pubkeys;
       } catch (error) {
+        console.error('🚀 [DEBUG SDK] ❌ Error in getPubkeys:', error);
         console.error(tag, 'Error in getPubkeys:', error);
         throw error;
       }
@@ -1043,6 +1229,21 @@ export class SDK {
     this.getBalancesForNetworks = async function (networkIds: string[]) {
       const tag = `${TAG} | getBalancesForNetworks | `;
       try {
+        // Add defensive check for pioneer initialization
+        if (!this.pioneer) {
+          console.error(tag, 'ERROR: Pioneer client not initialized! this.pioneer is:', this.pioneer);
+          throw new Error('Pioneer client not initialized. Call init() first.');
+        }
+        
+        if (typeof this.pioneer.GetPortfolioBalances !== 'function') {
+          console.error(tag, 'ERROR: GetPortfolioBalances is not a function!');
+          console.error(tag, 'Pioneer client type:', typeof this.pioneer);
+          console.error(tag, 'Pioneer client keys:', Object.keys(this.pioneer).slice(0, 10));
+          console.error(tag, 'Looking for methods containing "Portfolio":', 
+            Object.keys(this.pioneer).filter(key => key.toLowerCase().includes('portfolio')));
+          throw new Error('GetPortfolioBalances method not available on Pioneer client. Check API spec and client initialization.');
+        }
+
         const assetQuery: { caip: string; pubkey: string }[] = [];
 
         for (const networkId of networkIds) {
@@ -1068,27 +1269,33 @@ export class SDK {
 
         //console.log(tag, 'assetQuery length: ', assetQuery.length);
         console.time('GetPortfolioBalances Response Time');
-        let marketInfo = await this.pioneer.GetPortfolioBalances(assetQuery);
-        console.timeEnd('GetPortfolioBalances Response Time');
+        
+        try {
+          let marketInfo = await this.pioneer.GetPortfolioBalances(assetQuery);
+          console.timeEnd('GetPortfolioBalances Response Time');
 
-        //console.log(tag, 'returned balances: ', marketInfo.data);
-        let balances = marketInfo.data;
+          //console.log(tag, 'returned balances: ', marketInfo.data);
+          let balances = marketInfo.data;
 
-        // Enrich balances with asset info
-        for (let balance of balances) {
-          const assetInfo = this.assetsMap.get(balance.caip);
-          if (!assetInfo) continue;
+          // Enrich balances with asset info
+          for (let balance of balances) {
+            const assetInfo = this.assetsMap.get(balance.caip);
+            if (!assetInfo) continue;
 
-          Object.assign(balance, assetInfo, {
-            networkId: caipToNetworkId(balance.caip),
-            icon: assetInfo.icon || 'https://pioneers.dev/coins/etherum.png',
-            identifier: `${balance.caip}:${balance.pubkey}`,
-          });
+            Object.assign(balance, assetInfo, {
+              networkId: caipToNetworkId(balance.caip),
+              icon: assetInfo.icon || 'https://pioneers.dev/coins/etherum.png',
+              identifier: `${balance.caip}:${balance.pubkey}`,
+            });
+          }
+
+          this.balances = balances;
+          this.events.emit('SET_BALANCES', this.balances);
+          return this.balances;
+        } catch (apiError: any) {
+          console.error(tag, 'GetPortfolioBalances API call failed:', apiError);
+          throw new Error(`GetPortfolioBalances API call failed: ${apiError?.message || 'Unknown error'}`);
         }
-
-        this.balances = balances;
-        this.events.emit('SET_BALANCES', this.balances);
-        return this.balances;
       } catch (e) {
         console.error(tag, 'Error: ', e);
         throw e;

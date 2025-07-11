@@ -228,6 +228,111 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
       console.error(tag, 'Error in MAYA token workaround:', e);
     }
 
+    // Add Cosmos Staking Positions to charts
+    try {
+      console.log(tag, 'Adding Cosmos staking positions to charts...');
+      
+      // Find cosmos pubkeys that could have staking positions
+      const cosmosPubkeys = pubkeys.filter((p: any) => 
+        p.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
+      );
+      
+      if (cosmosPubkeys.length > 0) {
+        console.log(tag, 'Found cosmos pubkeys for staking:', cosmosPubkeys.length);
+        
+        for (const cosmosPubkey of cosmosPubkeys) {
+          if (cosmosPubkey.address) {
+            // Check which cosmos networks this pubkey supports
+            const cosmosNetworks = cosmosPubkey.networks.filter((n: string) => 
+              n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis')
+            );
+            
+            for (const networkId of cosmosNetworks) {
+              // Only process if this network is in our blockchains list
+              if (blockchains.includes(networkId)) {
+                try {
+                  console.log(tag, `Fetching staking positions for ${cosmosPubkey.address} on ${networkId}...`);
+                  
+                  // Convert networkId to network name for API
+                  let network;
+                  if (networkId === 'cosmos:cosmoshub-4') {
+                    network = 'cosmos';
+                  } else if (networkId === 'cosmos:osmosis-1') {
+                    network = 'osmosis';
+                  } else {
+                    console.error(tag, `Unsupported networkId for staking: ${networkId}`);
+                    continue;
+                  }
+                  
+                  // Get staking positions from pioneer server
+                  const stakingResponse = await pioneer.GetStakingPositions({
+                    network: network,
+                    address: cosmosPubkey.address
+                  });
+                  
+                  if (stakingResponse?.data && Array.isArray(stakingResponse.data)) {
+                    console.log(tag, `Found ${stakingResponse.data.length} staking positions for ${networkId}`);
+                    
+                    for (const position of stakingResponse.data) {
+                      // Validate position has required fields
+                      if (position.balance && position.balance > 0 && position.caip) {
+                        const stakingBalance = {
+                          context: context,
+                          chart: 'staking',
+                          contextType: context.split(':')[0],
+                          name: position.name || `${position.type} Position`,
+                          caip: position.caip,
+                          icon: position.icon || '',
+                          pubkey: cosmosPubkey.address,
+                          ticker: position.ticker || position.symbol,
+                          ref: `${context}${position.caip}`,
+                          identifier: position.caip + ':' + cosmosPubkey.address,
+                          networkId: networkId,
+                          symbol: position.symbol || position.ticker,
+                          type: position.type || 'staking',
+                          balance: position.balance.toString(),
+                          priceUsd: position.priceUsd || 0,
+                          valueUsd: position.valueUsd || (position.balance * (position.priceUsd || 0)),
+                          status: position.status || 'active',
+                          validator: position.validatorAddress || position.validator || '',
+                          updated: new Date().getTime(),
+                        };
+                        
+                        // Check if already exists to avoid duplicates
+                        const exists = balances.some((b: any) => 
+                          b.caip === stakingBalance.caip && 
+                          b.pubkey === stakingBalance.pubkey &&
+                          b.validator === stakingBalance.validator
+                        );
+                        
+                        if (!exists) {
+                          balances.push(stakingBalance);
+                          console.log(tag, `Added ${position.type} position:`, {
+                            balance: stakingBalance.balance,
+                            ticker: stakingBalance.ticker,
+                            valueUsd: stakingBalance.valueUsd,
+                            validator: stakingBalance.validator
+                          });
+                        }
+                      }
+                    }
+                  } else {
+                    console.log(tag, `No staking positions found for ${cosmosPubkey.address} on ${networkId}`);
+                  }
+                } catch (stakingError) {
+                  console.error(tag, `Error fetching staking positions for ${cosmosPubkey.address} on ${networkId}:`, stakingError);
+                }
+              }
+            }
+          }
+        }
+      } else {
+        console.log(tag, 'No cosmos pubkeys found for staking positions');
+      }
+    } catch (e) {
+      console.error(tag, 'Error adding cosmos staking positions:', e);
+    }
+
     return balances;
   } catch (error) {
     console.error(tag, 'Error processing path:', error);
