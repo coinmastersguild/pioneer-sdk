@@ -41,9 +41,18 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     // Produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       // Ensure external dependencies are not bundled
       external: [],
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-ui': ['@chakra-ui/react', '@emotion/react', '@emotion/styled'],
+          'vendor-pioneer': ['@coinmasters/pioneer-sdk'],
+          'vendor-tokens': ['@coinmasters/tokens'],
+        },
+      },
     },
   },
 
@@ -59,11 +68,10 @@ export default defineConfig({
       "react-dom",
       "@chakra-ui/react",
       "@emotion/react",
+    ],
+    exclude: [
       "@coinmasters/pioneer-sdk",
-      "@coinmasters/types",
       "@coinmasters/tokens",
-      "@pioneer-platform/pioneer-caip",
-      "@pioneer-platform/pioneer-coins",
     ],
   },
 });

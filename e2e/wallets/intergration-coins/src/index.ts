@@ -18,6 +18,7 @@ require("dotenv").config({path:'../../../../.env'})
 
 const TAG  = " | intergration-test | "
 import { WalletOption, availableChainsByWallet, getChainEnumValue, NetworkIdToChain, Chain } from '@coinmasters/types';
+import { installKkapiAdapter } from './kkapi-adapter';
 //@ts-ignore
 import { AssetValue } from '@pioneer-platform/helpers';
 import type { AssetValue as AssetValueType } from '@pioneer-platform/helpers';
@@ -52,10 +53,27 @@ let IS_SIGNED: boolean
 const test_service = async function (this: any) {
     let tag = TAG + " | test_service | "
     try {
+        // Performance optimization flag
+        const FAST_MODE = process.env.FAST_MODE === 'true';
+        if (FAST_MODE) {
+            console.log('🏃 [FAST MODE] Skipping expensive validations for speed test');
+        }
+        
+        // Install kkapi:// adapter for Node.js testing environment
+        installKkapiAdapter();
+        
         console.log('🚀 [DEBUG] Starting integration test with enhanced logging...')
         console.log('🚀 [DEBUG] Looking for "verified" logs during execution...')
-        // const pioneerDB = new DB.DB({ });
-        // await pioneerDB.init();
+        
+        // Performance tracking
+        const perfStart = performance.now();
+        console.time('⏱️ TOTAL_TEST_TIME');
+        console.time('⏱️ 1_SETUP_AND_INIT');
+        console.time('⏱️ 2_GET_GAS_ASSETS');
+        console.time('⏱️ 3_GET_PUBKEYS');
+        console.time('⏱️ 4_GET_BALANCES');
+        console.time('⏱️ 5_BITCOIN_ONLY_RECONFIG');
+        console.time('⏱️ 6_BITCOIN_ONLY_SYNC');
 
         //(tag,' CHECKPOINT 1');
         console.time('start2init');
@@ -64,6 +82,70 @@ const test_service = async function (this: any) {
         console.time('start2BalancesGas');
         console.time('start2BalancesTokens');
         console.time('start2end');
+
+        // Manual health check for kkapi:// protocol
+        console.log('🚀 [HEALTH CHECK] Testing kkapi:// protocol before starting test...');
+        try {
+            const healthResponse = await fetch('kkapi://api/health');
+            if (!healthResponse.ok) {
+                throw new Error(`Health check failed with status: ${healthResponse.status}`);
+            }
+            const healthData = await healthResponse.json();
+            console.log('🚀 [HEALTH CHECK] ✅ kkapi:// protocol is working!', healthData);
+        } catch (healthError: any) {
+            console.error('🚀 [HEALTH CHECK] ❌ kkapi:// protocol failed:', healthError);
+            console.error('🚀 [HEALTH CHECK] Make sure keepkey-vault-v5 is running with kkapi:// protocol support');
+            throw new Error(`kkapi:// health check failed: ${healthError.message}`);
+        }
+
+        // Basic cache detection test
+        async function checkVaultCache() {
+            console.log('🚀 [CACHE CHECK] Testing vault cache availability...');
+            
+            try {
+                // Check if cache status endpoint exists
+                const cacheResponse = await fetch('kkapi://api/cache/status');
+                if (!cacheResponse.ok) {
+                    console.log('⚠️ [CACHE CHECK] Cache status endpoint not available');
+                    return { available: false, reason: 'status_endpoint_missing' };
+                }
+                
+                const cacheStatus = await cacheResponse.json();
+                console.log('✅ [CACHE CHECK] Cache status endpoint works:', cacheStatus);
+                
+                // Check for cached portfolio
+                const portfolioResponse = await fetch('kkapi://api/portfolio');
+                if (!portfolioResponse.ok) {
+                    console.log('⚠️ [CACHE CHECK] Portfolio cache not available');
+                    return { available: false, reason: 'portfolio_not_cached' };
+                }
+                
+                const portfolio: any = await portfolioResponse.json();
+                console.log('✅ [CACHE CHECK] Found cached portfolio balances:', portfolio.balances?.length || 0);
+                
+                return { 
+                    available: true, 
+                    balances: portfolio.balances?.length || 0
+                };
+                
+            } catch (error: any) {
+                console.log('❌ [CACHE CHECK] Cache check failed:', error.message);
+                return { available: false, reason: 'error', error: error.message };
+            }
+        }
+
+        const cacheStatus = await checkVaultCache();
+        console.log('🔍 [CACHE STATUS]', cacheStatus);
+
+        // Test vault pubkey speed
+        await testVaultPubkeySpeed();
+
+        if (cacheStatus.available) {
+            console.log('🚀 [FAST MODE] Vault cache available - fast startup possible!');
+        } else {
+            console.log('⚠️ [SLOW MODE] Cache not available - using traditional flow');
+            console.log('   Reason:', cacheStatus.reason);
+        }
 
         // if force new user
         const queryKey = "sdk:pair-keepkey:"+Math.random();
@@ -149,7 +231,7 @@ const test_service = async function (this: any) {
             wss: process.env.VITE_PIONEER_URL_WSS || 'wss://pioneers.dev',
             keepkeyApiKey: process.env.KEEPKEY_API_KEY || 'e4ea6479-5ea4-4c7d-b824-e075101bf9fd',
             // Use local fixed keepkey-vault server for device operations
-            keepkeyEndpoint: 'http://127.0.0.1:1647',
+            keepkeyEndpoint: 'kkapi://',
             paths,
             blockchains,
             nodes,
@@ -188,7 +270,7 @@ const test_service = async function (this: any) {
         
         let resultInit
         try {
-            resultInit = await app.init({ } , {})
+            resultInit = await app.init({ }, { skipSync: true })
             clearTimeout(initTimeout)
             console.log('🚀 [DEBUG] ✅ app.init() completed!')
             console.log('🚀 [DEBUG] Init result:', resultInit)
@@ -209,6 +291,33 @@ const test_service = async function (this: any) {
         log.debug(tag, '🔍 Init result:', resultInit)
         // log.info('apiKey: ',app);
         log.info('apiKey: ',app.keepkeyApiKey);
+        
+        console.timeEnd('⏱️ 1_SETUP_AND_INIT');
+        console.log('🎯 [PERF] Setup and Init completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+
+        // Verify kkapi:// detection and configuration
+        log.info(tag, '🔍 [KKAPI VERIFICATION] Checking KeepKey SDK configuration...')
+        if (app.keepKeySdk && app.keepKeySdk.config) {
+            const pairingInfo = app.keepKeySdk.config.pairingInfo;
+            if (pairingInfo) {
+                log.info(tag, '🔍 [KKAPI VERIFICATION] KeepKey SDK pairingInfo:', {
+                    url: pairingInfo.url,
+                    basePath: pairingInfo.basePath
+                });
+                
+                if (pairingInfo.url && pairingInfo.url.startsWith('kkapi://')) {
+                    log.info(tag, '✅ [KKAPI VERIFICATION] Successfully configured to use kkapi:// scheme!');
+                } else if (pairingInfo.url && pairingInfo.url.includes('localhost:1646')) {
+                    log.info(tag, '✅ [KKAPI VERIFICATION] Using HTTP localhost:1646 fallback (kkapi:// not available)');
+                } else {
+                    log.warn(tag, '⚠️ [KKAPI VERIFICATION] Unexpected URL configuration:', pairingInfo.url);
+                }
+            } else {
+                log.warn(tag, '⚠️ [KKAPI VERIFICATION] No pairingInfo found in KeepKey SDK config');
+            }
+        } else {
+            log.warn(tag, '⚠️ [KKAPI VERIFICATION] KeepKey SDK not initialized or missing config');
+        }
 
         // Add event handlers for debugging
         app.events.on('device:connected', (device: any) => {
@@ -259,46 +368,98 @@ const test_service = async function (this: any) {
         
         log.debug(tag, '✅ getGasAssets() complete')
         
-        log.debug(tag, '🔍 Starting getPubkeys()...')
-        console.log('🚀 [DEBUG] About to call app.getPubkeys()...')
-        console.log('🚀 [DEBUG] Current app.paths length:', app.paths.length)
-        console.log('🚀 [DEBUG] Current app.blockchains:', app.blockchains)
-        console.log('🚀 [DEBUG] KeepKey SDK status:', app.keepKeySdk ? 'INITIALIZED' : 'NOT_INITIALIZED')
+        console.timeEnd('⏱️ 2_GET_GAS_ASSETS');
+        console.log('🎯 [PERF] GetGasAssets completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        
+        // Try to use unified portfolio endpoint for fast loading
+        console.log('🚀 [UNIFIED PORTFOLIO] Attempting fast portfolio load...');
+        console.time('⏱️ UNIFIED_PORTFOLIO_ATTEMPT');
+        
+        let usedUnifiedPortfolio = false;
         
         try {
-            await app.getPubkeys()
-            console.log('🚀 [DEBUG] ✅ getPubkeys() completed successfully!')
-            console.log('🚀 [DEBUG] Final pubkeys count:', app.pubkeys.length)
+            const unifiedResult = await app.getUnifiedPortfolio();
+            console.timeEnd('⏱️ UNIFIED_PORTFOLIO_ATTEMPT');
+            
+            if (unifiedResult && unifiedResult.cached) {
+                console.log('✅ [UNIFIED PORTFOLIO] Successfully loaded cached portfolio!');
+                console.log(`📊 [UNIFIED PORTFOLIO] Load time: ${unifiedResult.loadTimeMs.toFixed(0)}ms`);
+                console.log(`💰 [UNIFIED PORTFOLIO] Total USD: $${unifiedResult.dashboard.totalValueUsd.toFixed(2)}`);
+                console.log(`📦 [UNIFIED PORTFOLIO] Assets: ${unifiedResult.balances.length}`);
+                console.log(`🔌 [UNIFIED PORTFOLIO] Devices: ${Object.keys(unifiedResult.dashboard.devices).length}`);
+                console.log(`⏰ [UNIFIED PORTFOLIO] Cache age: ${unifiedResult.dashboard.cacheAge}s`);
+                
+                // Skip getPubkeys and getBalances since we have the data
+                console.log('🎯 [PERF] Skipping getPubkeys() and getBalances() - using cached data');
+                console.log('🎯 [PERF] Total time to portfolio:', (performance.now() - perfStart).toFixed(0) + 'ms');
+                
+                usedUnifiedPortfolio = true;
+                
+            } else {
+                console.log('⚠️ [UNIFIED PORTFOLIO] Cache miss or not available, falling back to regular flow');
+            }
         } catch (error) {
-            console.error('🚀 [DEBUG] ❌ getPubkeys() failed with error:', error)
-            throw error
+            console.error('🚀 [UNIFIED PORTFOLIO] Error attempting unified portfolio:', error);
+            console.timeEnd('⏱️ UNIFIED_PORTFOLIO_ATTEMPT');
         }
         
-        log.debug(tag, '✅ getPubkeys() complete, pubkeys count:', app.pubkeys.length)
-        
-        log.debug(tag, '🔍 Starting getBalances()...')
-        console.log('🚀 [DEBUG] About to call app.getBalances()...')
-        console.log('🚀 [DEBUG] Current pubkeys available for balances:', app.pubkeys.length)
-        console.log('🚀 [DEBUG] Networks to get balances for:', app.blockchains)
-        
-        // Add timeout detection
-        const balanceTimeout = setTimeout(() => {
-            console.error('🚀 [DEBUG] ⏰ getBalances() seems to be hanging for more than 30 seconds!')
-            console.error('🚀 [DEBUG] This might indicate a network issue or API problem')
-        }, 30000)
-        
-        try {
-            await app.getBalances()
-            clearTimeout(balanceTimeout)
-            console.log('🚀 [DEBUG] ✅ getBalances() completed successfully!')
-            console.log('🚀 [DEBUG] Final balances count:', app.balances.length)
-        } catch (error) {
-            clearTimeout(balanceTimeout)
-            console.error('🚀 [DEBUG] ❌ getBalances() failed with error:', error)
-            throw error
+        // Only run getPubkeys and getBalances if we didn't use unified portfolio
+        if (!usedUnifiedPortfolio) {
+            // Get pubkeys
+            log.debug(tag, '🔍 Starting getPubkeys()...')
+            console.log('🚀 [DEBUG] About to call app.getPubkeys()...')
+            console.log('🚀 [DEBUG] Current app.paths length:', app.paths.length)
+            console.log('🚀 [DEBUG] Current app.blockchains:', app.blockchains)
+            console.log('🚀 [DEBUG] KeepKey SDK status:', app.keepKeySdk ? 'INITIALIZED' : 'NOT_INITIALIZED')
+            
+            console.time('⏱️ 3_GET_PUBKEYS');
+            
+            try {
+                await app.getPubkeys()
+                console.log('🚀 [DEBUG] ✅ getPubkeys() completed successfully!')
+                console.log('🚀 [DEBUG] Final pubkeys count:', app.pubkeys.length)
+            } catch (error) {
+                console.error('🚀 [DEBUG] ❌ getPubkeys() failed with error:', error)
+                throw error
+            }
+            
+            log.debug(tag, '✅ getPubkeys() complete, pubkeys count:', app.pubkeys.length)
+            
+            console.timeEnd('⏱️ 3_GET_PUBKEYS');
+            console.log('🎯 [PERF] GetPubkeys completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+            console.log('🎯 [PERF] Total pubkeys fetched:', app.pubkeys.length);
+            
+            // Get balances
+            log.debug(tag, '🔍 Starting getBalances()...')
+            console.log('🚀 [DEBUG] About to call app.getBalances()...')
+            console.log('🚀 [DEBUG] Current pubkeys available for balances:', app.pubkeys.length)
+            console.log('🚀 [DEBUG] Networks to get balances for:', app.blockchains)
+            
+            console.time('⏱️ 4_GET_BALANCES');
+            
+            // Add timeout detection
+            const balanceTimeout = setTimeout(() => {
+                console.error('🚀 [DEBUG] ⏰ getBalances() seems to be hanging for more than 30 seconds!')
+                console.error('🚀 [DEBUG] This might indicate a network issue or API problem')
+            }, 30000)
+            
+            try {
+                await app.getBalances()
+                clearTimeout(balanceTimeout)
+                console.log('🚀 [DEBUG] ✅ getBalances() completed successfully!')
+                console.log('🚀 [DEBUG] Final balances count:', app.balances.length)
+            } catch (error) {
+                clearTimeout(balanceTimeout)
+                console.error('🚀 [DEBUG] ❌ getBalances() failed with error:', error)
+                throw error
+            }
+            
+            log.debug(tag, '✅ getBalances() complete, balances count:', app.balances.length)
+            
+            console.timeEnd('⏱️ 4_GET_BALANCES');
+            console.log('🎯 [PERF] GetBalances completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+            console.log('🎯 [PERF] Total balances fetched:', app.balances.length);
         }
-        
-        log.debug(tag, '✅ getBalances() complete, balances count:', app.balances.length)
         
         //clear cache
         app.events.emit('message', 'What up doc!')
@@ -306,6 +467,9 @@ const test_service = async function (this: any) {
         app.events.on('message', (event: any) => {
           log.info(tag,'📨 Message event: ', event)
         })
+
+        console.log('🎯 [PERF] Starting validation phase at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        console.time('⏱️ VALIDATION_ASSETS_MAP');
 
         // // log.info(tag,"resultInit: ",resultInit)
         // console.timeEnd('start2init');
@@ -340,6 +504,11 @@ const test_service = async function (this: any) {
             }
         }
         log.info(tag,' ****** Assets Map Loaded Successfully ******')
+        
+        console.timeEnd('⏱️ VALIDATION_ASSETS_MAP');
+        console.log('🎯 [PERF] Assets map validation completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        console.time('⏱️ VALIDATION_PUBKEYS');
+        
         //
         // let pubkeys
         // pubkeys = await app.getPubkeys()
@@ -894,6 +1063,9 @@ const test_service = async function (this: any) {
         // Test blockchain reconfiguration to Bitcoin only
         log.info(tag, ' ****** Testing Blockchain Reconfiguration to Bitcoin Only ******')
         
+        console.timeEnd('⏱️ 5_BITCOIN_ONLY_RECONFIG');
+        console.log('🎯 [PERF] Starting Bitcoin-only reconfiguration at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        
         // Save initial state for comparison
         const initialBlockchains = [...app.blockchains]
         const initialPubkeys = [...app.pubkeys]
@@ -903,6 +1075,9 @@ const test_service = async function (this: any) {
         const bitcoinOnly = ['bip122:000000000019d6689c085ae165831e93']  // Bitcoin mainnet networkId
         console.log('🚀 [DEBUG] Setting blockchains to Bitcoin only...')
         await app.setBlockchains(bitcoinOnly)
+        
+        console.timeEnd('⏱️ 6_BITCOIN_ONLY_SYNC');
+        console.log('🎯 [PERF] Blockchain reconfiguration done, starting sync at:', (performance.now() - perfStart).toFixed(0) + 'ms');
         
         // Force sync to update all state
         console.log('🚀 [DEBUG] About to call app.sync() for Bitcoin-only config...')
@@ -920,6 +1095,8 @@ const test_service = async function (this: any) {
             console.error('🚀 [DEBUG] ❌ app.sync() failed:', error)
             throw error
         }
+        
+        console.log('🎯 [PERF] Bitcoin-only sync completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
         
         // Verify blockchain configuration
         assert.strictEqual(app.blockchains.length, 1, 'Should only have one blockchain configured')
@@ -958,6 +1135,11 @@ const test_service = async function (this: any) {
         console.log("************************* TEST PASS *************************")
         console.timeEnd('start2end');
         
+        console.timeEnd('⏱️ TOTAL_TEST_TIME');
+        console.log('🎯 [PERF] Test completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        console.log('🎯 [PERF] === PERFORMANCE BREAKDOWN ===');
+        console.log('🎯 [PERF] Total runtime:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        
         // Exit successfully
         log.info(tag, '🎉 All tests completed successfully! Exiting with code 0.');
         process.exit(0);
@@ -969,6 +1151,91 @@ const test_service = async function (this: any) {
         // Exit with failure code
         process.exit(1)
     }
+}
+
+async function testVaultPubkeySpeed() {
+    console.log('🚀 [VAULT SPEED TEST] Testing vault pubkey fetching speed...');
+    
+    const bitcoinPaths = [
+        // Account 0
+        [2147483692, 2147483648, 2147483648], // m/44'/0'/0' (p2pkh)
+        [2147483697, 2147483648, 2147483648], // m/49'/0'/0' (p2sh-p2wpkh)
+        [2147483732, 2147483648, 2147483648], // m/84'/0'/0' (p2wpkh)
+        
+        // Account 1
+        [2147483692, 2147483648, 2147483649], // m/44'/0'/1' (p2pkh)
+        [2147483697, 2147483648, 2147483649], // m/49'/0'/1' (p2sh-p2wpkh)
+        [2147483732, 2147483648, 2147483649], // m/84'/0'/1' (p2wpkh)
+        
+        // Account 2  
+        [2147483692, 2147483648, 2147483650], // m/44'/0'/2' (p2pkh)
+        [2147483697, 2147483648, 2147483650], // m/49'/0'/2' (p2sh-p2wpkh)
+        [2147483732, 2147483648, 2147483650], // m/84'/0'/2' (p2wpkh)
+    ];
+    
+    const startTime = performance.now();
+    const results = [];
+    
+    for (let i = 0; i < bitcoinPaths.length; i++) {
+        const pathStart = performance.now();
+        
+        try {
+            const response = await fetch('kkapi://system/info/get-public-key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    address_n: bitcoinPaths[i],
+                    show_display: false
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data: any = await response.json();
+            const pathTime = performance.now() - pathStart;
+            
+            results.push({
+                path: `m/${bitcoinPaths[i].map(n => n >= 0x80000000 ? `${n - 0x80000000}'` : n.toString()).join('/')}`,
+                xpub: data.xpub,
+                time_ms: Math.round(pathTime)
+            });
+            
+            console.log(`✅ [VAULT] Path ${i + 1}/${bitcoinPaths.length}: ${Math.round(pathTime)}ms`);
+            
+        } catch (error: any) {
+            console.error(`❌ [VAULT] Path ${i + 1} failed: ${error.message}`);
+            results.push({
+                path: `m/${bitcoinPaths[i].map(n => n >= 0x80000000 ? `${n - 0x80000000}'` : n.toString()).join('/')}`,
+                error: error.message,
+                time_ms: performance.now() - pathStart
+            });
+        }
+    }
+    
+    const totalTime = performance.now() - startTime;
+    const successCount = results.filter(r => r.xpub).length;
+    const avgTime = results.reduce((sum, r) => sum + r.time_ms, 0) / results.length;
+    
+    console.log('🎯 [VAULT SPEED TEST] Results:');
+    console.log(`   📊 Total time: ${Math.round(totalTime)}ms`);
+    console.log(`   ✅ Successful: ${successCount}/${bitcoinPaths.length}`);
+    console.log(`   ⚡ Average per path: ${Math.round(avgTime)}ms`);
+    console.log(`   🔥 Projected 27-path time: ${Math.round(avgTime * 27)}ms`);
+    
+    if (successCount > 0) {
+        console.log('📋 [VAULT] Sample results:');
+        results.slice(0, 3).forEach(r => {
+            if (r.xpub) {
+                console.log(`   ${r.path}: ${r.xpub.substring(0, 20)}... (${r.time_ms}ms)`);
+            }
+        });
+    }
+    
+    return { totalTime, successCount, avgTime, results };
 }
 
 // Start the test

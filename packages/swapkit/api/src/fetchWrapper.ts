@@ -1,42 +1,36 @@
-import { ApiUrl } from '@coinmasters/types';
-import type { Options } from 'ky';
-import ky from 'ky';
+export enum ApiEndpoints {
+  CachedPrices = '/api/cached-prices',
+  TokenlistProviders = '/api/tokenlist-providers',
+  Quote = '/api/quote',
+  GasRates = '/api/gas-rates',
+  Thorname = '/api/thorname',
+  Transaction = '/api/transaction',
+}
 
-/**
- * Api Wrapper helpers
- */
-export const ApiEndpoints = {
-  CachedPrices: `${ApiUrl.ThorswapApi}/tokenlist/cached-price`,
-  GasRates: `${ApiUrl.ThorswapApi}/resource-worker/gasPrice/getAll`,
-  Quote: `${ApiUrl.ThorswapApi}/aggregator/tokens/quote`,
-  Txn: `${ApiUrl.ThorswapApi}/apiusage/v2/txn`,
-  TokenlistProviders: `${ApiUrl.ThorswapApi}/tokenlist/providers`,
-  TokenList: `${ApiUrl.ThorswapStatic}/token-list`,
-  Thorname: `${ApiUrl.ThorswapApi}/thorname`,
-};
+export class RequestClient {
+  static async post<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      ...options,
+    });
 
-// Determine API key: use environment variable if available, otherwise use hardcoded value
-const apiKey =
-  typeof process !== 'undefined' && process.env['THORSWAP_API_KEY']
-    ? process.env['THORSWAP_API_KEY']
-    : '8813f69e-13e8-42c3-b90a-9c1c059bdad5';
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-// Determine referrer: use environment variable if available, otherwise use default value
-const referrer =
-  typeof process !== 'undefined' && process.env['THORSWAP_API_REFERER']
-    ? process.env['THORSWAP_API_REFERER']
-    : 'https://pioneers.dev';
+    return response.json() as Promise<T>;
+  }
 
-// Define headers with 'x-api-key' and 'referrer'
-const headers = {
-  'x-api-key': apiKey,
-  referrer: referrer,
-};
+  static async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      ...options,
+    });
 
-const kyClient = ky.create({ headers });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
-export const RequestClient = {
-  get: <T>(url: string | URL | Request, options?: Options) => kyClient.get(url, options).json<T>(),
-  post: <T>(url: string | URL | Request, options?: Options) =>
-    kyClient.post(url, options).json<T>(),
-};
+    return response.json() as Promise<T>;
+  }
+}

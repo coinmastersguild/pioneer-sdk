@@ -135,7 +135,7 @@ const test_staking_service = async function () {
             spec,
             wss: process.env.VITE_PIONEER_URL_WSS || 'wss://pioneers.dev',
             keepkeyApiKey: process.env.KEEPKEY_API_KEY || 'e4ea6479-5ea4-4c7d-b824-e075101bf9fd',
-            keepkeyEndpoint: 'http://127.0.0.1:1647',
+            keepkeyEndpoint: 'kkapi://',
             paths,
             blockchains,
             nodes: [],

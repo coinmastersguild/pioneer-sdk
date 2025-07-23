@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.org/schema.json",
+  "globalEnv": ["NODE_OPTIONS"],
   "pipeline": {
     "build": {
       "dependsOn": [
@@ -8,7 +9,10 @@
       "outputs": [
         "dist/**",
         "node_modules/.cache/**"
-      ]
+      ],
+      "env": ["NODE_OPTIONS"],
+      "cache": true,
+      "persistent": false
     },
     "build:watch": {
       "cache": false,

@@ -62,7 +62,7 @@ const test_service = async function () {
 
         const paths = getPaths(blockchains);
 
-        const spec = 'http://127.0.0.1:9001/spec/swagger.json';
+        const spec = process.env.PIONEER_SPEC || 'https://pioneers.dev/spec/swagger.json';
         const config:any = {
             username,
             queryKey,

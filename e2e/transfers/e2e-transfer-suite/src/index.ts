@@ -33,11 +33,19 @@ let IS_SIGNED: boolean
 const test_service = async function (this: any) {
     let tag = TAG + " | test_service | "
     try {
-        //(tag,' CHECKPOINT 1');
-        console.time('start2paired');
-        console.time('start2build');
-        console.time('start2broadcast');
-        console.time('start2end');
+        // Performance timing setup
+        const startTime = Date.now();
+        console.time('🚀 TOTAL_RUNTIME');
+        console.time('⚙️  SDK_INITIALIZATION');
+        console.time('🔗 DEVICE_PAIRING');
+        console.time('📊 BALANCE_SYNC');
+        console.time('🔧 TX_BUILDING');
+        console.time('✍️  TX_SIGNING');
+        console.time('📡 TX_BROADCASTING');
+        
+        log.info(tag, "🏁 Starting E2E Transfer Test Suite");
+        log.info(tag, "🕐 Start time:", new Date().toISOString());
+        
         //if force new user
         const queryKey = "sdk:pair-keepkey:"+Math.random();
         log.info(tag,"queryKey: ",queryKey)
@@ -49,8 +57,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        // let spec = 'https://pioneers.dev/spec/swagger.json'
-        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        let spec = 'https://pioneers.dev/spec/swagger.json'
+        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
@@ -66,9 +74,9 @@ const test_service = async function (this: any) {
             // 'ARB',
             // 'AVAX',
             // 'BSC',
-            // 'XRP', //BROKE unable to broadcast
+            'XRP', //Testing after fixing ledger_index_current
             // 'ETH',
-            'MAYA',   //Amount is wrong
+            // 'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
             // 'BTC',
@@ -198,10 +206,18 @@ const test_service = async function (this: any) {
 
         //log.info(tag,' CHECKPOINT 2');
         //log.info(tag,' config: ',config);
+        log.info(tag, "🔧 Creating SDK instance...");
         let app = new SDK.SDK(spec,config)
+        
+        log.info(tag, "🚀 Initializing SDK and connecting to device...");
+        const initStart = Date.now();
         let resultInit = await app.init({}, {})
-        // log.info(tag,"resultInit: ",resultInit)
-        log.info(tag,"wallets: ",app.wallets.length)
+        const initTime = Date.now() - initStart;
+        console.timeEnd('⚙️  SDK_INITIALIZATION');
+        console.timeEnd('🔗 DEVICE_PAIRING');
+        
+        log.info(tag, `✅ SDK initialized in ${initTime}ms`);
+        log.info(tag, "👛 Wallets found:", app.wallets.length);
 
         let events = app.events.on('wallets', async (wallets: any) => {
             log.info(tag,"wallets: ",wallets)

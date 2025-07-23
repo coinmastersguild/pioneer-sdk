@@ -41,7 +41,7 @@ export async function createUnsignedRippleTx(
     //console.log(tag, 'accountInfo:', accountInfo);
 
     const sequence = accountInfo.Sequence.toString();
-    const ledgerIndexCurrent = accountInfo.ledger_index_current;
+    const ledgerIndexCurrent = parseInt(accountInfo.ledger_index_current);
     const fromAddress = relevantPubkeys[0].address;
     let desttag = memo;
     // Check if desttag is null, undefined, a space, or any non-numeric value
@@ -99,7 +99,7 @@ export async function createUnsignedRippleTx(
       addressNList: [2147483692, 2147483792, 2147483648, 0, 0],
       tx: tx,
       flags: undefined,
-      lastLedgerSequence: parseInt(ledgerIndexCurrent + 1000000000).toString(),
+      lastLedgerSequence: (ledgerIndexCurrent + 1000).toString(), // Add 1000 ledgers (~16 minutes) for transaction validity
       sequence: sequence || '0',
       payment: {
         amount,

@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/integration-coins",
-  "version": "1.12.8",
+  "version": "1.12.10",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
@@ -17,9 +17,9 @@
     "docker:push:all": "npm run docker:build && npm run docker:tag && npm run docker:push"
   },
   "dependencies": {
-    "@coinmasters/pioneer-sdk": "^4.12.8",
+    "@coinmasters/pioneer-sdk": "workspace:*",
     "@coinmasters/types": "workspace:^",
-    "@pioneer-platform/helpers": "^4.0.12",
+    "@pioneer-platform/helpers": "^4.0.13",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.31",
     "@pioneer-platform/pioneer-coins": "^9.2.26",

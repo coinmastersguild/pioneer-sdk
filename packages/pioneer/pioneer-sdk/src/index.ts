@@ -17,15 +17,81 @@ import {
 import { assetData } from '@pioneer-platform/pioneer-discovery';
 import { Events } from '@pioneer-platform/pioneer-events';
 import EventEmitter from 'events';
+import { OfflineClient } from './offline-client.js';
 
 import { getCharts } from './getCharts.js';
 //internal
 import { getPubkey } from './getPubkey.js';
+import { optimizedGetPubkeys } from './kkapi-batch-client.js';
 import { TransactionManager } from './TransactionManager.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
 import { createUnsignedStakingTx, type StakingTxParams } from './txbuilder/createUnsignedStakingTx.js';
 
 const TAG = ' | Pioneer-sdk | ';
+
+// Utility function to detect if kkapi is available
+async function detectKkApiAvailability(): Promise<{ isAvailable: boolean; baseUrl: string; basePath: string }> {
+  const tag = `${TAG} | detectKkApiAvailability | `;
+  
+  try {
+    console.log('🔍 [KKAPI DETECTION] Checking for kkapi:// availability...');
+    
+    // First try to test kkapi:// scheme
+    try {
+      const testResponse = await fetch('kkapi://spec/swagger.json', { 
+        method: 'GET',
+        signal: AbortSignal.timeout(1000) // 1 second timeout for localhost
+      });
+      
+      if (testResponse.ok) {
+        console.log('✅ [KKAPI DETECTION] kkapi:// scheme is available and responding!');
+        return {
+          isAvailable: true,
+          baseUrl: 'kkapi://',
+          basePath: 'kkapi://spec/swagger.json'
+        };
+      }
+    } catch (kkApiError: any) {
+      console.log('⚠️ [KKAPI DETECTION] kkapi:// scheme not available:', kkApiError.message);
+    }
+    
+    // Fallback to HTTP localhost
+    console.log('🔄 [KKAPI DETECTION] Falling back to http://localhost:1646...');
+    try {
+      const httpResponse = await fetch('http://localhost:1646/spec/swagger.json', {
+        method: 'GET',
+        signal: AbortSignal.timeout(1000) // 1 second timeout for localhost
+      });
+      
+      if (httpResponse.ok) {
+        console.log('✅ [KKAPI DETECTION] HTTP localhost:1646 is available!');
+        return {
+          isAvailable: true,
+          baseUrl: 'http://localhost:1646',
+          basePath: 'http://localhost:1646/spec/swagger.json'
+        };
+      }
+    } catch (httpError: any) {
+      console.error('❌ [KKAPI DETECTION] HTTP localhost:1646 not available:', httpError.message);
+    }
+    
+    // Neither kkapi:// nor localhost:1646 is available
+    console.warn('⚠️ [KKAPI DETECTION] Neither kkapi:// nor localhost:1646 is available, using default localhost config');
+    return {
+      isAvailable: false,
+      baseUrl: 'http://localhost:1646',
+      basePath: 'http://localhost:1646/spec/swagger.json'
+    };
+    
+  } catch (error) {
+    console.error('❌ [KKAPI DETECTION] Error during detection:', error);
+    return {
+      isAvailable: false,
+      baseUrl: 'http://localhost:1646',
+      basePath: 'http://localhost:1646/spec/swagger.json'
+    };
+  }
+}
 
 export interface PioneerSDKConfig {
   appName: string;
@@ -44,6 +110,8 @@ export interface PioneerSDKConfig {
   covalentApiKey?: string;
   utxoApiKey?: string;
   walletConnectProjectId?: string;
+  offlineFirst?: boolean;
+  vaultUrl?: string;
 }
 
 // Helper function to format time differences
@@ -113,6 +181,9 @@ export class SDK {
   public appName: string;
   public appIcon: any;
   public init: (walletsVerbose: any, setup: any) => Promise<any>;
+  public initOffline: () => Promise<any>;
+  public backgroundSync: () => Promise<void>;
+  public offlineClient: OfflineClient | null;
   public verifyWallet: () => Promise<void>;
   public addAsset: (caip: string, data?: any) => Promise<any>;
   public getAssets: (filter?: string) => Promise<any>;
@@ -187,10 +258,116 @@ export class SDK {
     this.utxoApiKey = config.utxoApiKey;
     this.walletConnectProjectId = config.walletConnectProjectId;
     this.contextType = '';
+    
+    // Initialize offline client if offline-first mode is enabled
+    this.offlineClient = config.offlineFirst ? new OfflineClient({
+      vaultUrl: config.vaultUrl || 'kkapi://',
+      timeout: 1000, // 1 second timeout for fast checks
+      fallbackToRemote: true
+    }) : null;
+    
     this.pairWallet = async (options: any) => {
       // Implementation will be added later
       return Promise.resolve({});
     };
+    
+    // Fast portfolio loading from kkapi:// cache
+    this.getUnifiedPortfolio = async function () {
+      const tag = `${TAG} | getUnifiedPortfolio | `;
+      try {
+        // Only use kkapi if we have a vaultUrl configured
+        if (!config.vaultUrl || !config.vaultUrl.startsWith('kkapi://')) {
+          console.log(tag, 'No kkapi:// vault configured, falling back to regular getBalances');
+          return null;
+        }
+        
+        // Try to fetch from the unified portfolio endpoint
+        const kkapiUrl = config.vaultUrl.replace('kkapi://', 'http://localhost:1646/');
+        const portfolioUrl = `${kkapiUrl}api/v1/portfolio/all`;
+        
+        console.log('🚀 [PORTFOLIO] Attempting fast load from', portfolioUrl);
+        const startTime = performance.now();
+        
+        try {
+          const response = await fetch(portfolioUrl, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            // Short timeout for fast failure
+            signal: AbortSignal.timeout(1000)
+          });
+          
+          if (!response.ok) {
+            console.warn(tag, 'Portfolio endpoint returned', response.status);
+            return null;
+          }
+          
+          const data = await response.json();
+          const loadTime = performance.now() - startTime;
+          
+          console.log(`✅ [PORTFOLIO] Loaded unified portfolio in ${loadTime.toFixed(0)}ms`);
+          console.log(`📊 [PORTFOLIO] Total USD: $${data.summary.totalUsdValue.toFixed(2)}, Devices: ${data.summary.deviceCount}`);
+          
+          // Transform the unified portfolio data to match SDK format
+          const allBalances = [];
+          
+          // Use combined portfolio assets for the main balance array
+          for (const asset of data.combined.assets) {
+            const balance = {
+              caip: `${asset.chain}:${asset.symbol}`, // Simplified - may need proper CAIP construction
+              ticker: asset.symbol,
+              name: asset.name,
+              balance: asset.balance,
+              valueUsd: asset.usdValue,
+              price: asset.price,
+              icon: asset.icon,
+              networkId: asset.chain,
+              contract: asset.contract
+            };
+            allBalances.push(balance);
+          }
+          
+          // Update SDK state
+          this.balances = allBalances;
+          this.events.emit('SET_BALANCES', this.balances);
+          
+          // Create dashboard data
+          const dashboardData = {
+            totalValueUsd: data.summary.totalUsdValue,
+            networks: Object.entries(data.combined.byChain).map(([chain, value]) => ({
+              network: chain,
+              totalUsd: value,
+              percentage: (value / data.summary.totalUsdValue) * 100
+            })),
+            devices: data.devices,
+            cacheAge: data.performance.dataAge,
+            loadTimeMs: data.performance.loadTimeMs
+          };
+          
+          this.dashboard = dashboardData;
+          this.events.emit('SET_DASHBOARD', this.dashboard);
+          
+          return {
+            balances: allBalances,
+            dashboard: dashboardData,
+            cached: true,
+            loadTimeMs: loadTime
+          };
+          
+        } catch (fetchError: any) {
+          if (fetchError.name === 'AbortError') {
+            console.log(tag, 'Unified portfolio request timed out');
+          } else {
+            console.log(tag, 'Failed to fetch unified portfolio:', fetchError.message);
+          }
+          return null;
+        }
+        
+      } catch (e) {
+        console.error(tag, 'Error:', e);
+        return null;
+      }
+    };
+    
     this.init = async function (walletsVerbose: any, setup: any) {
       const tag = `${TAG} | init | `;
       try {
@@ -199,121 +376,89 @@ export class SDK {
         if (!this.wss) throw Error('wss required!');
         if (!this.wallets) throw Error('wallets required!');
         if (!this.paths) throw Error('wallets required!');
-        console.log('🚀 [DEBUG INIT] Creating Pioneer client with config:', {
-          spec: this.spec,
-          queryKey: config.queryKey ? 'PRESENT' : 'MISSING',
-          username: config.username ? 'PRESENT' : 'MISSING'
-        });
         
+        console.log('🚀 [INIT OPTIMIZATION] Starting SDK initialization...');
+        const initStartTime = performance.now();
+        
+        // Option to skip sync (for apps that will manually call getPubkeys/getBalances)
+        const skipSync = setup?.skipSync || false;
+        
+        // Initialize Pioneer Client
+        console.log('🚀 [INIT] Creating Pioneer client...');
         const PioneerClient = new Pioneer(this.spec, config);
-        console.log('🚀 [DEBUG INIT] Pioneer client created, calling init()...');
-        
         this.pioneer = await PioneerClient.init();
-        console.log('🚀 [DEBUG INIT] Pioneer client init completed');
+        if (!this.pioneer) throw Error('Failed to init pioneer server!');
+        console.log('🚀 [INIT] ✅ Pioneer client ready');
         
-        if (!this.pioneer) {
-          console.error('🚀 [DEBUG INIT] ❌ Pioneer client initialization returned null/undefined');
-          throw Error('Failed to init pioneer server!');
-        }
-        
-        console.log('🚀 [DEBUG INIT] Pioneer client methods available:', Object.keys(this.pioneer).length);
-        console.log('🚀 [DEBUG INIT] Checking for GetPortfolioBalances...');
-        
-        if (typeof this.pioneer.GetPortfolioBalances === 'function') {
-          console.log('🚀 [DEBUG INIT] ✅ GetPortfolioBalances method found!');
-        } else {
-          console.error('🚀 [DEBUG INIT] ❌ GetPortfolioBalances method NOT found!');
-          console.error('🚀 [DEBUG INIT] Available methods containing "Portfolio":', 
-            Object.keys(this.pioneer).filter(key => key.toLowerCase().includes('portfolio')));
-          console.error('🚀 [DEBUG INIT] First 10 available methods:', Object.keys(this.pioneer).slice(0, 10));
-        }
+        // Add paths for blockchains
         this.paths.concat(getPaths(this.blockchains));
-        //get Assets
-        console.log('🚀 [DEBUG INIT] Starting getGasAssets...');
+        
+        // Get gas assets (needed for asset map)
+        console.log('🚀 [INIT] Loading gas assets...');
         await this.getGasAssets();
-        console.log('🚀 [DEBUG INIT] ✅ getGasAssets completed');
+        console.log('🚀 [INIT] ✅ Gas assets loaded');
         
-        console.log('🚀 [DEBUG INIT] Preparing KeepKey SDK config...');
-        const configKeepKey = {
-          apiKey: this.keepkeyApiKey || 'keepkey-api-key',
-          pairingInfo: {
-            name: 'KeepKey SDK Demo App',
-            imageUrl: 'https://pioneers.dev/coins/keepkey.png',
-            basePath: 'http://localhost:1646/spec/swagger.json',
-            url: 'http://localhost:1646',
-          },
-        };
-        console.log('🚀 [DEBUG INIT] KeepKey config:', JSON.stringify(configKeepKey, null, 2));
+        // Detect KeepKey endpoint
+        console.log('🚀 [INIT] Detecting KeepKey endpoint...');
+        const keepkeyEndpoint = await detectKkApiAvailability();
         
+        // Initialize KeepKey SDK if available
         try {
-          console.log('🚀 [DEBUG INIT] About to call KeepKeySdk.create() - this will show "verified" log...');
+          const configKeepKey = {
+            apiKey: this.keepkeyApiKey || 'keepkey-api-key',
+            pairingInfo: {
+              name: 'KeepKey SDK Demo App',
+              imageUrl: 'https://pioneers.dev/coins/keepkey.png',
+              basePath: keepkeyEndpoint.basePath,
+              url: keepkeyEndpoint.baseUrl,
+            },
+          };
+          
+          console.log('🚀 [INIT] Initializing KeepKey SDK...');
           //@ts-ignore
           const keepKeySdk = await KeepKeySdk.create(configKeepKey);
-          console.log('🚀 [DEBUG INIT] ✅ KeepKeySdk.create() completed successfully!');
-          
-          const keepkeyApiKey = configKeepKey.apiKey;
-          console.log('🚀 [DEBUG INIT] About to call getFeatures()...');
           const features = await keepKeySdk.system.info.getFeatures();
-          console.log('🚀 [DEBUG INIT] ✅ getFeatures() completed:', features ? 'SUCCESS' : 'NULL');
           
-          this.keepkeyApiKey = keepkeyApiKey;
+          this.keepkeyApiKey = configKeepKey.apiKey;
           this.keepKeySdk = keepKeySdk;
           this.context = 'keepkey:' + features.label + '.json';
-          console.log('🚀 [DEBUG INIT] Set context:', this.context);
           
-          console.log('🚀 [DEBUG INIT] About to call loadPubkeyCache()...');
-          let pubkeysCache = []
-          await this.loadPubkeyCache(pubkeysCache);
-          console.log('🚀 [DEBUG INIT] ✅ loadPubkeyCache() completed');
+          await this.loadPubkeyCache([]);
+          console.log('🚀 [INIT] ✅ KeepKey SDK ready');
         } catch (e) {
-          console.error('🚀 [DEBUG INIT] ❌ KeepKey SDK initialization failed:', e);
-          console.error(e);
+          console.error('🚀 [INIT] ⚠️ KeepKey SDK initialization failed:', e);
         }
         
-        console.log('🚀 [DEBUG INIT] Emitting SET_STATUS event...');
-        this.events.emit('SET_STATUS', 'init');
-
-        console.log('🚀 [DEBUG INIT] Preparing WebSocket Events...');
+        // Initialize WebSocket events
+        console.log('🚀 [INIT] Initializing WebSocket events...');
         let configWss = {
-          // queryKey:TEST_QUERY_KEY_2,
           username: this.username,
           queryKey: this.queryKey,
           wss: this.wss,
         };
-        console.log('🚀 [DEBUG INIT] WSS config:', JSON.stringify(configWss, null, 2));
         
         let clientEvents = new Events(configWss);
-        console.log('🚀 [DEBUG INIT] About to call clientEvents.init()...');
         await clientEvents.init();
-        console.log('🚀 [DEBUG INIT] ✅ clientEvents.init() completed');
-        
-        console.log('🚀 [DEBUG INIT] About to call setUsername()...');
         await clientEvents.setUsername(this.username);
-        console.log('🚀 [DEBUG INIT] ✅ setUsername() completed');
-
-        console.log('🚀 [DEBUG INIT] Setting up event handlers...');
-        //events
+        
         clientEvents.events.on('message', (request) => {
-          //console.log(tag, 'request: ', request);
           this.events.emit('message', request);
         });
-
-        console.log('🚀 [DEBUG INIT] About to call getGasAssets() (second time)...');
-        await this.getGasAssets();
-        console.log('🚀 [DEBUG INIT] ✅ getGasAssets() (second time) completed');
-
-        console.log('🚀 [DEBUG INIT] About to check keepKeySdk and call sync()...');
-        console.log('🚀 [DEBUG INIT] keepKeySdk exists:', !!this.keepKeySdk);
+        console.log('🚀 [INIT] ✅ WebSocket events ready');
         
-        if (this.keepKeySdk) {
-          console.log('🚀 [DEBUG INIT] Starting sync() - this is where it might hang...');
+        this.events.emit('SET_STATUS', 'init');
+        
+        // Only sync if we have a KeepKey device AND skipSync is false
+        if (this.keepKeySdk && !skipSync) {
+          console.log('🚀 [INIT] Starting automatic sync...');
+          const syncStart = performance.now();
           await this.sync();
-          console.log('🚀 [DEBUG INIT] ✅ sync() completed successfully!');
-        } else {
-          console.log('🚀 [DEBUG INIT] ⚠️ No keepKeySdk, skipping sync()');
+          console.log('🚀 [INIT] ✅ Sync complete in', (performance.now() - syncStart).toFixed(0), 'ms');
+        } else if (skipSync) {
+          console.log('🚀 [INIT] Skipping automatic sync (skipSync=true)');
         }
         
-        console.log('🚀 [DEBUG INIT] ✅ init() completed successfully, returning pioneer');
+        console.log('🚀 [INIT] ✅ Total init time:', (performance.now() - initStartTime).toFixed(0), 'ms');
         return this.pioneer;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -530,6 +675,79 @@ export class SDK {
       } catch (e) {
         console.error(tag, 'Error in sync:', e);
         throw e;
+      }
+    };
+    
+    // Offline-first initialization method
+    this.initOffline = async function () {
+      const tag = `${TAG} | initOffline | `;
+      try {
+        console.log('🚀 [OFFLINE] Starting offline initialization...');
+        
+        if (!this.offlineClient) {
+          console.log('⚠️ [OFFLINE] No offline client available, falling back to normal init');
+          return null;
+        }
+        
+        // Convert paths to string format
+        const pathStrings = this.paths.map((path: any) => {
+          if (typeof path === 'string') return path;
+          if (path.addressNListMaster) {
+            return addressNListToBIP32(path.addressNListMaster);
+          }
+          return path.path || '';
+        }).filter(Boolean);
+        
+        console.log(`🚀 [OFFLINE] Getting cached data for ${pathStrings.length} paths`);
+        
+        // Get cached data from vault
+        const cachedData = await this.offlineClient.initOffline(pathStrings);
+        
+        if (cachedData.cached && cachedData.pubkeys.length > 0) {
+          // Load cached data
+          this.pubkeys = [...this.pubkeys, ...cachedData.pubkeys];
+          this.balances = [...this.balances, ...cachedData.balances];
+          
+          console.log(`✅ [OFFLINE] Loaded ${cachedData.pubkeys.length} cached pubkeys, ${cachedData.balances.length} cached balances`);
+          
+          return {
+            pubkeys: this.pubkeys,
+            balances: this.balances,
+            cached: true
+          };
+        }
+        
+        console.log('⚠️ [OFFLINE] No cached data available');
+        return null;
+      } catch (e) {
+        console.error(tag, 'Error in offline init:', e);
+        return null;
+      }
+    };
+    
+    // Background sync method
+    this.backgroundSync = async function () {
+      const tag = `${TAG} | backgroundSync | `;
+      try {
+        if (!this.offlineClient || !this.offlineClient.isAvailable()) {
+          console.log('⚠️ [OFFLINE] Vault not available for background sync');
+          return;
+        }
+        
+        console.log('🔄 [OFFLINE] Starting background sync...');
+        
+        const pathStrings = this.paths.map((path: any) => {
+          if (typeof path === 'string') return path;
+          if (path.addressNListMaster) {
+            return addressNListToBIP32(path.addressNListMaster);
+          }
+          return path.path || '';
+        }).filter(Boolean);
+        
+        await this.offlineClient.backgroundSync(pathStrings);
+        console.log('✅ [OFFLINE] Background sync completed');
+      } catch (e) {
+        console.error(tag, 'Error in background sync:', e);
       }
     };
     this.loadPubkeyCache = async function (pubkeys) {
@@ -1171,44 +1389,20 @@ export class SDK {
     this.getPubkeys = async function () {
       const tag = `${TAG} | getPubkeys | `;
       try {
-        console.log('🚀 [DEBUG SDK] getPubkeys() starting...')
+        console.log('🚀 [DEBUG SDK] getPubkeys() starting with BATCH OPTIMIZATION...')
         console.log('🚀 [DEBUG SDK] Paths length:', this.paths.length)
         console.log('🚀 [DEBUG SDK] Blockchains length:', this.blockchains.length)
         
         if (this.paths.length === 0) throw new Error('No paths found!');
 
-        const pubkeys: any[] = [];
-
-        for (let i = 0; i < this.blockchains.length; i++) {
-          const blockchain = this.blockchains[i];
-          console.log('🚀 [DEBUG SDK] Processing blockchain', i+1, '/', this.blockchains.length, ':', blockchain);
-
-          // Filter paths related to the current blockchain
-          const pathsForChain = this.paths.filter((path) => path.networks.includes(blockchain));
-          console.log('🚀 [DEBUG SDK] Found', pathsForChain.length, 'paths for blockchain:', blockchain);
-          
-          for (let j = 0; j < pathsForChain.length; j++) {
-            const path = pathsForChain[j];
-            console.log('🚀 [DEBUG SDK] Processing path', j+1, '/', pathsForChain.length, ':', JSON.stringify(path));
-            console.log('🚀 [DEBUG SDK] About to call getPubkey for blockchain:', blockchain);
-            
-            try {
-              const pubkey = await getPubkey(blockchain, path, this.keepKeySdk, this.context);
-              console.log('🚀 [DEBUG SDK] ✅ Got pubkey for path', j+1, ':', pubkey ? 'SUCCESS' : 'NULL');
-              if (pubkey) {
-                console.log('🚀 [DEBUG SDK] Pubkey details:', {
-                  path: pubkey.path || 'NO_PATH',
-                  networks: pubkey.networks || 'NO_NETWORKS',
-                  pubkey_length: pubkey.pubkey ? pubkey.pubkey.length : 'NO_PUBKEY'
-                });
-              }
-              pubkeys.push(pubkey);
-            } catch (pathError) {
-              console.error('🚀 [DEBUG SDK] ❌ Error getting pubkey for path', j+1, ':', pathError);
-              throw pathError;
-            }
-          }
-        }
+        // Use optimized batch fetching with individual fallback
+        const pubkeys = await optimizedGetPubkeys(
+          this.blockchains,
+          this.paths,
+          this.keepKeySdk,
+          this.context,
+          getPubkey  // Pass the original getPubkey function for fallback
+        );
 
         console.log('🚀 [DEBUG SDK] Total pubkeys collected:', pubkeys.length);
 
