@@ -1,14 +1,14 @@
 {
   "author": "highlander",
   "name": "@coinmasters/pioneer-sdk",
-  "version": "4.12.11",
+  "version": "4.12.20",
   "dependencies": {
     "@coinmasters/api": "workspace:*",
     "@coinmasters/types": "workspace:*",
     "@keepkey/keepkey-sdk": "^0.2.62",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.37",
-    "@pioneer-platform/pioneer-client": "^9.2.5",
+    "@pioneer-platform/pioneer-client": "^9.2.8",
     "@pioneer-platform/pioneer-coins": "^9.2.26",
     "@pioneer-platform/pioneer-discovery": "^0.0.18",
     "@pioneer-platform/pioneer-events": "^8.3.2",

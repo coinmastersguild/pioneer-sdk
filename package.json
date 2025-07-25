@@ -72,6 +72,7 @@
     "publish-packages": "pnpm version-bump && pnpm changeset publish",
     "test": "dotenv -- turbo run test --continue",
     "test:coverage": "dotenv -- turbo --continue run test:coverage",
+    "bump": "pnpm i && pnpm run build && pnpm changeset && pnpm run publish-packages",
     "version-bump": "dotenv -- pnpm changeset version",
     "version-bump-forced": "pnpm changeset add --empty && dotenv -- pnpm changeset version"
   },

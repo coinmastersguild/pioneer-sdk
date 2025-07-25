@@ -1,5 +1,75 @@
 # @coinmasters/pioneer-sdk
 
+## 4.12.20
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.8
+  - @coinmasters/types@4.10.1
+
+## 4.12.19
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.7
+  - @coinmasters/types@4.10.1
+
+## 4.12.18
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.6
+  - @coinmasters/types@4.10.1
+
+## 4.12.17
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.5
+  - @coinmasters/types@4.10.1
+
+## 4.12.16
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.4
+  - @coinmasters/types@4.10.1
+
+## 4.12.15
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.3
+  - @coinmasters/types@4.10.1
+
+## 4.12.13
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.2
+  - @coinmasters/types@4.10.1
+
 ## 4.12.11
 
 ### Patch Changes

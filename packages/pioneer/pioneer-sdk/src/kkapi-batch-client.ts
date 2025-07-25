@@ -37,16 +37,28 @@ export interface KkapiHealthStatus {
 /**
  * Check if kkapi:// vault is available and ready
  */
-export async function checkKkapiHealth(): Promise<KkapiHealthStatus> {
+export async function checkKkapiHealth(baseUrl: string = 'kkapi://'): Promise<KkapiHealthStatus> {
   try {
-    // Check health endpoint
-    const healthResponse = await fetch('kkapi://api/health');
+    // Check health endpoint using provided base URL
+    const healthResponse = await fetch(`${baseUrl}/api/health`);
     if (!healthResponse.ok) {
       return { available: false, device_connected: false, cached_pubkeys: 0 };
     }
 
-    // Check cache status  
-    const cacheResponse = await fetch('kkapi://api/cache/status');
+    const healthData = await healthResponse.json();
+    
+    // If health endpoint includes cache info, use it directly
+    if (healthData.cached_pubkeys !== undefined) {
+      return {
+        available: true,
+        device_connected: healthData.device_connected || false,
+        cached_pubkeys: healthData.cached_pubkeys || 0,
+        vault_version: healthData.version
+      };
+    }
+
+    // Otherwise, check cache status endpoint separately
+    const cacheResponse = await fetch(`${baseUrl}/api/cache/status`);
     if (!cacheResponse.ok) {
       return { available: true, device_connected: true, cached_pubkeys: 0 };
     }
@@ -68,7 +80,7 @@ export async function checkKkapiHealth(): Promise<KkapiHealthStatus> {
  * Get multiple pubkeys in a single batch call from kkapi:// vault
  * Returns cached pubkeys and indicates which paths are missing
  */
-export async function batchGetPubkeys(paths: any[], context: string): Promise<KkapiBatchPubkeysResponse> {
+export async function batchGetPubkeys(paths: any[], context: string, baseUrl: string = 'kkapi://'): Promise<KkapiBatchPubkeysResponse> {
   console.log('🚀 [KKAPI BATCH] Attempting batch pubkey fetch for', paths.length, 'paths');
 
   try {
@@ -84,8 +96,8 @@ export async function batchGetPubkeys(paths: any[], context: string): Promise<Kk
       context: context
     };
 
-    // Make batch request to vault
-    const response = await fetch('kkapi://api/pubkeys/batch', {
+    // Make batch request to vault using provided base URL
+    const response = await fetch(`${baseUrl}/api/pubkeys/batch`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -137,8 +149,23 @@ export async function optimizedGetPubkeys(
   const tag = '🚀 [KKAPI BATCH OPTIMIZER]';
   console.log(`${tag} Starting optimized pubkey collection for ${blockchains.length} blockchains, ${paths.length} total paths`);
 
-  // Step 1: Check if kkapi vault is available
-  const vaultHealth = await checkKkapiHealth();
+  // Step 1: Smart environment detection for KKAPI base URL
+  let baseUrl: string;
+  if (typeof window !== 'undefined' && '__TAURI__' in window) {
+    // In Tauri app - use kkapi:// protocol
+    baseUrl = 'kkapi://';
+    console.log(`${tag} Running in Tauri app, using kkapi:// protocol`);
+  } else if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    // In development browser - use direct HTTP
+    baseUrl = 'http://localhost:1646';
+    console.log(`${tag} Running in development browser, using http://localhost:1646`);
+  } else {
+    // Fallback
+    baseUrl = 'http://localhost:1646';
+    console.log(`${tag} Running in unknown environment, using fallback http://localhost:1646`);
+  }
+
+  const vaultHealth = await checkKkapiHealth(baseUrl);
   console.log(`${tag} Vault health:`, vaultHealth);
 
   let pubkeys: any[] = [];
@@ -148,9 +175,9 @@ export async function optimizedGetPubkeys(
   if (vaultHealth.available && vaultHealth.cached_pubkeys > 0) {
     console.log(`${tag} 🚀 Using FAST PATH - vault has ${vaultHealth.cached_pubkeys} cached pubkeys`);
     
-    // Step 2: Try batch fetch from vault
+    // Step 2: Try batch fetch from vault using detected base URL
     const batchStart = Date.now();
-    const batchResponse = await batchGetPubkeys(paths, context);
+    const batchResponse = await batchGetPubkeys(paths, context, baseUrl);
     const batchTime = Date.now() - batchStart;
     
     console.log(`${tag} ⚡ Batch fetch completed in ${batchTime}ms`);
@@ -167,8 +194,9 @@ export async function optimizedGetPubkeys(
       const pathsForChain = paths.filter(path => path.networks.includes(blockchain));
       
       for (const path of pathsForChain) {
-                 const { addressNListToBIP32 } = require('@pioneer-platform/pioneer-coins');
-         const pathBip32 = addressNListToBIP32(path.addressNList);
+        // Dynamic import to avoid require() in browser
+        const { addressNListToBIP32 } = await import('@pioneer-platform/pioneer-coins');
+        const pathBip32 = addressNListToBIP32(path.addressNList);
         
         if (!cachedPaths.has(pathBip32)) {
           remainingPaths.push(path);

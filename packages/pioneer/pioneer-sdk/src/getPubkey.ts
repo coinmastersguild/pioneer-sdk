@@ -9,10 +9,7 @@ import {
 export const getPubkey = async (networkId: string, path: any, sdk: any, context: string) => {
   const tag = `| getPubkey | `;
   try {
-    console.log('🚀 [DEBUG PUBKEY] Starting getPubkey for networkId:', networkId);
-    console.log('🚀 [DEBUG PUBKEY] Path details:', JSON.stringify(path, null, 2));
-    console.log('🚀 [DEBUG PUBKEY] Context:', context);
-    console.log('🚀 [DEBUG PUBKEY] SDK status:', sdk ? 'AVAILABLE' : 'NULL');
+      // Reduced logging for performance
 
     if (!path || !path.addressNList) {
       throw new Error('Invalid or missing path provided for pubkey retrieval');
@@ -28,7 +25,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       coin: COIN_MAP_KEEPKEY_LONG[chain],
       script_type: path.script_type,
     };
-    console.log('🚀 [DEBUG PUBKEY] AddressInfo prepared:', JSON.stringify(addressInfo, null, 2));
+    // AddressInfo prepared
     const networkIdToType: any = {
       'bip122:000000000019d6689c085ae165831e93': 'UTXO',
       'bip122:000000000000000000651ef99cb9fcbe': 'UTXO',
@@ -50,52 +47,35 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     const networkType = networkIdToType[networkId];
     let address;
 
-    console.log('🚀 [DEBUG PUBKEY] Network type determined:', networkType, 'for networkId:', networkId);
-    console.log('🚀 [DEBUG PUBKEY] About to call address retrieval method...');
+    // Network type determined
     
-    // Add timeout detection for address retrieval
-    const addressTimeout = setTimeout(() => {
-      console.error('🚀 [DEBUG PUBKEY] ⏰ Address retrieval hanging for more than 30 seconds!');
-      console.error('🚀 [DEBUG PUBKEY] Network type:', networkType, 'NetworkId:', networkId);
-      console.error('🚀 [DEBUG PUBKEY] This indicates a device communication issue');
-    }, 30000);
+          // Add timeout detection for address retrieval  
+      const addressTimeout = setTimeout(() => {
+        console.error('⏰ [PUBKEY] Address retrieval timeout for', networkId);
+      }, 30000);
 
     try {
       switch (networkType) {
         case 'UTXO':
-          console.log('🚀 [DEBUG PUBKEY] Calling utxoGetAddress...');
           ({ address } = await sdk.address.utxoGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ utxoGetAddress completed, address:', address);
           break;
         case 'EVM':
-          console.log('🚀 [DEBUG PUBKEY] Calling ethereumGetAddress...');
           ({ address } = await sdk.address.ethereumGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ ethereumGetAddress completed, address:', address);
           break;
         case 'OSMOSIS':
-          console.log('🚀 [DEBUG PUBKEY] Calling osmosisGetAddress...');
           ({ address } = await sdk.address.osmosisGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ osmosisGetAddress completed, address:', address);
           break;
         case 'COSMOS':
-          console.log('🚀 [DEBUG PUBKEY] Calling cosmosGetAddress...');
           ({ address } = await sdk.address.cosmosGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ cosmosGetAddress completed, address:', address);
           break;
         case 'MAYACHAIN':
-          console.log('🚀 [DEBUG PUBKEY] Calling mayachainGetAddress...');
           ({ address } = await sdk.address.mayachainGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ mayachainGetAddress completed, address:', address);
           break;
         case 'THORCHAIN':
-          console.log('🚀 [DEBUG PUBKEY] Calling thorchainGetAddress...');
           ({ address } = await sdk.address.thorchainGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ thorchainGetAddress completed, address:', address);
           break;
         case 'XRP':
-          console.log('🚀 [DEBUG PUBKEY] Calling xrpGetAddress...');
           ({ address } = await sdk.address.xrpGetAddress(addressInfo));
-          console.log('🚀 [DEBUG PUBKEY] ✅ xrpGetAddress completed, address:', address);
           break;
         default:
           throw new Error(`Unsupported network type for networkId: ${networkId}`);
@@ -103,16 +83,14 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       clearTimeout(addressTimeout);
     } catch (addressError) {
       clearTimeout(addressTimeout);
-      console.error('🚀 [DEBUG PUBKEY] ❌ Address retrieval failed:', addressError);
+      console.error('❌ [PUBKEY] Address retrieval failed:', addressError.message);
       throw addressError;
     }
-
-    console.log('🚀 [DEBUG PUBKEY] Address validation...');
     if (!address) throw new Error(`Failed to get address for ${chain}`);
     if (address.includes('bitcoincash:')) {
       address = address.replace('bitcoincash:', '');
     }
-    console.log('🚀 [DEBUG PUBKEY] Address validated, setting pubkey properties...');
+    // Address validated, setting pubkey properties
     
     pubkey.master = address;
     pubkey.address = address;

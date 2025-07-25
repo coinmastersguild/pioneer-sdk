@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/integration-kkapi",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "description": "E2E integration test for kkapi:// vault performance optimization",
   "main": "dist/index.js",
   "scripts": {
@@ -14,6 +14,12 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
   },
-  "keywords": ["keepkey", "kkapi", "vault", "performance", "e2e"],
+  "keywords": [
+    "keepkey",
+    "kkapi",
+    "vault",
+    "performance",
+    "e2e"
+  ],
   "author": "KeepKey Team"
-} 
+}

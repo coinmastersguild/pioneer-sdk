@@ -62,11 +62,12 @@ const test_service = async function (this: any) {
         // Install kkapi:// adapter for Node.js testing environment
         installKkapiAdapter();
         
-        console.log('🚀 [DEBUG] Starting integration test with enhanced logging...')
-        console.log('🚀 [DEBUG] Looking for "verified" logs during execution...')
+        console.log('🚀 [INTEGRATION TEST] Starting enhanced performance test...')
         
         // Performance tracking
         const perfStart = performance.now();
+        let firstPortfolioTime = null;
+        let fullSyncTime = null;
         console.time('⏱️ TOTAL_TEST_TIME');
         console.time('⏱️ 1_SETUP_AND_INIT');
         console.time('⏱️ 2_GET_GAS_ASSETS');
@@ -83,8 +84,9 @@ const test_service = async function (this: any) {
         console.time('start2BalancesTokens');
         console.time('start2end');
 
-        // Manual health check for kkapi:// protocol
-        console.log('🚀 [HEALTH CHECK] Testing kkapi:// protocol before starting test...');
+        // Optional health check for kkapi:// protocol (graceful fallback)
+        console.log('🚀 [HEALTH CHECK] Testing kkapi:// protocol (optional)...');
+        let vaultAvailable = false;
         try {
             const healthResponse = await fetch('kkapi://api/health');
             if (!healthResponse.ok) {
@@ -92,14 +94,21 @@ const test_service = async function (this: any) {
             }
             const healthData = await healthResponse.json();
             console.log('🚀 [HEALTH CHECK] ✅ kkapi:// protocol is working!', healthData);
+            vaultAvailable = true;
         } catch (healthError: any) {
-            console.error('🚀 [HEALTH CHECK] ❌ kkapi:// protocol failed:', healthError);
-            console.error('🚀 [HEALTH CHECK] Make sure keepkey-vault-v5 is running with kkapi:// protocol support');
-            throw new Error(`kkapi:// health check failed: ${healthError.message}`);
+            console.warn('🚀 [HEALTH CHECK] ⚠️  kkapi:// protocol not available:', healthError.message);
+            console.warn('🚀 [HEALTH CHECK] This is OK - continuing with legacy KeepKey Desktop support');
+            console.warn('🚀 [HEALTH CHECK] (If you want vault features, run keepkey-vault-v5 separately)');
+            vaultAvailable = false;
         }
 
-        // Basic cache detection test
+        // Basic cache detection test (only if vault is available)
         async function checkVaultCache() {
+            if (!vaultAvailable) {
+                console.log('🚀 [CACHE CHECK] Skipping cache check - vault not available');
+                return { available: false, reason: 'vault_not_available' };
+            }
+            
             console.log('🚀 [CACHE CHECK] Testing vault cache availability...');
             
             try {
@@ -230,8 +239,8 @@ const test_service = async function (this: any) {
             spec,
             wss: process.env.VITE_PIONEER_URL_WSS || 'wss://pioneers.dev',
             keepkeyApiKey: process.env.KEEPKEY_API_KEY || 'e4ea6479-5ea4-4c7d-b824-e075101bf9fd',
-            // Use local fixed keepkey-vault server for device operations
-            keepkeyEndpoint: 'kkapi://',
+            // Use vault if available, otherwise fall back to legacy desktop support
+            keepkeyEndpoint: vaultAvailable ? 'kkapi://' : undefined,
             paths,
             blockchains,
             nodes,
@@ -242,48 +251,46 @@ const test_service = async function (this: any) {
         //console.log(tag,' CHECKPOINT 2');
         //console.log(tag,' config: ',config);
         
-        // Log the actual WebSocket URL being used
-        log.info(tag, '🌐 WebSocket URL configured:', config.wss)
-        console.log('🚀 [DEBUG] WebSocket URL:', config.wss)
-        console.log('🚀 [DEBUG] KeepKey API Key configured:', config.keepkeyApiKey ? 'YES' : 'NO')
+        // Log configuration
+        console.log('📋 [CONFIG] Mode:', vaultAvailable ? 'VAULT (kkapi://)' : 'LEGACY DESKTOP')
         
         let app = new SDK.SDK(spec,config)
         log.debug('app: ',app.spec)
         assert(app.spec)
         assert(app.spec,spec)
 
-        // Add detailed init logging
-        log.debug(tag, '🔍 Starting app.init()...')
-        console.log('🚀 [DEBUG] About to call app.init()...')
-        console.log('🚀 [DEBUG] Config passed to app:', JSON.stringify({
-            ...config,
-            keepkeyApiKey: config.keepkeyApiKey ? '***REDACTED***' : 'NOT_SET'
-        }, null, 2))
+        // Initialize Pioneer SDK
+        console.log('🚀 [INIT] Starting Pioneer SDK initialization...')
         
         // Add timeout for init
         const initTimeout = setTimeout(() => {
-            console.error('🚀 [DEBUG] ⏰ app.init() seems to be hanging for more than 60 seconds!')
-            console.error('🚀 [DEBUG] This might indicate a device connection issue')
-            console.error('🚀 [DEBUG] WebSocket URL attempted:', config.wss)
-            console.error('🚀 [DEBUG] Spec URL attempted:', spec)
+            console.error('⏰ [TIMEOUT] Init hanging for >60s - possible device connection issue')
         }, 60000)
         
         let resultInit
         try {
-            resultInit = await app.init({ }, { skipSync: true })
+            // 🚀 FAST PORTFOLIO PATTERN: Use new init with automatic fast portfolio loading
+            console.log('🚀 [FAST PORTFOLIO] Using enhanced init with fast portfolio → background sync pattern')
+            resultInit = await app.init({ }, { skipSync: false })
             clearTimeout(initTimeout)
-            console.log('🚀 [DEBUG] ✅ app.init() completed!')
-            console.log('🚀 [DEBUG] Init result:', resultInit)
+            console.log('✅ [INIT] Pioneer SDK initialized successfully')
+            
+            // Check if we got portfolio data from fast loading
+            if (app.balances && app.balances.length > 0) {
+                firstPortfolioTime = performance.now() - perfStart;
+                console.log('🎉 [FAST PORTFOLIO] SUCCESS! Portfolio loaded during init')
+                console.log(`📊 [FAST PORTFOLIO] Balances: ${app.balances.length} assets`)
+                if (app.dashboard && app.dashboard.totalValueUsd) {
+                    console.log(`💰 [FAST PORTFOLIO] Total value: $${app.dashboard.totalValueUsd.toFixed(2)} USD`)
+                }
+                console.log(`⚡ [PERFORMANCE] Time to first portfolio: ${firstPortfolioTime.toFixed(0)}ms`)
+            } else {
+                console.log('⚠️ [FAST PORTFOLIO] No portfolio data loaded during init (expected if vault not available)')
+            }
         } catch (error) {
             clearTimeout(initTimeout)
             const err = error as Error
-            console.error('🚀 [DEBUG] ❌ app.init() failed with error:', error)
-            console.error('🚀 [DEBUG] Error details:')
-            console.error('🚀 [DEBUG]   - Message:', err.message || 'Unknown error')
-            console.error('🚀 [DEBUG]   - Stack:', err.stack || 'No stack trace')
-            console.error('🚀 [DEBUG]   - WebSocket URL:', config.wss)
-            console.error('🚀 [DEBUG]   - Spec URL:', spec)
-            console.error('🚀 [DEBUG]   - KeepKey API Key configured:', !!config.keepkeyApiKey)
+            console.error('❌ [INIT] Failed:', err.message || 'Unknown error')
             throw error
         }
         
@@ -295,170 +302,94 @@ const test_service = async function (this: any) {
         console.timeEnd('⏱️ 1_SETUP_AND_INIT');
         console.log('🎯 [PERF] Setup and Init completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
 
-        // Verify kkapi:// detection and configuration
-        log.info(tag, '🔍 [KKAPI VERIFICATION] Checking KeepKey SDK configuration...')
+        // Verify KeepKey SDK configuration
         if (app.keepKeySdk && app.keepKeySdk.config) {
             const pairingInfo = app.keepKeySdk.config.pairingInfo;
-            if (pairingInfo) {
-                log.info(tag, '🔍 [KKAPI VERIFICATION] KeepKey SDK pairingInfo:', {
-                    url: pairingInfo.url,
-                    basePath: pairingInfo.basePath
-                });
-                
-                if (pairingInfo.url && pairingInfo.url.startsWith('kkapi://')) {
-                    log.info(tag, '✅ [KKAPI VERIFICATION] Successfully configured to use kkapi:// scheme!');
-                } else if (pairingInfo.url && pairingInfo.url.includes('localhost:1646')) {
-                    log.info(tag, '✅ [KKAPI VERIFICATION] Using HTTP localhost:1646 fallback (kkapi:// not available)');
-                } else {
-                    log.warn(tag, '⚠️ [KKAPI VERIFICATION] Unexpected URL configuration:', pairingInfo.url);
+            if (pairingInfo && pairingInfo.url) {
+                if (pairingInfo.url.startsWith('kkapi://')) {
+                    console.log('✅ [SDK] Using kkapi:// protocol');
+                } else if (pairingInfo.url.includes('localhost:1646')) {
+                    console.log('✅ [SDK] Using HTTP localhost:1646');
                 }
-            } else {
-                log.warn(tag, '⚠️ [KKAPI VERIFICATION] No pairingInfo found in KeepKey SDK config');
             }
-        } else {
-            log.warn(tag, '⚠️ [KKAPI VERIFICATION] KeepKey SDK not initialized or missing config');
         }
 
-        // Add event handlers for debugging
+        // Add essential event handlers
         app.events.on('device:connected', (device: any) => {
-          log.info(tag,'🔌 Device connected event:', device)
-          console.log('🚀 [DEBUG] Device connected:', device)
+          console.log('🔌 [DEVICE] Connected:', device.name || device.deviceId || 'Unknown')
         })
         
-        app.events.on('device:error', (error: any) => {
-          log.error(tag,'❌ Device error event:', error)
-          console.error('🚀 [DEBUG] Device error:', error)
-        })
-        
-        app.events.on('pubkey:discovered', (pubkey: any) => {
-          log.debug(tag,'🔑 Pubkey discovered:', pubkey.path, pubkey.networks)
-          console.log('🚀 [DEBUG] Pubkey discovered:', pubkey.path, pubkey.networks)
-        })
-        
-        app.events.on('balance:discovered', (balance: any) => {
-          log.debug(tag,'💰 Balance discovered:', balance.caip, balance.balance)
-          console.log('🚀 [DEBUG] Balance discovered:', balance.caip, balance.balance)
-        })
-        
-        // Add more event listeners to catch any other events
-        app.events.on('*', (eventName: string, ...args: any[]) => {
-          if (!['message', 'device:connected', 'device:error', 'pubkey:discovered', 'balance:discovered'].includes(eventName)) {
-            console.log('🚀 [DEBUG] Unknown event:', eventName, args)
-          }
-        })
-        
-        //force verify with debugging
-        log.debug(tag, '🔍 Starting getGasAssets()...')
-        console.log('🚀 [DEBUG] About to call app.getGasAssets()...')
-        
-        const gasTimeout = setTimeout(() => {
-            console.error('🚀 [DEBUG] ⏰ getGasAssets() hanging for more than 15 seconds!')
-        }, 15000)
-        
-        try {
-            await app.getGasAssets()
-            clearTimeout(gasTimeout)
-            console.log('🚀 [DEBUG] ✅ getGasAssets() completed!')
-            console.log('🚀 [DEBUG] Assets map size:', app.assetsMap ? app.assetsMap.size : 0)
-        } catch (error) {
-            clearTimeout(gasTimeout)
-            console.error('🚀 [DEBUG] ❌ getGasAssets() failed:', error)
-            throw error
-        }
-        
-        log.debug(tag, '✅ getGasAssets() complete')
+        // Load gas assets
+        console.log('⛽ [ASSETS] Loading gas assets...')
+        await app.getGasAssets()
+        console.log('✅ [ASSETS] Loaded', app.assetsMap ? app.assetsMap.size : 0, 'assets')
         
         console.timeEnd('⏱️ 2_GET_GAS_ASSETS');
         console.log('🎯 [PERF] GetGasAssets completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
         
-        // Try to use unified portfolio endpoint for fast loading
-        console.log('🚀 [UNIFIED PORTFOLIO] Attempting fast portfolio load...');
-        console.time('⏱️ UNIFIED_PORTFOLIO_ATTEMPT');
+        // Check if fast portfolio was already loaded during init
+        console.log('🚀 [PORTFOLIO CHECK] Checking if portfolio was loaded during init...');
+        console.time('⏱️ PORTFOLIO_VALIDATION');
         
-        let usedUnifiedPortfolio = false;
+        let portfolioLoadedDuringInit = false;
         
-        try {
-            const unifiedResult = await app.getUnifiedPortfolio();
-            console.timeEnd('⏱️ UNIFIED_PORTFOLIO_ATTEMPT');
-            
-            if (unifiedResult && unifiedResult.cached) {
-                console.log('✅ [UNIFIED PORTFOLIO] Successfully loaded cached portfolio!');
-                console.log(`📊 [UNIFIED PORTFOLIO] Load time: ${unifiedResult.loadTimeMs.toFixed(0)}ms`);
-                console.log(`💰 [UNIFIED PORTFOLIO] Total USD: $${unifiedResult.dashboard.totalValueUsd.toFixed(2)}`);
-                console.log(`📦 [UNIFIED PORTFOLIO] Assets: ${unifiedResult.balances.length}`);
-                console.log(`🔌 [UNIFIED PORTFOLIO] Devices: ${Object.keys(unifiedResult.dashboard.devices).length}`);
-                console.log(`⏰ [UNIFIED PORTFOLIO] Cache age: ${unifiedResult.dashboard.cacheAge}s`);
-                
-                // Skip getPubkeys and getBalances since we have the data
-                console.log('🎯 [PERF] Skipping getPubkeys() and getBalances() - using cached data');
-                console.log('🎯 [PERF] Total time to portfolio:', (performance.now() - perfStart).toFixed(0) + 'ms');
-                
-                usedUnifiedPortfolio = true;
-                
-            } else {
-                console.log('⚠️ [UNIFIED PORTFOLIO] Cache miss or not available, falling back to regular flow');
+        if (app.balances && app.balances.length > 0) {
+            console.log('✅ [PORTFOLIO CHECK] Portfolio already loaded during init!');
+            console.log(`📊 [PORTFOLIO CHECK] Current balances: ${app.balances.length} assets`);
+            if (app.dashboard && app.dashboard.totalValueUsd) {
+                console.log(`💰 [PORTFOLIO CHECK] Current value: $${app.dashboard.totalValueUsd.toFixed(2)} USD`);
             }
-        } catch (error) {
-            console.error('🚀 [UNIFIED PORTFOLIO] Error attempting unified portfolio:', error);
-            console.timeEnd('⏱️ UNIFIED_PORTFOLIO_ATTEMPT');
+            console.log('🎯 [PERF] Total time to portfolio:', (performance.now() - perfStart).toFixed(0) + 'ms');
+            portfolioLoadedDuringInit = true;
+            console.timeEnd('⏱️ PORTFOLIO_VALIDATION');
+            
+            // Wait for background sync to complete if it's running
+            if (app.events) {
+                console.log('🔄 [BACKGROUND SYNC] Monitoring background sync status...');
+                await new Promise((resolve) => {
+                    const syncTimeout = setTimeout(() => {
+                        console.log('⏰ [BACKGROUND SYNC] Timeout reached, continuing with test');
+                        fullSyncTime = performance.now() - perfStart;
+                        resolve(undefined);
+                    }, 5000); // 5 second timeout for background sync
+                    
+                    app.events.once('SYNC_COMPLETE', () => {
+                        clearTimeout(syncTimeout);
+                        fullSyncTime = performance.now() - perfStart;
+                        console.log('✅ [BACKGROUND SYNC] Background sync completed');
+                        console.log(`🔄 [PERFORMANCE] Time to full sync: ${fullSyncTime.toFixed(0)}ms`);
+                        resolve(undefined);
+                    });
+                });
+            }
+        } else {
+            console.log('⚠️ [PORTFOLIO CHECK] No portfolio data found, using manual sync...');
+            console.timeEnd('⏱️ PORTFOLIO_VALIDATION');
         }
         
-        // Only run getPubkeys and getBalances if we didn't use unified portfolio
-        if (!usedUnifiedPortfolio) {
-            // Get pubkeys
-            log.debug(tag, '🔍 Starting getPubkeys()...')
-            console.log('🚀 [DEBUG] About to call app.getPubkeys()...')
-            console.log('🚀 [DEBUG] Current app.paths length:', app.paths.length)
-            console.log('🚀 [DEBUG] Current app.blockchains:', app.blockchains)
-            console.log('🚀 [DEBUG] KeepKey SDK status:', app.keepKeySdk ? 'INITIALIZED' : 'NOT_INITIALIZED')
-            
+        // Only run manual getPubkeys and getBalances if portfolio wasn't loaded during init
+        if (!portfolioLoadedDuringInit) {
+            console.log('🔑 [SYNC] Getting pubkeys...')
             console.time('⏱️ 3_GET_PUBKEYS');
-            
-            try {
-                await app.getPubkeys()
-                console.log('🚀 [DEBUG] ✅ getPubkeys() completed successfully!')
-                console.log('🚀 [DEBUG] Final pubkeys count:', app.pubkeys.length)
-            } catch (error) {
-                console.error('🚀 [DEBUG] ❌ getPubkeys() failed with error:', error)
-                throw error
-            }
-            
-            log.debug(tag, '✅ getPubkeys() complete, pubkeys count:', app.pubkeys.length)
-            
+            await app.getPubkeys()
             console.timeEnd('⏱️ 3_GET_PUBKEYS');
-            console.log('🎯 [PERF] GetPubkeys completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
-            console.log('🎯 [PERF] Total pubkeys fetched:', app.pubkeys.length);
+            console.log('✅ [SYNC] Got', app.pubkeys.length, 'pubkeys')
             
-            // Get balances
-            log.debug(tag, '🔍 Starting getBalances()...')
-            console.log('🚀 [DEBUG] About to call app.getBalances()...')
-            console.log('🚀 [DEBUG] Current pubkeys available for balances:', app.pubkeys.length)
-            console.log('🚀 [DEBUG] Networks to get balances for:', app.blockchains)
-            
-            console.time('⏱️ 4_GET_BALANCES');
-            
-            // Add timeout detection
-            const balanceTimeout = setTimeout(() => {
-                console.error('🚀 [DEBUG] ⏰ getBalances() seems to be hanging for more than 30 seconds!')
-                console.error('🚀 [DEBUG] This might indicate a network issue or API problem')
-            }, 30000)
-            
-            try {
-                await app.getBalances()
-                clearTimeout(balanceTimeout)
-                console.log('🚀 [DEBUG] ✅ getBalances() completed successfully!')
-                console.log('🚀 [DEBUG] Final balances count:', app.balances.length)
-            } catch (error) {
-                clearTimeout(balanceTimeout)
-                console.error('🚀 [DEBUG] ❌ getBalances() failed with error:', error)
-                throw error
+            // Mark first portfolio time when we have pubkeys (for manual sync case)
+            if (!firstPortfolioTime) {
+                firstPortfolioTime = performance.now() - perfStart;
+                console.log(`⚡ [PERFORMANCE] Time to first pubkeys: ${firstPortfolioTime.toFixed(0)}ms`)
             }
             
-            log.debug(tag, '✅ getBalances() complete, balances count:', app.balances.length)
-            
+            console.log('💰 [SYNC] Getting balances...')
+            console.time('⏱️ 4_GET_BALANCES');
+            await app.getBalances()
             console.timeEnd('⏱️ 4_GET_BALANCES');
-            console.log('🎯 [PERF] GetBalances completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
-            console.log('🎯 [PERF] Total balances fetched:', app.balances.length);
+            console.log('✅ [SYNC] Got', app.balances.length, 'balances')
+            
+            // Mark full sync complete
+            fullSyncTime = performance.now() - perfStart;
+            console.log(`🔄 [PERFORMANCE] Time to full sync: ${fullSyncTime.toFixed(0)}ms`);
         }
         
         //clear cache
@@ -739,6 +670,48 @@ const test_service = async function (this: any) {
         log.info(tag, 'totalValueUsd: ', totalValueUsd);
         log.info(tag, 'networkTotals: ', networkTotals);
         log.info(tag,'dashboard', app.dashboard);
+        
+        // ========================================
+        // DETAILED PORTFOLIO BREAKDOWN (PIONEER SDK)
+        // ========================================
+        console.log('');
+        console.log('📋 [PIONEER SDK] DETAILED BREAKDOWN - Line by line asset breakdown:');
+        console.log('═══════════════════════════════════════════════════════════════════════════════════════════════════════════');
+        console.log('CAIP                                          | TICKER   | NATIVE BALANCE              | USD VALUE    ');
+        console.log('═══════════════════════════════════════════════════════════════════════════════════════════════════════════');
+        
+        // Sort by USD value (highest first) and show ALL balances
+        const sortedBalances = app.balances
+          .filter((balance: any) => parseFloat(balance.valueUsd || '0') > 0) // Only show balances with value
+          .sort((a: any, b: any) => parseFloat(b.valueUsd || '0') - parseFloat(a.valueUsd || '0'));
+        
+        sortedBalances.forEach((balance: any, index: number) => {
+          const caip = balance.caip || 'Unknown CAIP';
+          const ticker = (balance.ticker || balance.symbol || 'UNKNOWN').padEnd(8);
+          const nativeBalance = balance.balance || '0';
+          const usdValue = `$${parseFloat(balance.valueUsd || '0').toFixed(2)}`;
+          
+          // Truncate CAIP if too long for display
+          const displayCaip = caip.length > 41 ? caip.substring(0, 38) + '...' : caip.padEnd(41);
+          const displayBalance = nativeBalance.length > 25 ? nativeBalance.substring(0, 22) + '...' : nativeBalance.padEnd(25);
+          const displayUsdValue = usdValue.padStart(12);
+          
+          console.log(`${displayCaip} | ${ticker} | ${displayBalance} | ${displayUsdValue}`);
+        });
+        
+        console.log('═══════════════════════════════════════════════════════════════════════════════════════════════════════════');
+        console.log(`📊 [PIONEER SDK] Portfolio Total: $${totalValueUsd.toFixed(2)} USD (${sortedBalances.length} assets with value)`);
+        console.log(`📊 [PIONEER SDK] Total Balances Found: ${app.balances.length} (including zero balances)`);
+        
+        // Show top 5 summary
+        console.log('');
+        console.log('🏆 [PIONEER SDK] TOP 5 HOLDINGS by USD Value:');
+        sortedBalances.slice(0, 5).forEach((balance: any, index: number) => {
+          const usdValue = parseFloat(balance.valueUsd || '0');
+          const percentage = totalValueUsd > 0 ? ((usdValue / totalValueUsd) * 100).toFixed(1) : '0.0';
+          console.log(`   ${index + 1}. ${balance.ticker || balance.symbol || 'UNKNOWN'}: ${balance.balance} = $${usdValue.toFixed(2)} (${percentage}%)`);
+        });
+        console.log('');
 
         // Test Direct Cosmos Delegation APIs
         log.info(tag, ' ****** Testing Direct Cosmos Delegation APIs ******')
@@ -1136,9 +1109,27 @@ const test_service = async function (this: any) {
         console.timeEnd('start2end');
         
         console.timeEnd('⏱️ TOTAL_TEST_TIME');
-        console.log('🎯 [PERF] Test completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
-        console.log('🎯 [PERF] === PERFORMANCE BREAKDOWN ===');
-        console.log('🎯 [PERF] Total runtime:', (performance.now() - perfStart).toFixed(0) + 'ms');
+        
+        // Performance Summary
+        const totalTime = performance.now() - perfStart;
+        console.log('');
+        console.log('📊 [PERFORMANCE SUMMARY] ===================================');
+        if (firstPortfolioTime) {
+            console.log(`⚡ Time to first portfolio: ${firstPortfolioTime.toFixed(0)}ms`);
+        }
+        if (fullSyncTime) {
+            console.log(`🔄 Time to full sync complete: ${fullSyncTime.toFixed(0)}ms`);
+        } else {
+            console.log(`🔄 Full sync time: ${totalTime.toFixed(0)}ms (fallback)`);
+        }
+        console.log(`🎯 Total test runtime: ${totalTime.toFixed(0)}ms`);
+        
+        // Performance analysis
+        if (firstPortfolioTime && fullSyncTime) {
+            const improvement = ((fullSyncTime - firstPortfolioTime) / fullSyncTime * 100);
+            console.log(`💰 Portfolio available ${improvement.toFixed(1)}% faster than full sync`);
+        }
+        console.log('📊 =========================================================');
         
         // Exit successfully
         log.info(tag, '🎉 All tests completed successfully! Exiting with code 0.');

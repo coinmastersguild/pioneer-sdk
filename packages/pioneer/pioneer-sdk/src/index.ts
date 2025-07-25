@@ -29,54 +29,57 @@ import { createUnsignedStakingTx, type StakingTxParams } from './txbuilder/creat
 
 const TAG = ' | Pioneer-sdk | ';
 
-// Utility function to detect if kkapi is available
+// Utility function to detect if kkapi is available with smart environment detection
 async function detectKkApiAvailability(): Promise<{ isAvailable: boolean; baseUrl: string; basePath: string }> {
   const tag = `${TAG} | detectKkApiAvailability | `;
   
   try {
-    console.log('🔍 [KKAPI DETECTION] Checking for kkapi:// availability...');
+    console.log('🔍 [KKAPI DETECTION] Starting smart environment detection...');
     
-    // First try to test kkapi:// scheme
-    try {
-      const testResponse = await fetch('kkapi://spec/swagger.json', { 
-        method: 'GET',
-        signal: AbortSignal.timeout(1000) // 1 second timeout for localhost
-      });
-      
-      if (testResponse.ok) {
-        console.log('✅ [KKAPI DETECTION] kkapi:// scheme is available and responding!');
-        return {
-          isAvailable: true,
-          baseUrl: 'kkapi://',
-          basePath: 'kkapi://spec/swagger.json'
-        };
-      }
-    } catch (kkApiError: any) {
-      console.log('⚠️ [KKAPI DETECTION] kkapi:// scheme not available:', kkApiError.message);
+    // Smart detection: Check if we're in Tauri or browser
+    const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    
+    console.log('🔍 [KKAPI DETECTION] Environment:', {
+      isTauri,
+      isLocalhost,
+      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'SSR'
+    });
+    
+    // If in Tauri, use kkapi:// (will be proxied by Tauri)
+    if (isTauri) {
+      console.log('✅ [KKAPI DETECTION] Running in Tauri app, using kkapi:// protocol');
+      return {
+        isAvailable: true,
+        baseUrl: 'kkapi://',
+        basePath: 'kkapi://spec/swagger.json'
+      };
     }
     
-    // Fallback to HTTP localhost
-    console.log('🔄 [KKAPI DETECTION] Falling back to http://localhost:1646...');
-    try {
-      const httpResponse = await fetch('http://localhost:1646/spec/swagger.json', {
-        method: 'GET',
-        signal: AbortSignal.timeout(1000) // 1 second timeout for localhost
-      });
-      
-      if (httpResponse.ok) {
-        console.log('✅ [KKAPI DETECTION] HTTP localhost:1646 is available!');
-        return {
-          isAvailable: true,
-          baseUrl: 'http://localhost:1646',
-          basePath: 'http://localhost:1646/spec/swagger.json'
-        };
+    // If in development browser, test if localhost:1646 is available
+    if (isLocalhost) {
+      console.log('🔄 [KKAPI DETECTION] Running in development browser, testing http://localhost:1646...');
+             try {
+         const httpResponse = await fetch('http://localhost:1646/api/v1/health/fast', {
+           method: 'GET',
+           signal: AbortSignal.timeout(1000) // 1 second timeout for localhost
+         });
+        
+        if (httpResponse.ok) {
+          console.log('✅ [KKAPI DETECTION] HTTP localhost:1646 is available!');
+          return {
+            isAvailable: true,
+            baseUrl: 'http://localhost:1646',
+            basePath: 'http://localhost:1646/spec/swagger.json'
+          };
+        }
+      } catch (httpError: any) {
+        console.error('❌ [KKAPI DETECTION] HTTP localhost:1646 not available:', httpError.message);
       }
-    } catch (httpError: any) {
-      console.error('❌ [KKAPI DETECTION] HTTP localhost:1646 not available:', httpError.message);
     }
     
-    // Neither kkapi:// nor localhost:1646 is available
-    console.warn('⚠️ [KKAPI DETECTION] Neither kkapi:// nor localhost:1646 is available, using default localhost config');
+    // Fallback for production non-Tauri or when vault server is not running
+    console.warn('⚠️ [KKAPI DETECTION] Using fallback config (vault may not be available)');
     return {
       isAvailable: false,
       baseUrl: 'http://localhost:1646',
@@ -183,6 +186,7 @@ export class SDK {
   public init: (walletsVerbose: any, setup: any) => Promise<any>;
   public initOffline: () => Promise<any>;
   public backgroundSync: () => Promise<void>;
+  public getUnifiedPortfolio: () => Promise<any>;
   public offlineClient: OfflineClient | null;
   public verifyWallet: () => Promise<void>;
   public addAsset: (caip: string, data?: any) => Promise<any>;
@@ -275,72 +279,88 @@ export class SDK {
     this.getUnifiedPortfolio = async function () {
       const tag = `${TAG} | getUnifiedPortfolio | `;
       try {
-        // Only use kkapi if we have a vaultUrl configured
-        if (!config.vaultUrl || !config.vaultUrl.startsWith('kkapi://')) {
-          console.log(tag, 'No kkapi:// vault configured, falling back to regular getBalances');
-          return null;
-        }
-        
-        // Try to fetch from the unified portfolio endpoint
-        const kkapiUrl = config.vaultUrl.replace('kkapi://', 'http://localhost:1646/');
-        const portfolioUrl = `${kkapiUrl}api/v1/portfolio/all`;
-        
-        console.log('🚀 [PORTFOLIO] Attempting fast load from', portfolioUrl);
+        console.log('🚀 [UNIFIED PORTFOLIO] Attempting fast portfolio load...');
         const startTime = performance.now();
         
+        // Check if kkapi is available (works with adapter for Node.js testing)
         try {
-          const response = await fetch(portfolioUrl, {
+          // Use the kkapi:// protocol directly (will be handled by adapter in Node.js or Tauri)
+          const portfolioResponse = await fetch('kkapi://api/portfolio', {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            // Short timeout for fast failure
-            signal: AbortSignal.timeout(1000)
+            signal: AbortSignal.timeout(2000) // 2 second timeout
           });
           
-          if (!response.ok) {
-            console.warn(tag, 'Portfolio endpoint returned', response.status);
+          if (!portfolioResponse.ok) {
+            console.warn(tag, 'Portfolio endpoint returned', portfolioResponse.status);
             return null;
           }
           
-          const data = await response.json();
+          const portfolioData = await portfolioResponse.json();
           const loadTime = performance.now() - startTime;
           
-          console.log(`✅ [PORTFOLIO] Loaded unified portfolio in ${loadTime.toFixed(0)}ms`);
-          console.log(`📊 [PORTFOLIO] Total USD: $${data.summary.totalUsdValue.toFixed(2)}, Devices: ${data.summary.deviceCount}`);
-          
-          // Transform the unified portfolio data to match SDK format
-          const allBalances = [];
-          
-          // Use combined portfolio assets for the main balance array
-          for (const asset of data.combined.assets) {
-            const balance = {
-              caip: `${asset.chain}:${asset.symbol}`, // Simplified - may need proper CAIP construction
-              ticker: asset.symbol,
-              name: asset.name,
-              balance: asset.balance,
-              valueUsd: asset.usdValue,
-              price: asset.price,
-              icon: asset.icon,
-              networkId: asset.chain,
-              contract: asset.contract
-            };
-            allBalances.push(balance);
+          if (!portfolioData.success) {
+            console.warn(tag, 'Portfolio API returned success=false');
+            return null;
           }
           
-          // Update SDK state
-          this.balances = allBalances;
-          this.events.emit('SET_BALANCES', this.balances);
+          console.log(`✅ [UNIFIED PORTFOLIO] Loaded portfolio in ${loadTime.toFixed(0)}ms`);
+          console.log(`📊 [UNIFIED PORTFOLIO] Total USD: $${(portfolioData.totalValueUsd || 0).toFixed(2)}`);
+          console.log(`📊 [UNIFIED PORTFOLIO] Devices: ${portfolioData.pairedDevices || 0}`);
+          console.log(`📊 [UNIFIED PORTFOLIO] Cached: ${portfolioData.cached ? 'YES' : 'NO'}`);
+          
+          if (portfolioData.totalValueUsd === 0 || !portfolioData.totalValueUsd) {
+            console.warn(tag, 'Portfolio value is $0.00 - may need device connection or sync');
+            return null;
+          }
+          
+          // Get device-specific balances if we have devices
+          let allBalances = [];
+          if (portfolioData.devices && portfolioData.devices.length > 0) {
+            for (const device of portfolioData.devices) {
+              try {
+                const deviceResponse = await fetch(`kkapi://api/portfolio/${device.deviceId}`);
+                if (deviceResponse.ok) {
+                  const devicePortfolio = await deviceResponse.json();
+                  if (devicePortfolio.success && devicePortfolio.balances) {
+                    // Transform vault balances to SDK format
+                    for (const balance of devicePortfolio.balances) {
+                      allBalances.push({
+                        caip: balance.caip,
+                        ticker: balance.ticker,
+                        symbol: balance.ticker,
+                        balance: balance.balance,
+                        valueUsd: balance.valueUsd,
+                        priceUsd: balance.priceUsd,
+                        networkId: balance.networkId,
+                        address: balance.address,
+                        pubkey: balance.address, // Use address as pubkey identifier
+                        icon: balance.icon || '',
+                        chart: 'default'
+                      });
+                    }
+                  }
+                }
+              } catch (deviceError) {
+                console.warn(tag, `Failed to get balances for device ${device.deviceId}:`, deviceError);
+              }
+            }
+          }
+          
+          // Update SDK state if we have balances
+          if (allBalances.length > 0) {
+            this.balances = allBalances;
+            this.events.emit('SET_BALANCES', this.balances);
+            console.log(`📦 [UNIFIED PORTFOLIO] Loaded ${allBalances.length} balances from cache`);
+          }
           
           // Create dashboard data
           const dashboardData = {
-            totalValueUsd: data.summary.totalUsdValue,
-            networks: Object.entries(data.combined.byChain).map(([chain, value]) => ({
-              network: chain,
-              totalUsd: value,
-              percentage: (value / data.summary.totalUsdValue) * 100
-            })),
-            devices: data.devices,
-            cacheAge: data.performance.dataAge,
-            loadTimeMs: data.performance.loadTimeMs
+            totalValueUsd: portfolioData.totalValueUsd,
+            pairedDevices: portfolioData.pairedDevices,
+            devices: portfolioData.devices || [],
+            cached: portfolioData.cached,
+            lastUpdated: portfolioData.lastUpdated,
+            cacheAge: portfolioData.lastUpdated ? Math.floor((Date.now() - portfolioData.lastUpdated) / 1000) : 0
           };
           
           this.dashboard = dashboardData;
@@ -349,13 +369,14 @@ export class SDK {
           return {
             balances: allBalances,
             dashboard: dashboardData,
-            cached: true,
-            loadTimeMs: loadTime
+            cached: portfolioData.cached,
+            loadTimeMs: loadTime,
+            totalValueUsd: portfolioData.totalValueUsd
           };
           
         } catch (fetchError: any) {
           if (fetchError.name === 'AbortError') {
-            console.log(tag, 'Unified portfolio request timed out');
+            console.log(tag, 'Unified portfolio request timed out (this is normal if vault not running)');
           } else {
             console.log(tag, 'Failed to fetch unified portfolio:', fetchError.message);
           }
@@ -385,7 +406,46 @@ export class SDK {
         
         // Initialize Pioneer Client
         console.log('🚀 [INIT] Creating Pioneer client...');
-        const PioneerClient = new Pioneer(this.spec, config);
+        
+        // CRITICAL FIX: Ensure Pioneer client has proper HTTP headers for browser requests
+        const pioneerConfig = {
+          ...config,
+          // Add request interceptor to ensure proper headers for JSON requests
+          requestInterceptor: (request: any) => {
+            console.log('🔧 [REQUEST INTERCEPTOR] Called for:', request.url, request.method);
+            console.log('🔧 [REQUEST INTERCEPTOR] Original headers:', request.headers);
+            console.log('🔧 [REQUEST INTERCEPTOR] Body type:', typeof request.body);
+            console.log('🔧 [REQUEST INTERCEPTOR] Body preview:', typeof request.body === 'string' ? request.body.substring(0, 200) : JSON.stringify(request.body).substring(0, 200));
+            
+            // Ensure Content-Type header is set for POST requests
+            if (request.method === 'POST' || request.method === 'post') {
+              if (!request.headers) {
+                request.headers = {};
+              }
+              if (!request.headers['Content-Type'] && !request.headers['content-type']) {
+                console.log('🔧 [REQUEST INTERCEPTOR] Adding Content-Type header');
+                request.headers['Content-Type'] = 'application/json';
+              }
+              if (!request.headers['accept'] && !request.headers['Accept']) {
+                console.log('🔧 [REQUEST INTERCEPTOR] Adding Accept header');
+                request.headers['accept'] = 'application/json';
+              }
+              
+              // CRITICAL: Ensure body is properly stringified for swagger-client
+              if (request.body && typeof request.body !== 'string') {
+                console.log('🔧 [REQUEST INTERCEPTOR] Converting body to JSON string');
+                request.body = JSON.stringify(request.body);
+              }
+            }
+            
+            console.log('🔧 [REQUEST INTERCEPTOR] Final headers:', request.headers);
+            console.log('🔧 [REQUEST INTERCEPTOR] Final body type:', typeof request.body);
+            console.log('🔧 [REQUEST INTERCEPTOR] Final body:', typeof request.body === 'string' ? request.body.substring(0, 200) : '[NOT STRING]');
+            return request;
+          }
+        };
+        
+        const PioneerClient = new Pioneer(this.spec, pioneerConfig);
         this.pioneer = await PioneerClient.init();
         if (!this.pioneer) throw Error('Failed to init pioneer server!');
         console.log('🚀 [INIT] ✅ Pioneer client ready');
@@ -414,7 +474,7 @@ export class SDK {
             },
           };
           
-          console.log('🚀 [INIT] Initializing KeepKey SDK...');
+          console.log('🔑 [INIT] Initializing KeepKey SDK...');
           //@ts-ignore
           const keepKeySdk = await KeepKeySdk.create(configKeepKey);
           const features = await keepKeySdk.system.info.getFeatures();
@@ -424,13 +484,13 @@ export class SDK {
           this.context = 'keepkey:' + features.label + '.json';
           
           await this.loadPubkeyCache([]);
-          console.log('🚀 [INIT] ✅ KeepKey SDK ready');
+          console.log('✅ [INIT] KeepKey SDK ready');
         } catch (e) {
-          console.error('🚀 [INIT] ⚠️ KeepKey SDK initialization failed:', e);
+          console.error('⚠️ [INIT] KeepKey SDK initialization failed:', e);
         }
         
         // Initialize WebSocket events
-        console.log('🚀 [INIT] Initializing WebSocket events...');
+        console.log('🌐 [INIT] Initializing WebSocket events...');
         let configWss = {
           username: this.username,
           queryKey: this.queryKey,
@@ -444,21 +504,48 @@ export class SDK {
         clientEvents.events.on('message', (request) => {
           this.events.emit('message', request);
         });
-        console.log('🚀 [INIT] ✅ WebSocket events ready');
+        console.log('✅ [INIT] WebSocket events ready');
         
         this.events.emit('SET_STATUS', 'init');
         
-        // Only sync if we have a KeepKey device AND skipSync is false
+        // Fast Portfolio Pattern: Try unified portfolio first, then sync if needed
         if (this.keepKeySdk && !skipSync) {
-          console.log('🚀 [INIT] Starting automatic sync...');
-          const syncStart = performance.now();
-          await this.sync();
-          console.log('🚀 [INIT] ✅ Sync complete in', (performance.now() - syncStart).toFixed(0), 'ms');
+          console.log('⚡ [FAST PORTFOLIO] Attempting fast load...');
+          const fastStart = performance.now();
+          
+          try {
+            const unifiedResult = await this.getUnifiedPortfolio();
+            
+            if (unifiedResult && unifiedResult.cached && unifiedResult.totalValueUsd > 0) {
+              console.log(`✅ [FAST PORTFOLIO] Loaded in ${(performance.now() - fastStart).toFixed(0)}ms`);
+              console.log(`💰 [PORTFOLIO] $${unifiedResult.totalValueUsd.toFixed(2)} USD (${unifiedResult.balances.length} assets)`);
+              
+              // Start background sync for fresh data (non-blocking)
+              console.log('🔄 [SYNC] Starting background sync...');
+              this.sync().then(() => {
+                console.log('✅ [SYNC] Background sync completed');
+                this.events.emit('SYNC_COMPLETE');
+              }).catch((error) => {
+                console.error('❌ [SYNC] Background sync failed:', error);
+              });
+              
+            } else {
+              console.log('⚠️ [FAST PORTFOLIO] Unavailable, using full sync...');
+              const syncStart = performance.now();
+              await this.sync();
+              console.log('✅ [SYNC] Full sync completed in', (performance.now() - syncStart).toFixed(0), 'ms');
+            }
+          } catch (fastError) {
+            console.warn('⚠️ [FAST PORTFOLIO] Failed, using full sync');
+            const syncStart = performance.now();
+            await this.sync();
+            console.log('✅ [SYNC] Full sync completed in', (performance.now() - syncStart).toFixed(0), 'ms');
+          }
         } else if (skipSync) {
-          console.log('🚀 [INIT] Skipping automatic sync (skipSync=true)');
+          console.log('⏭️ [INIT] Skipping sync (skipSync=true)');
         }
         
-        console.log('🚀 [INIT] ✅ Total init time:', (performance.now() - initStartTime).toFixed(0), 'ms');
+        console.log('🎯 [INIT] Total time:', (performance.now() - initStartTime).toFixed(0), 'ms');
         return this.pioneer;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -472,6 +559,8 @@ export class SDK {
         let allCaips = this.balances.map((b) => b.caip);
 
         // Fetch market prices for all CAIPs
+        console.log("GetMarketInfo: payload: ", allCaips);
+        console.log("GetMarketInfo: payload type: ", typeof allCaips);
         let allPrices = await this.pioneer.GetMarketInfo(allCaips);
 
         // Update each balance with the corresponding price and value

@@ -1,5 +1,47 @@
 # @internal/config
 
+## 2.10.7
+
+### Patch Changes
+
+- bump
+
+## 2.10.6
+
+### Patch Changes
+
+- bump
+
+## 2.10.5
+
+### Patch Changes
+
+- bump
+
+## 2.10.4
+
+### Patch Changes
+
+- bump
+
+## 2.10.3
+
+### Patch Changes
+
+- bump
+
+## 2.10.2
+
+### Patch Changes
+
+- bump
+
+## 2.10.1
+
+### Patch Changes
+
+- bump
+
 ## 2.10.0
 
 ### Minor Changes

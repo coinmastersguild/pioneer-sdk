@@ -1,5 +1,75 @@
 # @coinmasters/e2e-transfer-dogecoin
 
+## 1.11.17
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.20
+  - @coinmasters/types@4.10.1
+
+## 1.11.16
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.19
+  - @coinmasters/types@4.10.1
+
+## 1.11.15
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.18
+  - @coinmasters/types@4.10.1
+
+## 1.11.14
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.17
+  - @coinmasters/types@4.10.1
+
+## 1.11.13
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.16
+  - @coinmasters/types@4.10.1
+
+## 1.11.12
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.15
+  - @coinmasters/types@4.10.1
+
+## 1.11.11
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.12.13
+  - @coinmasters/types@4.10.1
+
 ## 1.11.10
 
 ### Patch Changes
