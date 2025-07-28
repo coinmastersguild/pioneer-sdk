@@ -55,7 +55,7 @@ export async function createUnsignedStakingTx(
           amount: [{ denom: 'uatom', amount: '22500' }] // Increased proportionally (900,000 * 0.025 = 22,500)
         };
         break;
-      case 'osmosis:osmosis-1':
+      case 'cosmos:osmosis-1':
         chain = 'osmosis';
         chainId = 'osmosis-1';
         denom = 'uosmo';
@@ -81,7 +81,7 @@ export async function createUnsignedStakingTx(
     let account_number: string;
     let sequence: string;
 
-    if (networkId === 'cosmos:cosmoshub-4' || networkId === 'osmosis:osmosis-1') {
+    if (networkId === 'cosmos:cosmoshub-4' || networkId === 'cosmos:osmosis-1') {
       account_number = accountInfo.account.account_number || '0';
       sequence = accountInfo.account.sequence || '0';
     } else {
@@ -159,7 +159,6 @@ export async function createUnsignedStakingTx(
         return cosmosClaimRewardsTemplate({
           ...commonParams,
           validator_address: params.validatorAddress,
-          addressNList: relevantPubkeys[0].addressNList || [0x80000000 + 44, 0x80000000 + 118, 0x80000000 + 0, 0, 0], // m/44'/118'/0'/0/0 - Standard Cosmos path
         });
 
       case 'claim_all_rewards':
