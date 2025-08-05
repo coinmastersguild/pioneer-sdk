@@ -51,8 +51,8 @@ export async function createUnsignedStakingTx(
         denom = 'uatom';
         decimals = 6;
         feeConfig = {
-          gas: '900000', // Set to 900,000 gas - generous limit to handle all cosmos staking operations
-          amount: [{ denom: 'uatom', amount: '22500' }] // Increased proportionally (900,000 * 0.025 = 22,500)
+          gas: '1500000', // Increased to 1.5M gas to handle all cosmos staking operations
+          amount: [{ denom: 'uatom', amount: '37500' }] // Increased proportionally (1,500,000 * 0.025 = 37,500)
         };
         break;
       case 'cosmos:osmosis-1':
@@ -61,8 +61,8 @@ export async function createUnsignedStakingTx(
         denom = 'uosmo';
         decimals = 6;
         feeConfig = {
-          gas: '400000', // Increased to 400,000 for consistency
-          amount: [{ denom: 'uosmo', amount: '10000' }] // Increased proportionally
+          gas: '1000000', // Increased to 1M gas for osmosis staking operations
+          amount: [{ denom: 'uosmo', amount: '25000' }] // Increased proportionally
         };
         break;
       default:

@@ -197,7 +197,7 @@ export async function createUnsignedTendermintTx(
         return cosmosTransferTemplate({
           account_number,
           chain_id: 'cosmoshub-4',
-          fee: { gas: '200000', amount: [] },
+          fee: { gas: '1000000', amount: [] }, // Increased from 200k to 1M gas
           from_address: fromAddress,
           to_address: to,
           asset: 'uatom',
@@ -215,8 +215,8 @@ export async function createUnsignedTendermintTx(
           amount = amount * 1e4; // Convert amount to smallest unit
         }
         const DEFAULT_OSMO_FEE_MAINNET = {
-          amount: [{ denom: 'uosmo', amount: '3500' }],
-          gas: '500000',
+          amount: [{ denom: 'uosmo', amount: '10000' }], // Increased fee amount
+          gas: '1000000', // Increased from 500k to 1M gas
         };
         return osmosisTransferTemplate({
           account_number,
