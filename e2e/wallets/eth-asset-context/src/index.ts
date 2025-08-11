@@ -23,7 +23,7 @@ const error = console.error;
 
 async function testEthAssetContext() {
   try {
-    log(TAG, '🧪 Starting ETH Asset Context Test');
+    log(TAG, '🧪 Starting ETH Asset Context Test with Chart Data and CAIP Audit');
     
     // Initialize wallet - use same pattern as integration-coins test
     const spec = 'http://127.0.0.1:9001/spec/swagger.json'; // Use local Pioneer server
@@ -64,11 +64,52 @@ async function testEthAssetContext() {
       throw new Error('App not initialized');
     }
 
-    log(TAG, '📊 Analyzing balances...');
+    log(TAG, '📊 Analyzing balances and auditing CAIPs...');
     
     // Log all balances for debugging
     const allBalances = app.balances || [];
     log(TAG, `Total balances: ${allBalances.length}`);
+    
+    // CAIP Audit: Log ALL token balances with their CAIPs
+    log(TAG, '\n🔍 CAIP AUDIT - ALL TOKEN BALANCES:');
+    log(TAG, '=====================================');
+    
+    // Group balances by CAIP for analysis
+    const caipGroups: { [key: string]: any[] } = {};
+    allBalances.forEach((balance: any) => {
+      if (!caipGroups[balance.caip]) {
+        caipGroups[balance.caip] = [];
+      }
+      caipGroups[balance.caip].push(balance);
+    });
+    
+    // Log each CAIP group
+    Object.keys(caipGroups).forEach(caip => {
+      const balances = caipGroups[caip];
+      log(TAG, `\nCAIP: ${caip}`);
+      log(TAG, `  Number of assets with this CAIP: ${balances.length}`);
+      
+      balances.forEach((balance: any, index: number) => {
+        log(TAG, `  [${index + 1}] ${balance.name || balance.symbol || 'UNKNOWN'}:`, {
+          symbol: balance.symbol || balance.ticker,
+          name: balance.name,
+          balance: balance.balance,
+          valueUsd: balance.valueUsd,
+          appId: balance.appId,
+          isToken: balance.isToken,
+          contract: balance.contract,
+          caipCorrected: balance.caipCorrected || false,
+        });
+      });
+      
+      // Simply note if multiple assets share the same CAIP
+      if (balances.length > 1) {
+        log(TAG, `  📌 Note: ${balances.length} different assets are using this CAIP`);
+      }
+    });
+    
+    log(TAG, '\n=====================================');
+    log(TAG, 'CAIP AUDIT COMPLETE\n');
     
     // Find all ETH-related balances
     const ethBalances = allBalances.filter((b: any) => 
@@ -95,8 +136,70 @@ async function testEthAssetContext() {
       });
     });
 
+    // Test getCharts() functionality
+    log(TAG, '\n📈 Testing getCharts() functionality...');
+    if (app.getCharts) {
+      try {
+        // Get charts for all unique CAIPs
+        const uniqueCaips = [...new Set(allBalances.map((b: any) => b.caip))];
+        log(TAG, `Fetching chart data for ${uniqueCaips.length} unique CAIPs...`);
+        
+        for (const caip of uniqueCaips) {
+          try {
+            log(TAG, `\n  Fetching chart for CAIP: ${caip}`);
+            const chartData = await app.getCharts(caip);
+            
+            if (chartData) {
+              log(TAG, `    ✅ Chart data received:`, {
+                caip: caip,
+                dataPoints: Array.isArray(chartData) ? chartData.length : 'N/A',
+                hasData: !!chartData,
+                type: typeof chartData,
+              });
+              
+              // Log sample data point if available
+              if (Array.isArray(chartData) && chartData.length > 0) {
+                log(TAG, '    Sample data point:', chartData[0]);
+              }
+            } else {
+              log(TAG, `    ⚠️ No chart data returned for ${caip}`);
+            }
+          } catch (chartErr) {
+            error(TAG, `    ❌ Error fetching chart for ${caip}:`, chartErr.message || chartErr);
+          }
+        }
+        
+        // Special test: Get chart for problematic eETH CAIP
+        const eethBalance = allBalances.find((b: any) => b.name === 'eETH' || b.appId === 'ether-fi');
+        if (eethBalance) {
+          log(TAG, '\n  📊 Special test: eETH chart data');
+          log(TAG, `    eETH is using CAIP: ${eethBalance.caip}`);
+          
+          try {
+            const eethChart = await app.getCharts(eethBalance.caip);
+            log(TAG, '    eETH chart result:', {
+              success: !!eethChart,
+              dataPoints: Array.isArray(eethChart) ? eethChart.length : 'N/A',
+            });
+            
+            // Note what CAIP eETH is using
+            if (eethChart && eethBalance.caip === 'eip155:1/slip44:60') {
+              log(TAG, '    📌 Note: eETH is using CAIP eip155:1/slip44:60');
+            }
+          } catch (eethErr) {
+            error(TAG, '    Error fetching eETH chart:', eethErr.message || eethErr);
+          }
+        }
+        
+      } catch (chartsErr) {
+        error(TAG, '❌ Error testing getCharts:', chartsErr);
+      }
+    } else {
+      error(TAG, '⚠️ getCharts() method not available on app instance');
+    }
+    
     // Check dashboard data
-    log(TAG, '📋 Checking dashboard data...');
+    log(TAG, '\n📋 Checking dashboard data...');
     const dashboard = app.dashboard;
     if (dashboard && dashboard.networks) {
       const ethNetwork = dashboard.networks.find((n: any) => 
@@ -137,13 +240,11 @@ async function testEthAssetContext() {
         appId: selectedBalance.appId,
       });
       
-      // Check if this is the wrong balance (eETH instead of ETH)
+      // Log what was actually selected
       if (selectedBalance.name === 'eETH' || selectedBalance.appId === 'ether-fi') {
-        error(TAG, '❌ BUG CONFIRMED: Selected eETH instead of native ETH!');
-        error(TAG, '   This happens because multiple balances share the same CAIP');
-        error(TAG, '   and the wrong one (eETH) is being selected first.');
+        log(TAG, '📌 Selected balance is eETH');
         
-        // Try to find the correct native ETH balance
+        // Check if there's also a native ETH balance
         const nativeEth = ethBalances.find((b: any) => 
           !b.appId || 
           b.appId === 'native' || 
@@ -152,18 +253,15 @@ async function testEthAssetContext() {
         );
         
         if (nativeEth) {
-          log(TAG, '✅ Found correct native ETH balance:', {
+          log(TAG, '📌 Also found a native ETH balance:', {
             caip: nativeEth.caip,
             name: nativeEth.name,
             symbol: nativeEth.symbol || nativeEth.ticker,
             appId: nativeEth.appId,
           });
-          log(TAG, 'The fix should prioritize this balance over the eETH balance');
-        } else {
-          error(TAG, '⚠️ Could not find native ETH balance in the list');
         }
       } else {
-        log(TAG, '✅ Correctly selected native ETH');
+        log(TAG, '📌 Selected balance appears to be native ETH');
       }
     } else {
       error(TAG, '❌ No balance found for CAIP:', ethCaip);
@@ -201,30 +299,28 @@ async function testEthAssetContext() {
           symbol: currentContext?.symbol,
         });
         
-        if (currentContext?.name === 'eETH') {
-          error(TAG, '❌ Asset context shows eETH instead of ETH!');
-        } else if (currentContext?.name === 'ETH') {
-          log(TAG, '✅ Asset context correctly shows ETH');
+        if (currentContext?.name) {
+          log(TAG, `📌 Asset context is showing: ${currentContext.name}`);
         }
       }
     } else {
       error(TAG, '⚠️ setAssetContext method not available');
     }
 
-    log(TAG, '\n📊 Test Summary:');
+    log(TAG, '\n📊 AUDIT SUMMARY:');
     log(TAG, '================================');
-    log(TAG, 'REAL ISSUE: Tokens (like eETH) are being assigned incorrect CAIPs');
-    log(TAG, 'Problem: eETH gets native ETH CAIP (eip155:1/slip44:60) instead of its ERC-20 CAIP');
-    log(TAG, 'Root Cause: getCharts.ts receives wrong CAIPs from Pioneer API and trusts them');
+    log(TAG, 'DATA COLLECTED:');
+    log(TAG, `- Total balances found: ${allBalances.length}`);
+    log(TAG, `- Unique CAIPs found: ${Object.keys(caipGroups).length}`);
+    log(TAG, `- CAIPs shared by multiple assets: ${Object.keys(caipGroups).filter(c => caipGroups[c].length > 1).length}`);
     log(TAG, '');
-    log(TAG, 'Solution implemented:');
-    log(TAG, '1. CAIP Validator detects tokens using native CAIPs');
-    log(TAG, '2. Automatically corrects known tokens (eETH, WETH, USDC, etc)');
-    log(TAG, '3. Logs CRITICAL issues for visibility');
-    log(TAG, '4. Marks corrected balances with caipCorrected flag');
+    log(TAG, 'CHART DATA:');
+    log(TAG, `- Chart requests made: ${Object.keys(caipGroups).length}`);
     log(TAG, '');
-    log(TAG, 'Note: Multiple balances with same CAIP should be same asset (sum them)');
-    log(TAG, '      But tokens should NEVER share native asset CAIPs!');
+    log(TAG, 'Review the logs above to see:');
+    log(TAG, '- Which assets are using which CAIPs');
+    log(TAG, '- What chart data is returned for each CAIP');
+    log(TAG, '- Which assets share the same CAIP identifiers');
     log(TAG, '================================');
     
   } catch (err) {

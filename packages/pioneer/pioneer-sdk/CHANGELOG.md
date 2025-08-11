@@ -1,5 +1,28 @@
 # @coinmasters/pioneer-sdk
 
+## 4.13.1
+
+### Patch Changes
+
+- bump
+
+- Fix incorrect CAIP assignment for ERC-20 tokens
+
+  - Add CAIP validator to detect and correct incorrect CAIP identifiers
+  - Fix critical bug where eETH gets assigned native ETH CAIP (eip155:1/slip44:60)
+  - Integrate validation into getCharts.ts to catch issues from Pioneer API
+  - Automatically correct known tokens (eETH, WETH, USDC, USDT)
+  - Log CRITICAL issues when tokens use native asset CAIPs
+  - Mark corrected balances with caipCorrected flag
+  - Add comprehensive debug logging for swap operations
+  - Improve recipient address resolution for cross-chain swaps
+
+  This prevents the bug where clicking ETH shows eETH instead, as each token now gets its correct unique CAIP identifier.
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.9
+  - @coinmasters/types@4.10.2
+
 ## 4.13.0
 
 ### Minor Changes

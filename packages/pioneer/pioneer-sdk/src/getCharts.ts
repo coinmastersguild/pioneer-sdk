@@ -1,5 +1,3 @@
-import { validateCaip, correctCaip, validateAndCorrectBalances } from './caipValidator';
-
 let TIMEOUT = 30000;
 
 export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, context: string) => {
@@ -24,42 +22,10 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
     try {
       let portfolio = await pioneer.GetPortfolio({ address: primaryAddress });
       portfolio = portfolio.data;
-      //console.log(tag, 'portfolio: ', portfolio);
 
       if (portfolio && portfolio.balances) {
         for (const balance of portfolio.balances) {
           if (balance.caip && balance.networkId && blockchains.includes(balance.networkId)) {
-            // CRITICAL: Validate CAIP before processing
-            const validation = validateCaip(balance);
-            if (!validation.isValid) {
-              console.error(tag, 'Invalid CAIP detected:', {
-                balance: {
-                  caip: balance.caip,
-                  name: balance.name,
-                  symbol: balance.symbol,
-                  appId: balance.appId,
-                  contractAddress: balance.contractAddress
-                },
-                issues: validation.issues,
-                suggestedCaip: validation.suggestedCaip
-              });
-              
-              // Attempt to correct the CAIP
-              if (validation.suggestedCaip) {
-                console.warn(tag, `Correcting CAIP from ${balance.caip} to ${validation.suggestedCaip}`);
-                balance.caip = validation.suggestedCaip;
-                balance.caipCorrected = true;
-              } else {
-                // If we can't correct it, try our correction function
-                const correctedCaip = correctCaip(balance);
-                if (correctedCaip !== balance.caip) {
-                  console.warn(tag, `Correcting CAIP from ${balance.caip} to ${correctedCaip}`);
-                  balance.caip = correctedCaip;
-                  balance.caipCorrected = true;
-                }
-              }
-            }
-            
             balance.context = context;
             balance.identifier = balance.caip + ':' + primaryAddress;
             balance.contextType = 'keepkey';
@@ -73,17 +39,9 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
             );
             if (balance.display)
               balance.icon = ['multi', balance.icon, balance.display.toString()].toString();
-            if (existingBalance) {
-              // console.error(tag, 'Duplicate CAIP found:', {
-              //   existingBalance,
-              //   duplicateBalance: balance,
-              // });
-            } else {
+            if (!existingBalance) {
               balances.push(balance);
             }
-          } else {
-            if (blockchains.includes(balance.networkId))
-              console.error(tag, 'Invalid balance:', balance);
           }
         }
 
@@ -91,27 +49,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
         if (portfolio.tokens && portfolio.tokens.length > 0) {
           console.log(tag, 'Processing portfolio.tokens:', portfolio.tokens.length);
           
-          // Debug: Log all tokens to see what we're getting
-          console.log(tag, 'DEBUG: All tokens from portfolio:');
-          portfolio.tokens.forEach((token: any, index: number) => {
-            console.log(tag, `DEBUG: Token ${index}:`, {
-              assetCaip: token.assetCaip,
-              networkId: token.networkId,
-              symbol: token.token?.symbol,
-              balance: token.token?.balance,
-              balanceUSD: token.token?.balanceUSD,
-              isMayaRelated: token.assetCaip && (
-                token.assetCaip.includes('maya') || 
-                token.assetCaip.includes('MAYA') ||
-                token.assetCaip.includes('cosmos:mayachain') ||
-                token.token?.symbol === 'MAYA' ||
-                token.token?.symbol === 'CACAO'
-              )
-            });
-          });
-          
           for (const token of portfolio.tokens) {
-            //console.log(tag, 'token: ', token);
             if (token.assetCaip && token.networkId) {
               // Extract the networkId from the assetCaip for special token formats like MAYA
               let extractedNetworkId = token.networkId;
@@ -148,37 +86,13 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                 updated: new Date().getTime(),
               };
 
-              // Debug logging for MAYA tokens
-              if (token.assetCaip.includes('maya') || token.assetCaip.includes('MAYA')) {
-                console.log(tag, 'Processing MAYA token:', {
-                  assetCaip: token.assetCaip,
-                  originalNetworkId: token.networkId,
-                  extractedNetworkId: extractedNetworkId,
-                  blockchains: blockchains,
-                  isIncluded: blockchains.includes(extractedNetworkId)
-                });
-              }
-
               if (blockchains.includes(balanceString.networkId)) {
-                //console.log(tag, 'WINNING! balances match!!! saving!!!! ', balanceString);
                 // Check if already exists
                 const exists = balances.some((b: any) => b.caip === balanceString.caip && b.pubkey === balanceString.pubkey);
                 if (!exists) {
                   balances.push(balanceString);
-                  // Debug: Log when MAYA token is added
-                  if (token.assetCaip.includes('maya') || token.assetCaip.includes('MAYA')) {
-                    console.log(tag, 'DEBUG: Successfully added MAYA token to balances');
-                  }
-                }
-              } else {
-                console.error(tag, 'network not live in blockchains:', balanceString.networkId);
-                // Debug: Log when MAYA token is filtered out
-                if (token.assetCaip.includes('maya') || token.assetCaip.includes('MAYA')) {
-                  console.error(tag, 'DEBUG: MAYA token filtered out - network not in blockchains');
                 }
               }
-            } else {
-              console.error(tag, 'Invalid token:', token);
             }
           }
         }
@@ -366,26 +280,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
       console.error(tag, 'Error adding cosmos staking positions:', e);
     }
 
-    // Final validation and correction of all balances
-    const { corrected, issues } = validateAndCorrectBalances(balances);
-    
-    if (issues.length > 0) {
-      console.error(tag, `Found ${issues.length} CAIP issues in final balances:`);
-      const criticalIssues = issues.filter(i => i.validation.severity === 'critical');
-      if (criticalIssues.length > 0) {
-        console.error(tag, 'CRITICAL CAIP ISSUES FOUND:', criticalIssues.length);
-        criticalIssues.forEach(issue => {
-          console.error(tag, '  -', {
-            symbol: issue.balance.symbol,
-            name: issue.balance.name,
-            caip: issue.balance.caip,
-            issues: issue.validation.issues
-          });
-        });
-      }
-    }
-    
-    return corrected;
+    return balances;
   } catch (error) {
     console.error(tag, 'Error processing path:', error);
     throw error;

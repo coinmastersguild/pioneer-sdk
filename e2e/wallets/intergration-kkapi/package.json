@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/integration-kkapi",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "E2E integration test for kkapi:// vault performance optimization",
   "main": "dist/index.js",
   "scripts": {

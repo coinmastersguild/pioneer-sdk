@@ -251,6 +251,56 @@ importers:
         specifier: workspace:*
         version: link:../../../internal/config
 
+  e2e/wallets/caip-validator-test:
+    dependencies:
+      dotenv:
+        specifier: ^16.0.0
+        version: 16.6.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.9
+      ts-node:
+        specifier: ^10.0.0
+        version: 10.9.2(@types/node@20.19.9)(typescript@5.2.2)
+      typescript:
+        specifier: 5.2.2
+        version: 5.2.2
+
+  e2e/wallets/eth-asset-context:
+    dependencies:
+      '@coinmasters/pioneer-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/pioneer/pioneer-sdk
+      '@coinmasters/types':
+        specifier: workspace:^
+        version: link:../../../packages/swapkit/types
+      '@pioneer-platform/helpers':
+        specifier: ^4.0.13
+        version: 4.0.13
+      '@pioneer-platform/loggerdog':
+        specifier: ^8.3.1
+        version: 8.3.1(@types/node@20.19.9)
+      '@pioneer-platform/pioneer-caip':
+        specifier: ^9.2.31
+        version: 9.2.38
+      '@pioneer-platform/pioneer-coins':
+        specifier: ^9.2.26
+        version: 9.2.26(@types/node@20.19.9)
+      '@types/node':
+        specifier: ^20.13.0
+        version: 20.19.9
+      dotenv:
+        specifier: ^6.2.0
+        version: 6.2.0
+      typescript:
+        specifier: 5.2.2
+        version: 5.2.2
+    devDependencies:
+      '@internal/config':
+        specifier: workspace:*
+        version: link:../../../internal/config
+
   e2e/wallets/intergration-coins:
     dependencies:
       '@coinmasters/pioneer-sdk':

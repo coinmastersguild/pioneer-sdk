@@ -1,5 +1,14 @@
 # @coinmasters/api
 
+## 3.10.9
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/types@4.10.2
+
 ## 3.10.8
 
 ### Patch Changes

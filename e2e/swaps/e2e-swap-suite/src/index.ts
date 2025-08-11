@@ -38,7 +38,10 @@ const test_service = async function () {
             'BTC',
             'DOGE',
             'ETH',
-            'THOR'
+            'THOR',
+            'XRP',
+            'OSMO',
+            'ATOM'
         ];
 
         const allByCaip = chains.map(chainStr => {
@@ -62,7 +65,8 @@ const test_service = async function () {
 
         const paths = getPaths(blockchains);
 
-        const spec = process.env.PIONEER_SPEC || 'https://pioneers.dev/spec/swagger.json';
+        // const spec = process.env.PIONEER_SPEC || 'https://pioneers.dev/spec/swagger.json';
+        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
         const config:any = {
             username,
             queryKey,
