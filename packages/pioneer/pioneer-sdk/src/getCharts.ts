@@ -1,3 +1,5 @@
+import { validateCaip, correctCaip, validateAndCorrectBalances } from './caipValidator';
+
 let TIMEOUT = 30000;
 
 export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, context: string) => {
@@ -27,6 +29,37 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
       if (portfolio && portfolio.balances) {
         for (const balance of portfolio.balances) {
           if (balance.caip && balance.networkId && blockchains.includes(balance.networkId)) {
+            // CRITICAL: Validate CAIP before processing
+            const validation = validateCaip(balance);
+            if (!validation.isValid) {
+              console.error(tag, 'Invalid CAIP detected:', {
+                balance: {
+                  caip: balance.caip,
+                  name: balance.name,
+                  symbol: balance.symbol,
+                  appId: balance.appId,
+                  contractAddress: balance.contractAddress
+                },
+                issues: validation.issues,
+                suggestedCaip: validation.suggestedCaip
+              });
+              
+              // Attempt to correct the CAIP
+              if (validation.suggestedCaip) {
+                console.warn(tag, `Correcting CAIP from ${balance.caip} to ${validation.suggestedCaip}`);
+                balance.caip = validation.suggestedCaip;
+                balance.caipCorrected = true;
+              } else {
+                // If we can't correct it, try our correction function
+                const correctedCaip = correctCaip(balance);
+                if (correctedCaip !== balance.caip) {
+                  console.warn(tag, `Correcting CAIP from ${balance.caip} to ${correctedCaip}`);
+                  balance.caip = correctedCaip;
+                  balance.caipCorrected = true;
+                }
+              }
+            }
+            
             balance.context = context;
             balance.identifier = balance.caip + ':' + primaryAddress;
             balance.contextType = 'keepkey';
@@ -333,7 +366,26 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
       console.error(tag, 'Error adding cosmos staking positions:', e);
     }
 
-    return balances;
+    // Final validation and correction of all balances
+    const { corrected, issues } = validateAndCorrectBalances(balances);
+    
+    if (issues.length > 0) {
+      console.error(tag, `Found ${issues.length} CAIP issues in final balances:`);
+      const criticalIssues = issues.filter(i => i.validation.severity === 'critical');
+      if (criticalIssues.length > 0) {
+        console.error(tag, 'CRITICAL CAIP ISSUES FOUND:', criticalIssues.length);
+        criticalIssues.forEach(issue => {
+          console.error(tag, '  -', {
+            symbol: issue.balance.symbol,
+            name: issue.balance.name,
+            caip: issue.balance.caip,
+            issues: issue.validation.issues
+          });
+        });
+      }
+    }
+    
+    return corrected;
   } catch (error) {
     console.error(tag, 'Error processing path:', error);
     throw error;
