@@ -1056,8 +1056,15 @@ export class SDK {
         if (!swapPayload.amount) throw Error('amount required!');
 
         //Set contexts
+        console.log(tag, 'Setting contexts for swap...');
+        console.log(tag, 'caipIn:', swapPayload.caipIn);
+        console.log(tag, 'caipOut:', swapPayload.caipOut);
+        
         await this.setAssetContext({ caip: swapPayload.caipIn });
         await this.setOutboundAssetContext({ caip: swapPayload.caipOut });
+        
+        console.log(tag, 'assetContext:', this.assetContext);
+        console.log(tag, 'outboundAssetContext:', this.outboundAssetContext);
         //console.log(tag, 'assetContext: ', this.assetContext);
         //console.log(tag, 'outboundAssetContext: ', this.outboundAssetContext);
 
@@ -1086,13 +1093,56 @@ export class SDK {
           this.outboundAssetContext.networkId,
         );
         */
-        //console.log(tag, 'this.pubkeys: ', this.pubkeys);
+        console.log(tag, 'Looking for recipient address...');
+        console.log(tag, 'this.outboundAssetContext.networkId:', this.outboundAssetContext.networkId);
+        console.log(tag, 'this.pubkeys count:', this.pubkeys.length);
+        console.log(tag, 'Sample pubkey networks:', this.pubkeys.slice(0, 3).map((p: any) => ({
+          networks: p.networks,
+          address: p.address?.substring(0, 10) + '...',
+          master: p.master?.substring(0, 10) + '...'
+        })));
+        
+        // Check if we need to fetch pubkeys for this network
+        const existingNetworks = [...new Set(this.pubkeys.flatMap((p: any) => p.networks))];
+        if (!existingNetworks.includes(this.outboundAssetContext.networkId)) {
+          console.log(tag, 'Network not found in pubkeys, attempting to add paths for:', this.outboundAssetContext.networkId);
+          
+          // Try to get paths for this network
+          try {
+            const newPaths = getPaths([this.outboundAssetContext.networkId]);
+            if (newPaths && newPaths.length > 0) {
+              console.log(tag, 'Found', newPaths.length, 'paths for network');
+              this.paths = this.paths.concat(newPaths);
+              
+              // Get pubkeys for these new paths
+              const newPubkeys = await this.getPubkeys();
+              console.log(tag, 'Fetched', newPubkeys.length, 'new pubkeys');
+            }
+          } catch (pathError) {
+            console.error(tag, 'Failed to get paths for network:', pathError);
+          }
+        }
+        
         const pubkeysOut = this.pubkeys.filter((e: any) =>
           e.networks.includes(this.outboundAssetContext.networkId),
         );
-        //console.log(tag, 'pubkeysOut: ', pubkeysOut);
+        console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
+        console.log(tag, 'pubkeysOut:', pubkeysOut);
+        
         let recipientAddress = pubkeysOut[0]?.address || pubkeysOut[0]?.master;
-        if (!recipientAddress) throw new Error('recipientAddress not found! wallet not connected');
+        if (!recipientAddress) {
+          console.error(tag, 'Failed to find recipient address!');
+          console.error(tag, 'Available networks in pubkeys:', [...new Set(this.pubkeys.flatMap((p: any) => p.networks))]);
+          console.error(tag, 'Looking for network:', this.outboundAssetContext.networkId);
+          
+          // Try to use the sender address as a fallback if both assets are on the same network
+          if (this.assetContext.networkId === this.outboundAssetContext.networkId && senderAddress) {
+            console.warn(tag, 'Using sender address as recipient for same-network swap');
+            recipientAddress = senderAddress;
+          } else {
+            throw new Error('recipientAddress not found! wallet not connected or missing pubkey for network: ' + this.outboundAssetContext.networkId);
+          }
+        }
         if (recipientAddress.includes('bitcoincash:')) {
           recipientAddress = recipientAddress.replace('bitcoincash:', '');
         }

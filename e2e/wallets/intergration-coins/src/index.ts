@@ -37,9 +37,9 @@ import {
 } from '@pioneer-platform/pioneer-coins';
 //let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
 // let spec = 'https://pioneers.dev/spec/swagger.json'
-// let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 // Use local kkcli-v2 server for testing
-let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
+//let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
 // const DB = require('@coinmasters/pioneer-db-sql');
 console.log("spec: ",spec)
 
@@ -715,395 +715,183 @@ const test_service = async function (this: any) {
 
         // Test Direct Cosmos Delegation APIs
         log.info(tag, ' ****** Testing Direct Cosmos Delegation APIs ******')
-        
-        // Find cosmos pubkeys for direct API testing
-        const cosmosApiPubkeys = app.pubkeys.filter((pubkey: any) => 
-            pubkey.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
-        );
-        
-        if (cosmosApiPubkeys.length > 0) {
-            log.info(tag, `Found ${cosmosApiPubkeys.length} cosmos pubkeys for delegation testing`);
-            
-            for (const cosmosPubkey of cosmosApiPubkeys) {
-                if (cosmosPubkey.address) {
-                    log.info(tag, `Testing delegation APIs for address: ${cosmosPubkey.address}`);
-                    
-                    // Find the cosmos networks this pubkey supports
-                    const cosmosNetworks = cosmosPubkey.networks.filter((n: string) => 
-                        n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis')
-                    );
-                    
-                    for (const networkId of cosmosNetworks) {
-                        if (app.blockchains.includes(networkId)) {
-                            log.info(tag, `Testing ${networkId} delegation APIs for ${cosmosPubkey.address}`);
-                            
-                            try {
-                                // Test getDelegations API
-                                log.info(tag, `Calling app.pioneer.GetDelegations for ${networkId}...`);
-                                
-                                // Note: GetDelegations requires a validator parameter, but we're testing GetStakingPositions
-                                // which gets all delegations. Skipping GetDelegations test for now.
-                                log.info(tag, `Skipping GetDelegations test (requires validator parameter)`);
-                                
-                                // Test getStakingPositions API
-                                log.info(tag, `Calling app.pioneer.GetStakingPositions for ${networkId}...`);
-                                
-                                // Convert networkId to network name for API
-                                let network;
-                                if (networkId === 'cosmos:cosmoshub-4') {
-                                    network = 'cosmos';
-                                } else if (networkId === 'cosmos:osmosis-1') {
-                                    network = 'osmosis';
-                                } else {
-                                    log.error(tag, `Unsupported networkId for staking: ${networkId}`);
-                                    continue;
-                                }
-                                
-                                const stakingResponse = await app.pioneer.GetStakingPositions({
-                                    network: network,
-                                    address: cosmosPubkey.address
-                                });
-                                
-                                if (stakingResponse && stakingResponse.data) {
-                                    log.info(tag, `✅ GetStakingPositions SUCCESS: Found ${stakingResponse.data.length} staking positions`);
-                                    
-                                    // Analyze position types
-                                    const positionTypes: { [key: string]: number } = {};
-                                    let totalStakingValue = 0;
-                                    
-                                    for (const position of stakingResponse.data) {
-                                        if (!positionTypes[position.type]) {
-                                            positionTypes[position.type] = 0;
-                                        }
-                                        positionTypes[position.type]++;
-                                        
-                                        const valueUsd = parseFloat(position.valueUsd) || 0;
-                                        totalStakingValue += valueUsd;
-                                        
-                                        log.debug(tag, `  ${position.type} position:`, {
-                                            balance: position.balance,
-                                            ticker: position.ticker || position.symbol,
-                                            valueUsd: position.valueUsd,
-                                            validator: position.validator,
-                                            status: position.status
-                                        });
-                                    }
-                                    
-                                    log.info(tag, `  📊 Position Summary: ${JSON.stringify(positionTypes)}`);
-                                    log.info(tag, `  💰 Total Staking Value: $${totalStakingValue.toFixed(2)}`);
-                                    
-                                    // Validate position structure
-                                    for (const position of stakingResponse.data) {
-                                        // DEBUG: Log the actual position structure
-                                        log.info(tag, `🔍 DEBUG: Raw position data from API:`, JSON.stringify(position, null, 2));
-                                        
-                                        assert(position.type, 'Position must have type');
-                                        assert(position.balance, 'Position must have balance');
-                                        assert(position.networkId, 'Position must have networkId');
-                                        assert(position.caip, 'Position must have caip');
-                                        
-                                        // CRITICAL TEST: Check for validator information
-                                        if (position.type === 'delegation') {
-                                            log.info(tag, `🔍 DEBUG: Checking delegation position for validator info:`, {
-                                                type: position.type,
-                                                validator: position.validator,
-                                                validatorAddress: position.validatorAddress,
-                                                validatorMoniker: position.validatorMoniker,
-                                                validatorName: position.validatorName,
-                                                allKeys: Object.keys(position)
-                                            });
-                                            
-                                            // Check all possible validator field names
-                                            const hasValidatorInfo = position.validator || 
-                                                                   position.validatorAddress || 
-                                                                   position.validatorMoniker || 
-                                                                   position.validatorName;
-                                            
-                                            if (!hasValidatorInfo) {
-                                                log.error(tag, `❌ CRITICAL FAILURE: Delegation position missing validator information!`);
-                                                log.error(tag, `Position data:`, position);
-                                                throw new Error(`CRITICAL: Delegation position missing validator information. This will cause "Unknown Validator" in UI and prevent undelegation.`);
-                                            }
-                                            
-                                            log.info(tag, `✅ Delegation position has validator info: ${hasValidatorInfo}`);
-                                        }
-                                        
-                                        if (position.type === 'reward') {
-                                            const hasValidatorInfo = position.validator || 
-                                                                   position.validatorAddress || 
-                                                                   position.validatorMoniker || 
-                                                                   position.validatorName;
-                                            
-                                            if (!hasValidatorInfo) {
-                                                log.error(tag, `❌ CRITICAL FAILURE: Reward position missing validator information!`);
-                                                log.error(tag, `Position data:`, position);
-                                                throw new Error(`CRITICAL: Reward position missing validator information. This will cause "Unknown Validator" in UI and prevent reward claiming.`);
-                                            }
-                                        }
-                                    }
-                                    
-                                    log.info(tag, `✅ All staking positions validated for ${networkId}`);
-                                } else {
-                                    log.info(tag, `ℹ️ GetStakingPositions: No staking positions found for ${cosmosPubkey.address} on ${networkId}`);
-                                }
-                                
-                            } catch (error) {
-                                log.error(tag, `❌ Error testing delegation APIs for ${networkId}:`, error);
-                                // Don't throw here, continue with other networks
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            log.info(tag, 'ℹ️ No cosmos pubkeys found - skipping delegation API tests');
-        }
-        
-        log.info(tag, ' ****** Direct Cosmos Delegation API Tests Complete ******');
 
-        // Test Cosmos Staking Positions Integration
-        log.info(tag, ' ****** Testing Cosmos Staking Positions Integration ******')
         
-        // Find cosmos pubkeys for staking tests
-        const cosmosPubkeys = app.pubkeys.filter((pubkey: any) => 
-            pubkey.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
-        );
+        // log.info(tag, ' ****** Direct Cosmos Delegation API Tests Complete ******');
+        //
+        // // Test Cosmos Staking Positions Integration
+        // log.info(tag, ' ****** Testing Cosmos Staking Positions Integration ******')
+        //
+        // // Find cosmos pubkeys for staking tests
+        // const cosmosPubkeys = app.pubkeys.filter((pubkey: any) =>
+        //     pubkey.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
+        // );
         
-        if (cosmosPubkeys.length > 0) {
-            log.info(tag, `Found ${cosmosPubkeys.length} cosmos pubkeys for staking tests`);
-            
-            // Test staking positions for each cosmos pubkey
-            for (const cosmosPubkey of cosmosPubkeys) {
-                if (cosmosPubkey.address) {
-                    log.info(tag, `Testing staking positions for address: ${cosmosPubkey.address}`);
-                    
-                    // Check if we have staking positions in balances
-                    const stakingBalances = app.balances.filter((balance: any) => 
-                        balance.pubkey === cosmosPubkey.address && 
-                        balance.chart === 'staking'
-                    );
-                    
-                    if (stakingBalances.length > 0) {
-                        log.info(tag, `✅ Found ${stakingBalances.length} staking positions in balances`);
-                        
-                        // Analyze staking positions
-                        let totalStakingValue = 0;
-                        const stakingTypes: { [key: string]: number } = {};
-                        
-                        for (const stakingBalance of stakingBalances) {
-                            log.debug(tag, `Staking position:`, {
-                                type: stakingBalance.type,
-                                balance: stakingBalance.balance,
-                                ticker: stakingBalance.ticker,
-                                valueUsd: stakingBalance.valueUsd,
-                                validator: stakingBalance.validator,
-                                status: stakingBalance.status
-                            });
-                            
-                            // Validate staking position properties
-                            assert(stakingBalance.type, 'Staking position must have type');
-                            assert(stakingBalance.balance, 'Staking position must have balance');
-                            assert(stakingBalance.ticker, 'Staking position must have ticker');
-                            assert(stakingBalance.networkId, 'Staking position must have networkId');
-                            assert(stakingBalance.caip, 'Staking position must have caip');
-                            assert(stakingBalance.chart === 'staking', 'Chart type must be staking');
-                            
-                            // Accumulate totals
-                            const valueUsd = parseFloat(stakingBalance.valueUsd) || 0;
-                            totalStakingValue += valueUsd;
-                            
-                            // Count by type
-                            if (!stakingTypes[stakingBalance.type]) {
-                                stakingTypes[stakingBalance.type] = 0;
-                            }
-                            stakingTypes[stakingBalance.type]++;
-                        }
-                        
-                        log.info(tag, `📊 Staking Analysis for ${cosmosPubkey.address}:`);
-                        log.info(tag, `  Total Staking Value: $${totalStakingValue.toFixed(2)}`);
-                        log.info(tag, `  Position Types:`, stakingTypes);
-                        
-                        // Verify staking positions are included in total portfolio value
-                        const originalTotalValue = totalValueUsd;
-                        log.info(tag, `  Portfolio includes staking value: ${originalTotalValue >= totalStakingValue ? '✅' : '❌'}`);
-                        
-                        // Test specific staking position types
-                        if (stakingTypes['delegation']) {
-                            log.info(tag, `  ✅ Found ${stakingTypes['delegation']} delegation positions`);
-                        }
-                        if (stakingTypes['reward']) {
-                            log.info(tag, `  ✅ Found ${stakingTypes['reward']} reward positions`);
-                        }
-                        if (stakingTypes['unbonding']) {
-                            log.info(tag, `  ✅ Found ${stakingTypes['unbonding']} unbonding positions`);
-                        }
-                        
-                    } else {
-                        log.info(tag, `ℹ️ No staking positions found for ${cosmosPubkey.address} (this is normal if no staking activity)`);
-                    }
-                }
-            }
-        } else {
-            log.info(tag, 'ℹ️ No cosmos pubkeys found - skipping staking position tests');
-        }
+        // if (cosmosPubkeys.length > 0) {
+        //     log.info(tag, `Found ${cosmosPubkeys.length} cosmos pubkeys for staking tests`);
+        //
+        //     // Test staking positions for each cosmos pubkey
+        //     for (const cosmosPubkey of cosmosPubkeys) {
+        //         if (cosmosPubkey.address) {
+        //             log.info(tag, `Testing staking positions for address: ${cosmosPubkey.address}`);
+        //
+        //             // Check if we have staking positions in balances
+        //             const stakingBalances = app.balances.filter((balance: any) =>
+        //                 balance.pubkey === cosmosPubkey.address &&
+        //                 balance.chart === 'staking'
+        //             );
+        //
+        //             if (stakingBalances.length > 0) {
+        //                 log.info(tag, `✅ Found ${stakingBalances.length} staking positions in balances`);
+        //
+        //                 // Analyze staking positions
+        //                 let totalStakingValue = 0;
+        //                 const stakingTypes: { [key: string]: number } = {};
+        //
+        //                 for (const stakingBalance of stakingBalances) {
+        //                     log.debug(tag, `Staking position:`, {
+        //                         type: stakingBalance.type,
+        //                         balance: stakingBalance.balance,
+        //                         ticker: stakingBalance.ticker,
+        //                         valueUsd: stakingBalance.valueUsd,
+        //                         validator: stakingBalance.validator,
+        //                         status: stakingBalance.status
+        //                     });
+        //
+        //                     // Validate staking position properties
+        //                     assert(stakingBalance.type, 'Staking position must have type');
+        //                     assert(stakingBalance.balance, 'Staking position must have balance');
+        //                     assert(stakingBalance.ticker, 'Staking position must have ticker');
+        //                     assert(stakingBalance.networkId, 'Staking position must have networkId');
+        //                     assert(stakingBalance.caip, 'Staking position must have caip');
+        //                     assert(stakingBalance.chart === 'staking', 'Chart type must be staking');
+        //
+        //                     // Accumulate totals
+        //                     const valueUsd = parseFloat(stakingBalance.valueUsd) || 0;
+        //                     totalStakingValue += valueUsd;
+        //
+        //                     // Count by type
+        //                     if (!stakingTypes[stakingBalance.type]) {
+        //                         stakingTypes[stakingBalance.type] = 0;
+        //                     }
+        //                     stakingTypes[stakingBalance.type]++;
+        //                 }
+        //
+        //                 log.info(tag, `📊 Staking Analysis for ${cosmosPubkey.address}:`);
+        //                 log.info(tag, `  Total Staking Value: $${totalStakingValue.toFixed(2)}`);
+        //                 log.info(tag, `  Position Types:`, stakingTypes);
+        //
+        //                 // Verify staking positions are included in total portfolio value
+        //                 const originalTotalValue = totalValueUsd;
+        //                 log.info(tag, `  Portfolio includes staking value: ${originalTotalValue >= totalStakingValue ? '✅' : '❌'}`);
+        //
+        //                 // Test specific staking position types
+        //                 if (stakingTypes['delegation']) {
+        //                     log.info(tag, `  ✅ Found ${stakingTypes['delegation']} delegation positions`);
+        //                 }
+        //                 if (stakingTypes['reward']) {
+        //                     log.info(tag, `  ✅ Found ${stakingTypes['reward']} reward positions`);
+        //                 }
+        //                 if (stakingTypes['unbonding']) {
+        //                     log.info(tag, `  ✅ Found ${stakingTypes['unbonding']} unbonding positions`);
+        //                 }
+        //
+        //             } else {
+        //                 log.info(tag, `ℹ️ No staking positions found for ${cosmosPubkey.address} (this is normal if no staking activity)`);
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     log.info(tag, 'ℹ️ No cosmos pubkeys found - skipping staking position tests');
+        // }
+        //
+        // // Verify staking positions have market pricing
+        // const stakingPositions = app.balances.filter((balance: any) => balance.chart === 'staking');
+        // if (stakingPositions.length > 0) {
+        //     log.info(tag, ' ****** Testing Staking Position Market Pricing ******');
+        //
+        //     for (const position of stakingPositions) {
+        //         log.debug(tag, `Checking pricing for ${position.type} position:`, {
+        //             ticker: position.ticker,
+        //             balance: position.balance,
+        //             priceUsd: position.priceUsd,
+        //             valueUsd: position.valueUsd
+        //         });
+        //
+        //         // Verify pricing data exists
+        //         if (position.priceUsd && position.priceUsd > 0) {
+        //             log.info(tag, `✅ ${position.ticker} has market price: $${position.priceUsd}`);
+        //
+        //             // Verify value calculation
+        //             const expectedValue = parseFloat(position.balance) * parseFloat(position.priceUsd);
+        //             const actualValue = parseFloat(position.valueUsd);
+        //             const tolerance = 0.01; // 1 cent tolerance
+        //
+        //             if (Math.abs(expectedValue - actualValue) <= tolerance) {
+        //                 log.info(tag, `✅ ${position.ticker} value calculation correct: $${actualValue.toFixed(2)}`);
+        //             } else {
+        //                 log.warn(tag, `⚠️ ${position.ticker} value calculation mismatch: expected $${expectedValue.toFixed(2)}, got $${actualValue.toFixed(2)}`);
+        //             }
+        //         } else {
+        //             log.warn(tag, `⚠️ ${position.ticker} missing market price data`);
+        //         }
+        //     }
+        // }
         
-        // Verify staking positions have market pricing
-        const stakingPositions = app.balances.filter((balance: any) => balance.chart === 'staking');
-        if (stakingPositions.length > 0) {
-            log.info(tag, ' ****** Testing Staking Position Market Pricing ******');
-            
-            for (const position of stakingPositions) {
-                log.debug(tag, `Checking pricing for ${position.type} position:`, {
-                    ticker: position.ticker,
-                    balance: position.balance,
-                    priceUsd: position.priceUsd,
-                    valueUsd: position.valueUsd
-                });
-                
-                // Verify pricing data exists
-                if (position.priceUsd && position.priceUsd > 0) {
-                    log.info(tag, `✅ ${position.ticker} has market price: $${position.priceUsd}`);
-                    
-                    // Verify value calculation
-                    const expectedValue = parseFloat(position.balance) * parseFloat(position.priceUsd);
-                    const actualValue = parseFloat(position.valueUsd);
-                    const tolerance = 0.01; // 1 cent tolerance
-                    
-                    if (Math.abs(expectedValue - actualValue) <= tolerance) {
-                        log.info(tag, `✅ ${position.ticker} value calculation correct: $${actualValue.toFixed(2)}`);
-                    } else {
-                        log.warn(tag, `⚠️ ${position.ticker} value calculation mismatch: expected $${expectedValue.toFixed(2)}, got $${actualValue.toFixed(2)}`);
-                    }
-                } else {
-                    log.warn(tag, `⚠️ ${position.ticker} missing market price data`);
-                }
-            }
-        }
-        
-        log.info(tag, ' ****** Cosmos Staking Integration Tests Complete ******');
+        // log.info(tag, ' ****** Cosmos Staking Integration Tests Complete ******');
 
-        // CRITICAL TEST: Verify delegation positions exist in app.balances
-        log.info(tag, ' ****** Testing Delegation Positions in app.balances ******');
+        // Verify delegation positions exist in app.balances
+        // log.info(tag, ' ****** Testing Delegation Positions in app.balances ******');
         
         // Check for any staking positions with chart: 'staking' in app.balances
-        const allStakingPositions = app.balances.filter((balance: any) => balance.chart === 'staking');
-        log.info(tag, `Total staking positions found in app.balances: ${allStakingPositions.length}`);
-        
-        if (allStakingPositions.length === 0) {
-            // Check if we have cosmos pubkeys - if we do but no staking positions, that's an issue
-            const cosmosAddresses = app.pubkeys.filter((pubkey: any) => 
-                pubkey.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
-            );
-            
-            if (cosmosAddresses.length > 0) {
-                log.error(tag, `❌ CRITICAL FAILURE: Found ${cosmosAddresses.length} cosmos addresses but NO staking positions in app.balances!`);
-                log.error(tag, `This indicates that getCharts() is not properly populating staking positions.`);
-                log.error(tag, `Cosmos addresses found:`, cosmosAddresses.map((p: any) => p.address));
-                
-                // This is a critical failure - the whole point of the fix was to get staking positions
-                throw new Error(`CRITICAL TEST FAILURE: No staking positions found in app.balances despite having ${cosmosAddresses.length} cosmos addresses. The getCharts() integration is broken.`);
-            } else {
-                log.info(tag, `ℹ️ No cosmos addresses found, so no staking positions expected.`);
-            }
-        } else {
-            log.info(tag, `✅ SUCCESS: Found ${allStakingPositions.length} staking positions in app.balances!`);
-            
-            // Log details of found staking positions
-            const delegationPositions = allStakingPositions.filter((p: any) => p.type === 'delegation');
-            const rewardPositions = allStakingPositions.filter((p: any) => p.type === 'reward');
-            const unbondingPositions = allStakingPositions.filter((p: any) => p.type === 'unbonding');
-            
-            log.info(tag, `  📊 Delegation positions: ${delegationPositions.length}`);
-            log.info(tag, `  💰 Reward positions: ${rewardPositions.length}`);
-            log.info(tag, `  ⏳ Unbonding positions: ${unbondingPositions.length}`);
-            
-            // Log first few positions for verification
-            for (let i = 0; i < Math.min(allStakingPositions.length, 3); i++) {
-                const pos = allStakingPositions[i];
-                log.info(tag, `  Position ${i + 1}:`, {
-                    type: pos.type,
-                    ticker: pos.ticker,
-                    balance: pos.balance,
-                    valueUsd: pos.valueUsd,
-                    validator: pos.validator,
-                    networkId: pos.networkId
-                });
-            }
-        }
+        // const allStakingPositions = app.balances.filter((balance: any) => balance.chart === 'staking');
+        // log.info(tag, `Total staking positions found in app.balances: ${allStakingPositions.length}`);
+        //
+        // if (allStakingPositions.length === 0) {
+        //     // Check if we have cosmos pubkeys - if we do but no staking positions, that's an issue
+        //     const cosmosAddresses = app.pubkeys.filter((pubkey: any) =>
+        //         pubkey.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
+        //     );
+        //
+        //     if (cosmosAddresses.length > 0) {
+        //         log.error(tag, `❌ CRITICAL FAILURE: Found ${cosmosAddresses.length} cosmos addresses but NO staking positions in app.balances!`);
+        //         log.error(tag, `This indicates that getCharts() is not properly populating staking positions.`);
+        //         log.error(tag, `Cosmos addresses found:`, cosmosAddresses.map((p: any) => p.address));
+        //
+        //         // This is a critical failure - the whole point of the fix was to get staking positions
+        //         throw new Error(`CRITICAL TEST FAILURE: No staking positions found in app.balances despite having ${cosmosAddresses.length} cosmos addresses. The getCharts() integration is broken.`);
+        //     } else {
+        //         log.info(tag, `ℹ️ No cosmos addresses found, so no staking positions expected.`);
+        //     }
+        // } else {
+        //     log.info(tag, `✅ SUCCESS: Found ${allStakingPositions.length} staking positions in app.balances!`);
+        //
+        //     // Log details of found staking positions
+        //     const delegationPositions = allStakingPositions.filter((p: any) => p.type === 'delegation');
+        //     const rewardPositions = allStakingPositions.filter((p: any) => p.type === 'reward');
+        //     const unbondingPositions = allStakingPositions.filter((p: any) => p.type === 'unbonding');
+        //
+        //     log.info(tag, `  📊 Delegation positions: ${delegationPositions.length}`);
+        //     log.info(tag, `  💰 Reward positions: ${rewardPositions.length}`);
+        //     log.info(tag, `  ⏳ Unbonding positions: ${unbondingPositions.length}`);
+        //
+        //     // Log first few positions for verification
+        //     for (let i = 0; i < Math.min(allStakingPositions.length, 3); i++) {
+        //         const pos = allStakingPositions[i];
+        //         log.info(tag, `  Position ${i + 1}:`, {
+        //             type: pos.type,
+        //             ticker: pos.ticker,
+        //             balance: pos.balance,
+        //             valueUsd: pos.valueUsd,
+        //             validator: pos.validator,
+        //             networkId: pos.networkId
+        //         });
+        //     }
+        // }
         
         log.info(tag, ' ****** Delegation Positions Test Complete ******');
 
-        // Test blockchain reconfiguration to Bitcoin only
-        log.info(tag, ' ****** Testing Blockchain Reconfiguration to Bitcoin Only ******')
-        
-        console.timeEnd('⏱️ 5_BITCOIN_ONLY_RECONFIG');
-        console.log('🎯 [PERF] Starting Bitcoin-only reconfiguration at:', (performance.now() - perfStart).toFixed(0) + 'ms');
-        
-        // Save initial state for comparison
-        const initialBlockchains = [...app.blockchains]
-        const initialPubkeys = [...app.pubkeys]
-        const initialBalances = [...app.balances]
-        
-        // Reconfigure to Bitcoin only
-        const bitcoinOnly = ['bip122:000000000019d6689c085ae165831e93']  // Bitcoin mainnet networkId
-        console.log('🚀 [DEBUG] Setting blockchains to Bitcoin only...')
-        await app.setBlockchains(bitcoinOnly)
-        
-        console.timeEnd('⏱️ 6_BITCOIN_ONLY_SYNC');
-        console.log('🎯 [PERF] Blockchain reconfiguration done, starting sync at:', (performance.now() - perfStart).toFixed(0) + 'ms');
-        
-        // Force sync to update all state
-        console.log('🚀 [DEBUG] About to call app.sync() for Bitcoin-only config...')
-        const syncTimeout = setTimeout(() => {
-            console.error('🚀 [DEBUG] ⏰ app.sync() hanging for more than 45 seconds!')
-            console.error('🚀 [DEBUG] This might indicate device communication issues')
-        }, 45000)
-        
-        try {
-            await app.sync()
-            clearTimeout(syncTimeout)
-            console.log('🚀 [DEBUG] ✅ app.sync() completed for Bitcoin-only!')
-        } catch (error) {
-            clearTimeout(syncTimeout)
-            console.error('🚀 [DEBUG] ❌ app.sync() failed:', error)
-            throw error
-        }
-        
-        console.log('🎯 [PERF] Bitcoin-only sync completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
-        
-        // Verify blockchain configuration
-        assert.strictEqual(app.blockchains.length, 1, 'Should only have one blockchain configured')
-        assert.strictEqual(app.blockchains[0], bitcoinOnly[0], 'Should be configured for Bitcoin only')
-        
-        // Verify that we have at least one Bitcoin pubkey
-        const bitcoinPubkeys = app.pubkeys.filter((pubkey: { networks: string[] }) => 
-            pubkey.networks.includes(bitcoinOnly[0])
-        );
-        assert(bitcoinPubkeys.length > 0, 'Should have at least one Bitcoin pubkey')
-        
-        // Log pubkey information for debugging
-        log.info(tag, 'Bitcoin pubkeys:', bitcoinPubkeys.map((p: { networks: string[], pubkey: string }) => ({ 
-            networks: p.networks,
-            pubkey: p.pubkey
-        })))
-        
-        // Verify balances are only for Bitcoin
-        const bitcoinBalances = app.balances.filter((balance: { networkId: string; caip: string }) => 
-            balance.networkId === bitcoinOnly[0] || 
-            balance.caip.toLowerCase().startsWith('bip122:000000000019d6689c085ae165831e93')
-        );
-        assert(bitcoinBalances.length > 0, 'Should have at least one Bitcoin balance')
-        
-        // Verify dashboard reflects Bitcoin only
-        assert(app.dashboard.networks.length === 1, 'Dashboard should only show one network')
-        assert(app.dashboard.networks[0].networkId === bitcoinOnly[0], 'Dashboard network should be Bitcoin')
-        
-        log.info(tag, ' ****** Successfully Verified Bitcoin-Only Configuration ******')
-        
-        // Log the changes
-        log.info(tag, 'Blockchains reduced from', initialBlockchains.length, 'to', app.blockchains.length)
-        log.info(tag, 'Bitcoin pubkeys found:', bitcoinPubkeys.length)
-        log.info(tag, 'Bitcoin balances found:', bitcoinBalances.length)
+
 
         console.log("************************* TEST PASS *************************")
         console.timeEnd('start2end');

@@ -143,7 +143,8 @@ export async function createUnsignedEvmTx(
     switch (assetType) {
       case 'gas': {
         // Standard gas limit for ETH transfer
-        let gasLimit = BigInt(21000);
+        // Use higher gas limit for all chains except mainnet to be safe
+        let gasLimit = chainId === 1 ? BigInt(21000) : BigInt(25000);
 
         if (memo && memo !== '') {
           const memoBytes = Buffer.from(memo, 'utf8').length;
@@ -183,6 +184,26 @@ export async function createUnsignedEvmTx(
       case 'erc20': {
         const contractAddress = extractContractAddressFromCaip(caip);
 
+        // Get token decimals - CRITICAL for correct amount calculation
+        // Common token decimals:
+        // USDT: 6, USDC: 6, DAI: 18, WETH: 18, most others: 18
+        let tokenDecimals = 18; // Default to 18 if not specified
+        
+        // Check for known stablecoins with 6 decimals
+        const contractLower = contractAddress.toLowerCase();
+        if (contractLower === '0xdac17f958d2ee523a2206206994597c13d831ec7' || // USDT on Ethereum
+            contractLower === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' || // USDC on Ethereum
+            contractLower === '0x4fabb145d64652a948d72533023f6e7a623c7c53' || // BUSD on Ethereum
+            contractLower === '0x8e870d67f660d95d5be530380d0ec0bd388289e1') { // USDP on Ethereum
+          tokenDecimals = 6;
+          console.log(tag, 'Using 6 decimals for stablecoin:', contractAddress);
+        }
+        
+        // TODO: Fetch decimals from contract in the future:
+        // const decimals = await getTokenDecimals(contractAddress, networkId);
+        
+        const tokenMultiplier = Math.pow(10, tokenDecimals);
+
         let gasLimit = BigInt(60000);
 
         if (memo && memo !== '') {
@@ -201,10 +222,18 @@ export async function createUnsignedEvmTx(
             address,
             contractAddress,
           });
-          const tokenBalance = BigInt(Math.round(tokenBalanceData.data * 1e18)); // Adjust decimals as needed
+          // Use the correct decimals for the token
+          const tokenBalance = BigInt(Math.round(tokenBalanceData.data * tokenMultiplier));
           amountWei = tokenBalance;
         } else {
-          amountWei = BigInt(Math.round(amount * 1e18)); // Adjust decimals as needed
+          // Use the correct decimals for the token
+          amountWei = BigInt(Math.round(amount * tokenMultiplier));
+          console.log(tag, 'Token amount calculation:', {
+            inputAmount: amount,
+            decimals: tokenDecimals,
+            multiplier: tokenMultiplier,
+            resultWei: amountWei.toString()
+          });
         }
 
         // Ensure user has enough ETH to pay for gas
@@ -223,7 +252,8 @@ export async function createUnsignedEvmTx(
 
         // For token price, need to fetch from API
         const tokenPriceInUsd = await fetchTokenPriceInUsd(contractAddress);
-        const amountUsd = (Number(amountWei) / 1e18) * tokenPriceInUsd; // Adjust decimals as needed
+        // Use the correct decimals for USD calculation
+        const amountUsd = (Number(amountWei) / tokenMultiplier) * tokenPriceInUsd;
 
         unsignedTx = {
           chainId,
