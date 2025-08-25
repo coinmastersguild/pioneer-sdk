@@ -707,9 +707,16 @@ const test_service = async function (this: any) {
         // This suggests an issue in Pioneer SDK that should be investigated separately
         const seenIds = new Set<string>();
         const originalLength = balances.length;
-        balances = balances.filter((balance: any) => {
+        log.info(tag,`🔍 [DEDUPLICATION] Starting deduplication check on ${originalLength} balances...`);
+        
+        balances = balances.filter((balance: any, index: number) => {
+            if (!balance.identifier) {
+                log.warn(tag,`⚠️ Balance at index ${index} has no identifier:`, balance);
+                return true; // Keep balances without identifiers for now
+            }
+            
             if (seenIds.has(balance.identifier)) {
-                log.warn(tag,'⚠️ Duplicate balance identifier removed:', balance.identifier);
+                log.warn(tag,`⚠️ [DEDUPLICATION] Duplicate balance identifier removed at index ${index}:`, balance.identifier);
                 return false;
             }
             seenIds.add(balance.identifier);
@@ -719,6 +726,9 @@ const test_service = async function (this: any) {
         if (originalLength !== balances.length) {
             log.warn(tag,`⚠️ Removed ${originalLength - balances.length} duplicate balances (${originalLength} → ${balances.length})`);
         }
+        
+        // Update app.balances with the deduplicated array
+        app.balances = balances;
         assert(balances)
 
         log.info(tag,"balances: ",app.balances.length)
