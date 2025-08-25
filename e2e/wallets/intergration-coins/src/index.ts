@@ -124,6 +124,7 @@ const test_service = async function (this: any) {
                 
                 // Check for cached portfolio
                 const portfolioResponse = await fetch('kkapi://api/portfolio');
+                console.log('portfolioResponse: ', portfolioResponse);
                 if (!portfolioResponse.ok) {
                     console.log('⚠️ [CACHE CHECK] Portfolio cache not available');
                     return { available: false, reason: 'portfolio_not_cached' };
@@ -348,10 +349,10 @@ const test_service = async function (this: any) {
                 console.log('🔄 [BACKGROUND SYNC] Monitoring background sync status...');
                 await new Promise((resolve) => {
                     const syncTimeout = setTimeout(() => {
-                        console.log('⏰ [BACKGROUND SYNC] Timeout reached, continuing with test');
+                        console.log('⏰ [BACKGROUND SYNC] Timeout reached after 30s, continuing with test');
                         fullSyncTime = performance.now() - perfStart;
                         resolve(undefined);
-                    }, 5000); // 5 second timeout for background sync
+                    }, 30000); // 30 second timeout for background sync to allow getPubkeys to complete
                     
                     app.events.once('SYNC_COMPLETE', () => {
                         clearTimeout(syncTimeout);
@@ -583,7 +584,7 @@ const test_service = async function (this: any) {
                 networkId: balanceNative.networkId
             })
         }
-        log.info(tag,' ****** Validated Assets for each chain exist ******')
+        log.info(tag,' ****** Validated Assets for each chain exist bro ******')
 
 
         tag = tag + " | checkpoint3 | "
@@ -605,6 +606,7 @@ const test_service = async function (this: any) {
         for(let i = 0; i < app.balances.length; i++){
             let balance = app.balances[i]
             log.info(tag,"balance: ",balance.caip)
+            log.info(tag,"balance: ",balance)
             assert(balance)
             assert(balance.balance)
             assert(balance.caip)
@@ -619,9 +621,10 @@ const test_service = async function (this: any) {
         tag = tag + " | checkpoint3 | "
         log.debug(tag,'balances: ',app.balances)
 
+        log.debug(tag,'pre : getCharts: ',app.balances)
         await app.getCharts()
         //expect at least 1 token
-        log.debug(tag,'balances: ',app.balances)
+        log.debug(tag,'post: getCharts: balances: ',app.balances)
         log.debug(tag,'balances: ',app.balances.length)
 
         //Analyitics

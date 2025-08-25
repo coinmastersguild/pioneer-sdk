@@ -1,13 +1,15 @@
 {
   "name": "@coinmasters/integration-coins",
-  "version": "1.13.1",
+  "version": "1.13.3",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
     "yarn": "yarn",
     "start": "node dist/index.js",
+    "start:optimized": "node dist/index-optimized.js",
     "build": "tsc -p .",
     "dev": "pnpm run build && pnpm run start",
+    "dev:fast": "pnpm run build && pnpm run start:optimized",
     "test": "rm -Rf ~/.pioneer && jest --verbose --silent=true  --forceExit",
     "test-debug": "rm -Rf ~/.pioneer && jest --verbose --forceExit",
     "docker:build": "docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t pioneer/osmosis-e2e-sdk:latest ../..",

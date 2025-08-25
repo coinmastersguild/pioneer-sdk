@@ -1,47 +1,72 @@
+import { assetData } from '@pioneer-platform/pioneer-discovery';
+
 let TIMEOUT = 30000;
 
 export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, context: string) => {
   const tag = `| getCharts-Internal | `;
   try {
     let balances: any = [];
-    
+    console.log(tag, 'init')
     // Find the primary address for portfolio lookup
-    // Prefer EVM address if available, but don't filter out other pubkeys
+    // ONLY use EVM addresses since the portfolio endpoint uses Zapper which only supports Ethereum
     const evmPubkey = pubkeys.find((e: any) => e.networks.includes('eip155:*'));
-    const primaryAddress = evmPubkey?.address || evmPubkey?.master || pubkeys[0]?.address || pubkeys[0]?.master;
+    const primaryAddress = evmPubkey?.address || evmPubkey?.master;
     
-    if (!primaryAddress) {
-      console.error(tag, 'No address found for portfolio lookup');
-      return [];
-    }
-
-    console.log(tag, 'Using primary address for portfolio:', primaryAddress);
     console.log(tag, 'Total pubkeys available:', pubkeys.length);
     console.log(tag, 'Blockchains to process:', blockchains);
 
-    try {
-      let portfolio = await pioneer.GetPortfolio({ address: primaryAddress });
-      portfolio = portfolio.data;
+    // Only call portfolio endpoint if we have an EVM address (Zapper requirement)
+    if (primaryAddress) {
+      console.log(tag, 'Using EVM address for portfolio:', primaryAddress);
+      
+      try {
+        let portfolio = await pioneer.GetPortfolio({ address: primaryAddress });
+        portfolio = portfolio.data;
 
       if (portfolio && portfolio.balances) {
         for (const balance of portfolio.balances) {
-          if (balance.caip && balance.networkId && blockchains.includes(balance.networkId)) {
-            balance.context = context;
-            balance.identifier = balance.caip + ':' + primaryAddress;
-            balance.contextType = 'keepkey';
-            balance.pubkey = primaryAddress;
-            balance.chain = balance.networkId;
-            balance.balance = balance.balance.toString();
-            balance.valueUsd = balance.valueUsd.toString();
-            // Check if a balance with the same caip already exists
-            const existingBalance = balances.find(
-              (b: any) => b.caip + ':' + b.pubkey === balance.caip + ':' + balance.pubkey,
-            );
-            if (balance.display)
-              balance.icon = ['multi', balance.icon, balance.display.toString()].toString();
-            if (!existingBalance) {
-              balances.push(balance);
-            }
+          if (!balance.caip) {
+              console.error(tag, 'No caip found for: ',balance);
+              continue;
+          }
+          
+          // Always derive networkId from CAIP
+          const networkId = balance.caip.split('/')[0];
+          balance.networkId = networkId;
+          
+          // Skip if not in requested blockchains
+          if (!blockchains.includes(networkId)) continue;
+          
+          // Hydrate with assetData
+          const assetInfo = assetData[balance.caip] || assetData[balance.caip.toLowerCase()];
+          if (assetInfo) {
+            // Add metadata from assetData
+            balance.name = assetInfo.name || balance.name;
+            balance.symbol = assetInfo.symbol || balance.symbol;
+            balance.icon = assetInfo.icon || balance.icon;
+            balance.decimal = assetInfo.decimal || balance.decimal;
+            balance.type = assetInfo.type || balance.type;
+          }
+          
+          // Set required fields
+          balance.context = context;
+          balance.identifier = balance.caip + ':' + primaryAddress;
+          balance.contextType = 'keepkey';
+          balance.pubkey = primaryAddress;
+          balance.chain = networkId;
+          balance.balance = balance.balance.toString();
+          balance.valueUsd = balance.valueUsd.toString();
+          
+          // Check if a balance with the same caip already exists
+          const existingBalance = balances.find(
+            (b: any) => b.caip + ':' + b.pubkey === balance.caip + ':' + balance.pubkey,
+          );
+          
+          if (balance.display)
+            balance.icon = ['multi', balance.icon, balance.display.toString()].toString();
+            
+          if (!existingBalance) {
+            balances.push(balance);
           }
         }
 
@@ -66,20 +91,24 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                 extractedNetworkId = token.networkId.split('/')[0];
               }
               
+              // Hydrate token with assetData
+              const tokenAssetInfo = assetData[token.assetCaip] || assetData[token.assetCaip.toLowerCase()];
+              
               const balanceString = {
                 context: context,
                 chart: 'pioneer',
                 contextType: context.split(':')[0],
-                name: token.token?.coingeckoId || token.token?.name || 'Unknown',
+                name: tokenAssetInfo?.name || token.token?.coingeckoId || token.token?.name || 'Unknown',
                 caip: token.assetCaip,
-                icon: token.token?.icon || '',
+                icon: tokenAssetInfo?.icon || token.token?.icon || '',
                 pubkey: primaryAddress,
-                ticker: token.token?.symbol || 'UNK',
+                ticker: tokenAssetInfo?.symbol || token.token?.symbol || 'UNK',
                 ref: `${context}${token.assetCaip}`,
                 identifier: token.assetCaip + ':' + primaryAddress,
-                networkId: extractedNetworkId,
-                symbol: token.token?.symbol || 'UNK',
-                type: 'token',
+                networkId: token.assetCaip.caip.split('/')[0],
+                symbol: tokenAssetInfo?.symbol || token.token?.symbol || 'UNK',
+                type: tokenAssetInfo?.type || 'token',
+                decimal: tokenAssetInfo?.decimal || token.token?.decimal,
                 balance: token.token?.balance?.toString() || '0',
                 priceUsd: token.token?.price || 0,
                 valueUsd: token.token?.balanceUSD || 0,
@@ -96,11 +125,14 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
             }
           }
         }
-      } else {
-        console.error(tag, 'No portfolio.balances found:', portfolio);
+        } else {
+          console.error(tag, 'No portfolio.balances found:', portfolio);
+        }
+      } catch (e) {
+        console.error(tag, 'Error fetching portfolio:', e);
       }
-    } catch (e) {
-      console.error(tag, 'Error fetching portfolio:', e);
+    } else {
+      console.log(tag, 'No EVM address found, skipping portfolio lookup (Zapper only supports Ethereum)');
     }
 
     // WORKAROUND: Check if MAYA tokens are missing and fetch them separately
@@ -135,20 +167,24 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
               
               for (const mayaBalance of mayaBalanceResponse.data) {
                 if (mayaBalance.caip === 'cosmos:mayachain-mainnet-v1/denom:maya') {
+                  // Hydrate MAYA token with assetData
+                  const mayaAssetInfo = assetData[mayaBalance.caip] || assetData[mayaBalance.caip.toLowerCase()];
+                  
                   const mayaTokenBalance = {
                     context: context,
                     chart: 'pioneer',
                     contextType: context.split(':')[0],
-                    name: 'Maya Token',
+                    name: mayaAssetInfo?.name || 'Maya Token',
                     caip: mayaBalance.caip,
-                    icon: 'https://pioneers.dev/coins/maya.png',
+                    icon: mayaAssetInfo?.icon || 'https://pioneers.dev/coins/maya.png',
                     pubkey: mayaPubkey.address,
-                    ticker: 'MAYA',
+                    ticker: mayaAssetInfo?.symbol || 'MAYA',
                     ref: `${context}${mayaBalance.caip}`,
                     identifier: mayaBalance.caip + ':' + mayaPubkey.address,
                     networkId: 'cosmos:mayachain-mainnet-v1',
-                    symbol: 'MAYA',
-                    type: 'token',
+                    symbol: mayaAssetInfo?.symbol || 'MAYA',
+                    type: mayaAssetInfo?.type || 'token',
+                    decimal: mayaAssetInfo?.decimal,
                     balance: mayaBalance.balance?.toString() || '0',
                     priceUsd: parseFloat(mayaBalance.priceUsd) || 0,
                     valueUsd: parseFloat(mayaBalance.valueUsd) || 0,
@@ -223,20 +259,24 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                     for (const position of stakingResponse.data) {
                       // Validate position has required fields
                       if (position.balance && position.balance > 0 && position.caip) {
+                        // Hydrate staking position with assetData
+                        const stakingAssetInfo = assetData[position.caip] || assetData[position.caip.toLowerCase()];
+                        
                         const stakingBalance = {
                           context: context,
                           chart: 'staking',
                           contextType: context.split(':')[0],
-                          name: position.name || `${position.type} Position`,
+                          name: stakingAssetInfo?.name || position.name || `${position.type} Position`,
                           caip: position.caip,
-                          icon: position.icon || '',
+                          icon: stakingAssetInfo?.icon || position.icon || '',
                           pubkey: cosmosPubkey.address,
-                          ticker: position.ticker || position.symbol,
+                          ticker: stakingAssetInfo?.symbol || position.ticker || position.symbol,
                           ref: `${context}${position.caip}`,
                           identifier: position.caip + ':' + cosmosPubkey.address,
                           networkId: networkId,
-                          symbol: position.symbol || position.ticker,
-                          type: position.type || 'staking',
+                          symbol: stakingAssetInfo?.symbol || position.symbol || position.ticker,
+                          type: stakingAssetInfo?.type || position.type || 'staking',
+                          decimal: stakingAssetInfo?.decimal,
                           balance: position.balance.toString(),
                           priceUsd: position.priceUsd || 0,
                           valueUsd: position.valueUsd || (position.balance * (position.priceUsd || 0)),

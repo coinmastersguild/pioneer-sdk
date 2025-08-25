@@ -100,15 +100,15 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        // let spec = 'https://pioneers.dev/spec/swagger.json'
-        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        let spec = 'https://pioneers.dev/spec/swagger.json'
+        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
             // 'DOGE',
             // 'DASH',
             // 'LTC', //BROKE "Missing inputs
-            'MATIC', // Polygon network for ERC20 token testing
+            // 'MATIC', // Polygon network for ERC20 token testing
             // 'THOR',
             // 'GAIA',
             // 'OSMO',
@@ -122,7 +122,7 @@ const test_service = async function (this: any) {
             // 'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
-            // 'BTC',
+            'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -266,6 +266,14 @@ const test_service = async function (this: any) {
         
         log.info(tag, `✅ SDK initialized in ${initTime}ms`);
         log.info(tag, "👛 Wallets found:", app.wallets.length);
+        
+        // Debug: Log all balances after init
+        log.info(tag, "Total balances after init:", app.balances.length);
+        app.balances.forEach((b: any) => {
+            if (b.balance > 0) {
+                log.info(tag, `Balance: ${b.caip} = ${b.balance} ${b.symbol || ''}`);
+            }
+        });
 
         let events = app.events.on('wallets', async (wallets: any) => {
             log.info(tag,"wallets: ",wallets)
@@ -296,7 +304,7 @@ const test_service = async function (this: any) {
             if (blockchain.indexOf('eip155') > -1) blockchain = "eip155:*";
             log.info(tag,"blockchain: ",blockchain)
             let pubkeys = app.pubkeys.filter((e: any) => e.networks.includes(caipToNetworkId(blockchain)));
-            log.info(tag,"pubkeys: ",pubkeys)
+            log.info(tag,"pubkeys: ",pubkeys.length)
             assert(pubkeys[0]) //at least 1 pubkey per chain
 
             //get balances for chain
@@ -318,10 +326,27 @@ const test_service = async function (this: any) {
             let caip = networkIdToCaip(app.blockchains[i])
             assert(caip)
             log.info(tag,'caip: ',caip)
+            
+            // Debug CAIP matching
+            log.info(tag, "Looking for balances matching CAIP:", caip);
+            log.info(tag, "All balance CAIPs:", app.balances.map((b: any) => b.caip));
 
             // Debug: Show all available balances for this network
-            let networkBalances = app.balances.filter((e: any) => e.caip.startsWith('eip155:137'));
-            log.info(tag, 'All Polygon balances found:', networkBalances.length);
+            let networkBalances;
+            if (blockchain.includes('eip155')) {
+                networkBalances = app.balances.filter((e: any) => e.caip.startsWith(blockchain.split('/')[0]));
+            } else {
+                // For non-EVM chains, match the exact caip
+                log.info(tag, `Filtering for non-EVM chain with CAIP: ${caip}`);
+                networkBalances = app.balances.filter((e: any) => {
+                    const matches = e.caip === caip;
+                    if (!matches) {
+                        log.debug(tag, `Balance CAIP ${e.caip} does not match ${caip}`);
+                    }
+                    return matches;
+                });
+            }
+            log.info(tag, `All ${blockchain} balances found:`, networkBalances.length);
             networkBalances.forEach((balance: any, idx: number) => {
                 log.info(tag, `Balance ${idx + 1}:`, {
                     caip: balance.caip,
@@ -331,28 +356,45 @@ const test_service = async function (this: any) {
                 });
             });
 
-            // PRODUCTION: Check for available ERC20 tokens, fallback to native if needed
-            const USDC_CAIP = 'eip155:137/erc20:0x2791bca1f2de4661ed88a30c99a7a9449aa84174';
-            
-            // Find available ERC20 tokens with balances
-            const availableERC20s = networkBalances.filter((b: any) => 
-                b.caip.includes('/erc20:') && parseFloat(b.balance) > 0
-            );
-            
+            // Find available assets to test
             let testAssets: string[] = [];
             
-            if (availableERC20s.length > 0) {
-                // Test available ERC20 tokens
-                testAssets = availableERC20s.map((token: any) => token.caip);
-                log.info(tag, `🎯 PRODUCTION TEST: Found ${availableERC20s.length} ERC20 tokens with balances`);
-                availableERC20s.forEach((token: any) => {
-                    log.info(tag, `  - ${token.symbol || 'Unknown'}: ${token.caip} (${token.balance})`);
-                });
+            if (blockchain.includes('eip155')) {
+                // For EVM chains, check for ERC20 tokens first, then native
+                const availableERC20s = networkBalances.filter((b: any) => 
+                    b.caip.includes('/erc20:') && parseFloat(b.balance) > 0
+                );
+                
+                if (availableERC20s.length > 0) {
+                    // Test available ERC20 tokens
+                    testAssets = availableERC20s.map((token: any) => token.caip);
+                    log.info(tag, `🎯 Found ${availableERC20s.length} ERC20 tokens with balances`);
+                    availableERC20s.forEach((token: any) => {
+                        log.info(tag, `  - ${token.symbol || 'Unknown'}: ${token.caip} (${token.balance})`);
+                    });
+                } else {
+                    // Fall back to native token
+                    const nativeBalance = networkBalances.find((b: any) => !b.caip.includes('/erc20:'));
+                    if (nativeBalance && parseFloat(nativeBalance.balance) > 0) {
+                        testAssets = [nativeBalance.caip];
+                        log.info(tag, `Using native token: ${nativeBalance.caip} (${nativeBalance.balance})`);
+                    }
+                }
             } else {
-                // No ERC20 tokens found, test native MATIC as fallback
-                log.warn(tag, `⚠️  No ERC20 tokens found with balances. Testing native MATIC as fallback.`);
-                log.warn(tag, `   To test USDC, ensure wallet has USDC balance on Polygon network.`);
-                throw Error('NEED TOKEN TO TEST WITH')
+                // For non-EVM chains (BTC, etc), test the native asset
+                const nativeBalance = networkBalances.find((b: any) => b.caip === caip);
+                if (nativeBalance && parseFloat(nativeBalance.balance) > 0) {
+                    testAssets = [nativeBalance.caip];
+                    log.info(tag, `Testing ${nativeBalance.symbol || blockchain}: ${nativeBalance.caip} (${nativeBalance.balance})`);
+                } else {
+                    log.warn(tag, `⚠️  No balance found for ${caip}`);
+                }
+            }
+
+            if (testAssets.length === 0) {
+                log.error(tag, `❌ No assets with balance found for ${blockchain}`);
+                log.error(tag, `   Available balances:`, networkBalances);
+                throw new Error(`No assets with balance found for ${blockchain}. Cannot test transfers without funds.`);
             }
 
             log.info(tag, `Testing ${testAssets.length} assets:`, testAssets);
@@ -374,8 +416,17 @@ const test_service = async function (this: any) {
             assert(TEST_AMOUNT)
             log.info(tag,'TEST_AMOUNT: ',TEST_AMOUNT)
 
-            //force sync balance for asset
+            //force sync balance for blockchain
+            log.info(tag, `Syncing balance for blockchain: ${app.blockchains[i]}`);
             await app.getBalance(app.blockchains[i])
+            
+            // Re-check balances after sync
+            log.info(tag, "Total balances after sync:", app.balances.length);
+            let btcBalances = app.balances.filter((e: any) => e.caip.includes('bip122:000000000019d6689c085ae165831e93'));
+            log.info(tag, "BTC balances found after sync:", btcBalances.length);
+            btcBalances.forEach((b: any) => {
+                log.info(tag, `BTC Balance: ${b.caip} = ${b.balance} ${b.symbol || ''}`);
+            });
 
             //set context again to ensure balance is propagated
             await app.setAssetContext({caip: testCaip})
@@ -542,6 +593,11 @@ const test_service = async function (this: any) {
             } // End asset loop
         } // End blockchain loop
 
+        // Validate that we actually tested something
+        if (app.blockchains.length === 0) {
+            throw new Error("❌ TEST FAILED: No blockchains were tested");
+        }
+        
         log.info("************************* TEST PASS *************************")
     } catch (e) {
         log.error(e)

@@ -74,6 +74,7 @@ const encodeTransferData = (toAddress, amountWei) => {
   return data;
 };
 
+//TODO use assetData here, this is horrible
 // Helper function to fetch token price in USD
 async function fetchTokenPriceInUsd(contractAddress) {
   // Use CoinGecko API to get token price by contract address
@@ -204,7 +205,9 @@ export async function createUnsignedEvmTx(
         
         const tokenMultiplier = Math.pow(10, tokenDecimals);
 
-        let gasLimit = BigInt(60000);
+        // Increase gas limit for ERC-20 transfers - 60k was insufficient on Polygon
+        // Transaction 0x00ba81ce failed at 52,655/60,000 gas
+        let gasLimit = BigInt(100000); // Increased from 60000 to handle SSTORE operations
 
         if (memo && memo !== '') {
           const memoBytes = Buffer.from(memo, 'utf8').length;
@@ -251,7 +254,7 @@ export async function createUnsignedEvmTx(
         const gasFeeUsd = (Number(gasFee) / 1e18) * ethPriceInUsd;
 
         // For token price, need to fetch from API
-        const tokenPriceInUsd = await fetchTokenPriceInUsd(contractAddress);
+        const tokenPriceInUsd = await fetchTokenPriceInUsd(contractAddress, networkId);
         // Use the correct decimals for USD calculation
         const amountUsd = (Number(amountWei) / tokenMultiplier) * tokenPriceInUsd;
 
