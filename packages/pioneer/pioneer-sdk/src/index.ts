@@ -335,16 +335,43 @@ export class SDK {
             console.log(`📦 [UNIFIED PORTFOLIO] Loaded ${allBalances.length} balances from cache`);
           }
 
+          // Update pubkeys from cache
+          if (portfolioData.pubkeys && portfolioData.pubkeys.length > 0) {
+            this.pubkeys = portfolioData.pubkeys;
+            this.events.emit('SET_PUBKEYS', this.pubkeys);
+            console.log(`🔑 [UNIFIED PORTFOLIO] Loaded ${portfolioData.pubkeys.length} pubkeys from cache`);
+          }
+
+          // Update wallets from devices
+          if (portfolioData.devices && portfolioData.devices.length > 0) {
+            this.wallets = portfolioData.devices.map((device: any) => ({
+              type: 'keepkey',
+              deviceId: device.deviceId,
+              label: device.label || `KeepKey ${device.shortId}`,
+              shortId: device.shortId,
+              totalValueUsd: device.totalValueUsd || 0,
+            }));
+            this.events.emit('SET_WALLETS', this.wallets);
+            console.log(`👛 [UNIFIED PORTFOLIO] Loaded ${this.wallets.length} wallets from cache`);
+          }
+
           // Create dashboard data
           const dashboardData = {
             totalValueUsd: portfolioData.totalValueUsd,
             pairedDevices: portfolioData.pairedDevices,
             devices: portfolioData.devices || [],
+            networks: portfolioData.networks || [],
+            assets: portfolioData.assets || [],
+            statistics: portfolioData.statistics || {},
             cached: portfolioData.cached,
             lastUpdated: portfolioData.lastUpdated,
             cacheAge: portfolioData.lastUpdated
               ? Math.floor((Date.now() - portfolioData.lastUpdated) / 1000)
               : 0,
+            networkPercentages: portfolioData.networks?.map((network: any) => ({
+              networkId: network.network_id || network.networkId,
+              percentage: network.percentage || 0,
+            })) || [],
           };
 
           this.dashboard = dashboardData;

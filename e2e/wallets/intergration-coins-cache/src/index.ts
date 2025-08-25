@@ -128,7 +128,7 @@ const test_service = async function (this: any) {
                 console.log('portfolioResponse assets: ',portfolio.assets.length)
                 console.log('portfolioResponse balances: ',portfolio.balances.length)
                 console.log('portfolioResponse pubkeys: ',portfolio.pubkeys.length)
-                // console.log('portfolioResponse: ',JSON.stringify(portfolio))
+                console.log('portfolioResponse: ',JSON.stringify(portfolio))
                 console.log('✅ [CACHE CHECK] Found cached portfolio balances:', portfolio.balances?.length || 0);
                 
                 return { 
