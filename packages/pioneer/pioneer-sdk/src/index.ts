@@ -182,6 +182,7 @@ export class SDK {
   public setOutboundAssetContext: (asset?: any) => Promise<any>;
   public keepkeyApiKey: string | undefined;
   public isPioneer: string | null;
+  public keepkeyEndpoint: { isAvailable: boolean; baseUrl: string; basePath: string } | null;
   public loadPubkeyCache: (pubkeys: any) => Promise<void>;
   public getPubkeys: (wallets?: string[]) => Promise<any[]>;
   public getBalances: (filter?: any) => Promise<any[]>;
@@ -196,6 +197,8 @@ export class SDK {
   public getUnifiedPortfolio: () => Promise<any>;
   public offlineClient: OfflineClient | null;
   public verifyWallet: () => Promise<void>;
+  public convertVaultPubkeysToPioneerFormat: (vaultPubkeys: any[]) => any[];
+  public deriveNetworksFromPath: (path: string) => string[];
   public addAsset: (caip: string, data?: any) => Promise<any>;
   public getAssets: (filter?: string) => Promise<any>;
   public getBalance: (networkId: string) => Promise<any>;
@@ -245,6 +248,7 @@ export class SDK {
     this.username = config.username;
     this.queryKey = config.queryKey;
     this.keepkeyApiKey = config.keepkeyApiKey;
+    this.keepkeyEndpoint = null;
     this.paths = config.paths || [];
     this.blockchains = config.blockchains || [];
     this.pubkeys = config.pubkeys || [];
@@ -291,10 +295,14 @@ export class SDK {
         console.log('🚀 [UNIFIED PORTFOLIO] Attempting fast portfolio load...');
         const startTime = performance.now();
 
-        // Check if kkapi is available (works with adapter for Node.js testing)
+        // Check if kkapi is available and use the detected endpoint
         try {
-          // Use the kkapi:// protocol directly (will be handled by adapter in Node.js or Tauri)
-          const portfolioResponse = await fetch('kkapi://api/portfolio', {
+          // Use the detected endpoint instead of hardcoded kkapi://
+          const baseUrl = this.keepkeyEndpoint?.baseUrl || 'kkapi://';
+          const portfolioUrl = `${baseUrl}/api/portfolio`;
+          console.log(`🔧 [UNIFIED PORTFOLIO] Using endpoint: ${portfolioUrl}`);
+          
+          const portfolioResponse = await fetch(portfolioUrl, {
             method: 'GET',
             signal: AbortSignal.timeout(2000), // 2 second timeout
           });
@@ -337,7 +345,8 @@ export class SDK {
 
           // Update pubkeys from cache
           if (portfolioData.pubkeys && portfolioData.pubkeys.length > 0) {
-            this.pubkeys = portfolioData.pubkeys;
+            // Convert vault pubkey format to pioneer-sdk format
+            this.pubkeys = this.convertVaultPubkeysToPioneerFormat(portfolioData.pubkeys);
             this.events.emit('SET_PUBKEYS', this.pubkeys);
             console.log(`🔑 [UNIFIED PORTFOLIO] Loaded ${portfolioData.pubkeys.length} pubkeys from cache`);
           }
@@ -439,7 +448,8 @@ export class SDK {
 
         // Detect KeepKey endpoint
         console.log('🚀 [INIT] Detecting KeepKey endpoint...');
-        const keepkeyEndpoint = await detectKkApiAvailability();
+        this.keepkeyEndpoint = await detectKkApiAvailability();
+        const keepkeyEndpoint = this.keepkeyEndpoint;
 
         // Initialize KeepKey SDK if available
         try {
@@ -586,7 +596,7 @@ export class SDK {
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-          let paths = this.paths.filter((path) => path.networks.includes(networkId));
+          let paths = this.paths.filter((path) => path.networks && Array.isArray(path.networks) && path.networks.includes(networkId));
           if (paths.length === 0) {
             //get paths for chain
             //console.log(tag, 'Adding paths for chain ' + networkId);
@@ -606,7 +616,7 @@ export class SDK {
           //console.log(tag, 'paths: ', this.paths.length);
           // //console.log(tag, 'paths: ', this.paths);
           // Filter paths related to the current blockchain
-          const pathsForChain = this.paths.filter((path) => path.networks.includes(networkId));
+          const pathsForChain = this.paths.filter((path) => path.networks && Array.isArray(path.networks) && path.networks.includes(networkId));
           //console.log(tag, 'pathsForChain: ', pathsForChain.length);
           if (!pathsForChain || pathsForChain.length === 0)
             throw Error('No paths found for blockchain: ' + networkId);
@@ -637,7 +647,7 @@ export class SDK {
                 //no logs
               }
               //if doesnt exist, add
-              let exists = this.pubkeys.filter((e: any) => e.networks.includes(networkId));
+              let exists = this.pubkeys.filter((e: any) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
               if (!exists || exists.length === 0) {
                 this.pubkeys.push(pubkey);
               }
@@ -1080,7 +1090,7 @@ export class SDK {
         //get quote
         // Quote fetching logic
         const pubkeys = this.pubkeys.filter((e: any) =>
-          e.networks.includes(this.assetContext.networkId),
+          e.networks && Array.isArray(e.networks) && e.networks.includes(this.assetContext.networkId),
         );
         let senderAddress = pubkeys[0]?.address || pubkeys[0]?.master;
         if (!senderAddress) throw new Error('senderAddress not found! wallet not connected');
@@ -1138,7 +1148,7 @@ export class SDK {
         }
 
         const pubkeysOut = this.pubkeys.filter((e: any) =>
-          e.networks.includes(this.outboundAssetContext.networkId),
+          e.networks && Array.isArray(e.networks) && e.networks.includes(this.outboundAssetContext.networkId),
         );
         console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
         console.log(tag, 'pubkeysOut:', pubkeysOut);
@@ -1620,7 +1630,7 @@ export class SDK {
 
           const isEip155 = adjustedNetworkId.includes('eip155');
           const pubkeys = this.pubkeys.filter((pubkey) =>
-            pubkey.networks.some((network) => {
+            pubkey.networks && Array.isArray(pubkey.networks) && pubkey.networks.some((network) => {
               if (isEip155) return network.startsWith('eip155:');
               return network === adjustedNetworkId;
             }),
@@ -1828,9 +1838,9 @@ export class SDK {
         const assetBalances = this.balances.filter((b) => b.caip === asset.caip);
         const assetPubkeys = this.pubkeys.filter(
           (p) =>
-            p.networks.includes(caipToNetworkId(asset.caip)) ||
+            (p.networks && Array.isArray(p.networks) && p.networks.includes(caipToNetworkId(asset.caip))) ||
             (caipToNetworkId(asset.caip).includes('eip155') &&
-              p.networks.some((n) => n.startsWith('eip155'))),
+              p.networks && Array.isArray(p.networks) && p.networks.some((n) => n.startsWith('eip155'))),
         );
 
         // Combine the user-provided asset with any additional info we have
@@ -1991,6 +2001,78 @@ export class SDK {
     this.search = async (query: string, config: any): Promise<void> => {
       // Implementation will be added later
       return Promise.resolve();
+    };
+
+    // Convert vault pubkey format to pioneer-sdk format
+    this.convertVaultPubkeysToPioneerFormat = (vaultPubkeys: any[]): any[] => {
+      const tag = `| convertVaultPubkeys | `;
+      console.log(`🔄 [VAULT CONVERSION] Converting ${vaultPubkeys.length} vault pubkeys to pioneer format...`);
+      
+      return vaultPubkeys.map((vaultPubkey: any, index: number) => {
+        // Handle different vault pubkey formats
+        let pubkey: any = {};
+        
+        // Copy basic properties
+        pubkey.path = vaultPubkey.path;
+        pubkey.pathMaster = vaultPubkey.pathMaster || vaultPubkey.path;
+        
+        // Convert xpub to pubkey field
+        if (vaultPubkey.xpub) {
+          pubkey.pubkey = vaultPubkey.xpub;
+          pubkey.type = 'xpub'; // Default for extended public keys
+        } else if (vaultPubkey.pubkey) {
+          pubkey.pubkey = vaultPubkey.pubkey;
+        } else {
+          console.warn(`⚠️ [VAULT CONVERSION] Warning: Pubkey ${index} has no xpub or pubkey field`, vaultPubkey);
+          pubkey.pubkey = vaultPubkey.address || 'unknown';
+        }
+        
+        // Handle networks
+        if (vaultPubkey.networks && Array.isArray(vaultPubkey.networks)) {
+          pubkey.networks = vaultPubkey.networks;
+        } else {
+          // Try to derive networks from path or coin info
+          pubkey.networks = this.deriveNetworksFromPath(vaultPubkey.path || '');
+        }
+        
+        // Handle other properties
+        pubkey.scriptType = vaultPubkey.scriptType || vaultPubkey.script_type || 'p2pkh';
+        pubkey.type = vaultPubkey.type || (vaultPubkey.xpub ? 'xpub' : 'address');
+        pubkey.address = vaultPubkey.address;
+        pubkey.coin = vaultPubkey.coin;
+        pubkey.cached = true;
+        pubkey.source = 'vault_cache';
+        
+        return pubkey;
+      });
+    };
+
+    // Helper method to derive networks from BIP32 path
+    this.deriveNetworksFromPath = (path: string): string[] => {
+      // Parse BIP44 path format: m/44'/coin_type'/account'/change/address_index
+      const pathParts = path.split('/');
+      if (pathParts.length < 3) return ['unknown'];
+      
+      const coinTypeMatch = pathParts[2]?.match(/^(\d+)'?$/);
+      if (!coinTypeMatch) return ['unknown'];
+      
+      const coinType = parseInt(coinTypeMatch[1]);
+      
+      // Map coin types to network IDs (BIP44 standard)
+      const coinTypeToNetwork: { [key: number]: string[] } = {
+        0: ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin
+        1: ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin Testnet
+        2: ['bip122:12a765e31ffd4059bada1e25190f6e98'], // Litecoin
+        3: ['bip122:00000000001a91e3dace36e2be3bf030'], // Dogecoin
+        5: ['bip122:000007d91d1254d60e2dd1ae58038307'], // Dash
+        60: ['eip155:1', 'eip155:*'], // Ethereum
+        118: ['cosmos:cosmoshub-4'], // Cosmos
+        144: ['ripple:4109c6f2045fc7eff4cde8f9905d19c2'], // XRP
+        145: ['bip122:000000000000000000651ef99cb9fcbe'], // Bitcoin Cash
+        931: ['cosmos:thorchain-mainnet-v1', 'cosmos:mayachain-mainnet-v1'] // THORChain/Maya
+      };
+      
+      return coinTypeToNetwork[coinType] || ['unknown'];
     };
   }
 }

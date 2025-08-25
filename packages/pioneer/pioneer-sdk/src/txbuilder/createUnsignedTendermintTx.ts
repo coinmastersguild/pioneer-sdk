@@ -24,7 +24,7 @@ export async function createUnsignedTendermintTx(
     if (!pioneer) throw new Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    const relevantPubkeys = pubkeys.filter((e) => e.networks.includes(networkId));
+    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
     if (relevantPubkeys.length === 0) {
       throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
     }

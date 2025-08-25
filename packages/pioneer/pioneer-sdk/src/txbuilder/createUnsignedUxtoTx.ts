@@ -20,7 +20,7 @@ export async function createUnsignedUxtoTx(
     if (!pioneer) throw Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    const relevantPubkeys = pubkeys.filter((e) => e.networks.includes(networkId));
+    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
 
     const segwitNetworks = [
       'bip122:000000000019d6689c085ae165831e93', // Bitcoin Mainnet

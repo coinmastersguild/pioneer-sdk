@@ -191,7 +191,7 @@ export async function optimizedGetPubkeys(
     
     for (let i = 0; i < blockchains.length; i++) {
       const blockchain = blockchains[i];
-      const pathsForChain = paths.filter(path => path.networks.includes(blockchain));
+      const pathsForChain = paths.filter(path => path.networks && Array.isArray(path.networks) && path.networks.includes(blockchain));
       
       for (const path of pathsForChain) {
         // Dynamic import to avoid require() in browser
@@ -223,7 +223,7 @@ export async function optimizedGetPubkeys(
     
     for (let i = 0; i < remainingBlockchains.length; i++) {
       const blockchain = remainingBlockchains[i];
-      const pathsForChain = remainingPaths.filter(path => path.networks.includes(blockchain));
+      const pathsForChain = remainingPaths.filter(path => path.networks && Array.isArray(path.networks) && path.networks.includes(blockchain));
       
       for (const path of pathsForChain) {
         console.log(`${tag} 🔑 Individual fetch ${i+1}/${remainingBlockchains.length} - ${path.note || 'unknown path'}`);

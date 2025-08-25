@@ -149,7 +149,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       path: pubkey.path,
       scriptType: pubkey.scriptType,
       networks: pubkey.networks,
-      address: pubkey.address?.substring(0, 10) + '...',
+      address: pubkey.address,
       pubkey_length: pubkey.pubkey ? pubkey.pubkey.length : 'NO_PUBKEY'
     });
     return pubkey;

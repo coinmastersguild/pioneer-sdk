@@ -9,7 +9,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
     console.log(tag, 'init')
     // Find the primary address for portfolio lookup
     // ONLY use EVM addresses since the portfolio endpoint uses Zapper which only supports Ethereum
-    const evmPubkey = pubkeys.find((e: any) => e.networks.includes('eip155:*'));
+    const evmPubkey = pubkeys.find((e: any) => e.networks && Array.isArray(e.networks) && e.networks.includes('eip155:*'));
     const primaryAddress = evmPubkey?.address || evmPubkey?.master;
     
     console.log(tag, 'Total pubkeys available:', pubkeys.length);
@@ -138,7 +138,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
     // WORKAROUND: Check if MAYA tokens are missing and fetch them separately
     try {
       // Check if we have a MAYA address
-      const mayaPubkey = pubkeys.find((p: any) => p.networks.includes('cosmos:mayachain-mainnet-v1'));
+      const mayaPubkey = pubkeys.find((p: any) => p.networks && Array.isArray(p.networks) && p.networks.includes('cosmos:mayachain-mainnet-v1'));
       if (mayaPubkey && mayaPubkey.address) {
         // Check if MAYA token is already in balances
         const hasMayaToken = balances.some((b: any) => 
@@ -217,7 +217,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
       
       // Find cosmos pubkeys that could have staking positions
       const cosmosPubkeys = pubkeys.filter((p: any) => 
-        p.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
+        p.networks && Array.isArray(p.networks) && p.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
       );
       
       if (cosmosPubkeys.length > 0) {

@@ -112,7 +112,7 @@ export async function createUnsignedEvmTx(
 
     // Find relevant public keys for the network
     const blockchain = networkId.includes('eip155') ? 'eip155:*' : '';
-    const relevantPubkeys = pubkeys.filter((e) => e.networks.includes(blockchain));
+    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(blockchain));
     const address = relevantPubkeys[0]?.address;
     if (!address) throw new Error('No address found for the specified network');
 

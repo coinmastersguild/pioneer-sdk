@@ -27,7 +27,7 @@ export async function createUnsignedRippleTx(
     const networkId = caipToNetworkId(caip);
     //console.log(tag, 'networkId:', networkId);
 
-    const relevantPubkeys = pubkeys.filter((e: any) => e.networks.includes(networkId));
+    const relevantPubkeys = pubkeys.filter((e: any) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
     if (relevantPubkeys.length === 0) {
       throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
     }
