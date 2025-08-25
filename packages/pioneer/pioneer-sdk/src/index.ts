@@ -68,7 +68,7 @@ async function detectKkApiAvailability(): Promise<{
         '🔄 [KKAPI DETECTION] Running in development browser, testing http://localhost:1646...',
       );
       try {
-        const httpResponse = await fetch('http://localhost:1646/api/v1/health/fast', {
+        const httpResponse = await fetch('http://localhost:1646/api/v1/health', {
           method: 'GET',
           signal: AbortSignal.timeout(1000), // 1 second timeout for localhost
         });
@@ -326,40 +326,7 @@ export class SDK {
 
           // Get device-specific balances if we have devices
           let allBalances = [];
-          if (portfolioData.devices && portfolioData.devices.length > 0) {
-            for (const device of portfolioData.devices) {
-              try {
-                const deviceResponse = await fetch(`kkapi://api/portfolio/${device.deviceId}`);
-                if (deviceResponse.ok) {
-                  const devicePortfolio = await deviceResponse.json();
-                  if (devicePortfolio.success && devicePortfolio.balances) {
-                    // Transform vault balances to SDK format
-                    for (const balance of devicePortfolio.balances) {
-                      allBalances.push({
-                        caip: balance.caip,
-                        ticker: balance.ticker,
-                        symbol: balance.ticker,
-                        balance: balance.balance,
-                        valueUsd: balance.valueUsd,
-                        priceUsd: balance.priceUsd,
-                        networkId: balance.networkId,
-                        address: balance.address,
-                        pubkey: balance.address, // Use address as pubkey identifier
-                        icon: balance.icon || '',
-                        chart: 'default',
-                      });
-                    }
-                  }
-                }
-              } catch (deviceError) {
-                console.warn(
-                  tag,
-                  `Failed to get balances for device ${device.deviceId}:`,
-                  deviceError,
-                );
-              }
-            }
-          }
+          if (portfolioData.balances) allBalances = portfolioData.balances;
 
           // Update SDK state if we have balances
           if (allBalances.length > 0) {
@@ -415,7 +382,7 @@ export class SDK {
         if (!this.wss) throw Error('wss required!');
         if (!this.wallets) throw Error('wallets required!');
         if (!this.paths) throw Error('wallets required!');
-
+        console.log('walletsVerbose: ', walletsVerbose);
         console.log('🚀 [INIT OPTIMIZATION] Starting SDK initialization...');
         const initStartTime = performance.now();
 
@@ -428,47 +395,6 @@ export class SDK {
         // CRITICAL FIX: Ensure Pioneer client has proper HTTP headers for browser requests
         const pioneerConfig = {
           ...config,
-          // Add request interceptor to ensure proper headers for JSON requests
-          requestInterceptor: (request: any) => {
-            console.log('🔧 [REQUEST INTERCEPTOR] Called for:', request.url, request.method);
-            console.log('🔧 [REQUEST INTERCEPTOR] Original headers:', request.headers);
-            console.log('🔧 [REQUEST INTERCEPTOR] Body type:', typeof request.body);
-            console.log(
-              '🔧 [REQUEST INTERCEPTOR] Body preview:',
-              typeof request.body === 'string'
-                ? request.body.substring(0, 200)
-                : JSON.stringify(request.body).substring(0, 200),
-            );
-
-            // Ensure Content-Type header is set for POST requests
-            if (request.method === 'POST' || request.method === 'post') {
-              if (!request.headers) {
-                request.headers = {};
-              }
-              if (!request.headers['Content-Type'] && !request.headers['content-type']) {
-                console.log('🔧 [REQUEST INTERCEPTOR] Adding Content-Type header');
-                request.headers['Content-Type'] = 'application/json';
-              }
-              if (!request.headers['accept'] && !request.headers['Accept']) {
-                console.log('🔧 [REQUEST INTERCEPTOR] Adding Accept header');
-                request.headers['accept'] = 'application/json';
-              }
-
-              // CRITICAL: Ensure body is properly stringified for swagger-client
-              if (request.body && typeof request.body !== 'string') {
-                console.log('🔧 [REQUEST INTERCEPTOR] Converting body to JSON string');
-                request.body = JSON.stringify(request.body);
-              }
-            }
-
-            console.log('🔧 [REQUEST INTERCEPTOR] Final headers:', request.headers);
-            console.log('🔧 [REQUEST INTERCEPTOR] Final body type:', typeof request.body);
-            console.log(
-              '🔧 [REQUEST INTERCEPTOR] Final body:',
-              typeof request.body === 'string' ? request.body.substring(0, 200) : '[NOT STRING]',
-            );
-            return request;
-          },
         };
 
         const PioneerClient = new Pioneer(this.spec, pioneerConfig);
@@ -509,7 +435,6 @@ export class SDK {
           this.keepKeySdk = keepKeySdk;
           this.context = 'keepkey:' + features.label + '.json';
 
-          await this.loadPubkeyCache([]);
           console.log('✅ [INIT] KeepKey SDK ready');
         } catch (e) {
           console.error('⚠️ [INIT] KeepKey SDK initialization failed:', e);
@@ -806,137 +731,136 @@ export class SDK {
     };
 
     // Offline-first initialization method
-    this.initOffline = async function () {
-      const tag = `${TAG} | initOffline | `;
-      try {
-        console.log('🚀 [OFFLINE] Starting offline initialization...');
-
-        if (!this.offlineClient) {
-          console.log('⚠️ [OFFLINE] No offline client available, falling back to normal init');
-          return null;
-        }
-
-        // Convert paths to string format
-        const pathStrings = this.paths
-          .map((path: any) => {
-            if (typeof path === 'string') return path;
-            if (path.addressNListMaster) {
-              return addressNListToBIP32(path.addressNListMaster);
-            }
-            return path.path || '';
-          })
-          .filter(Boolean);
-
-        console.log(`🚀 [OFFLINE] Getting cached data for ${pathStrings.length} paths`);
-
-        // Get cached data from vault
-        const cachedData = await this.offlineClient.initOffline(pathStrings);
-
-        if (cachedData.cached && cachedData.pubkeys.length > 0) {
-          // Load cached data
-          this.pubkeys = [...this.pubkeys, ...cachedData.pubkeys];
-          this.balances = [...this.balances, ...cachedData.balances];
-
-          console.log(
-            `✅ [OFFLINE] Loaded ${cachedData.pubkeys.length} cached pubkeys, ${cachedData.balances.length} cached balances`,
-          );
-
-          return {
-            pubkeys: this.pubkeys,
-            balances: this.balances,
-            cached: true,
-          };
-        }
-
-        console.log('⚠️ [OFFLINE] No cached data available');
-        return null;
-      } catch (e) {
-        console.error(tag, 'Error in offline init:', e);
-        return null;
-      }
-    };
-
+    // this.initOffline = async function () {
+    //   const tag = `${TAG} | initOffline | `;
+    //   try {
+    //     console.log('🚀 [OFFLINE] Starting offline initialization...');
+    //
+    //     if (!this.offlineClient) {
+    //       console.log('⚠️ [OFFLINE] No offline client available, falling back to normal init');
+    //       return null;
+    //     }
+    //
+    //     // Convert paths to string format
+    //     const pathStrings = this.paths
+    //       .map((path: any) => {
+    //         if (typeof path === 'string') return path;
+    //         if (path.addressNListMaster) {
+    //           return addressNListToBIP32(path.addressNListMaster);
+    //         }
+    //         return path.path || '';
+    //       })
+    //       .filter(Boolean);
+    //
+    //     console.log(`🚀 [OFFLINE] Getting cached data for ${pathStrings.length} paths`);
+    //
+    //     // Get cached data from vault
+    //     const cachedData = await this.offlineClient.initOffline(pathStrings);
+    //
+    //     if (cachedData.cached && cachedData.pubkeys.length > 0) {
+    //       // Load cached data
+    //       this.pubkeys = [...this.pubkeys, ...cachedData.pubkeys];
+    //       this.balances = [...this.balances, ...cachedData.balances];
+    //
+    //       console.log(
+    //         `✅ [OFFLINE] Loaded ${cachedData.pubkeys.length} cached pubkeys, ${cachedData.balances.length} cached balances`,
+    //       );
+    //
+    //       return {
+    //         pubkeys: this.pubkeys,
+    //         balances: this.balances,
+    //         cached: true,
+    //       };
+    //     }
+    //
+    //     console.log('⚠️ [OFFLINE] No cached data available');
+    //     return null;
+    //   } catch (e) {
+    //     console.error(tag, 'Error in offline init:', e);
+    //     return null;
+    //   }
+    // };
     // Background sync method
-    this.backgroundSync = async function () {
-      const tag = `${TAG} | backgroundSync | `;
-      try {
-        if (!this.offlineClient || !this.offlineClient.isAvailable()) {
-          console.log('⚠️ [OFFLINE] Vault not available for background sync');
-          return;
-        }
-
-        console.log('🔄 [OFFLINE] Starting background sync...');
-
-        const pathStrings = this.paths
-          .map((path: any) => {
-            if (typeof path === 'string') return path;
-            if (path.addressNListMaster) {
-              return addressNListToBIP32(path.addressNListMaster);
-            }
-            return path.path || '';
-          })
-          .filter(Boolean);
-
-        await this.offlineClient.backgroundSync(pathStrings);
-        console.log('✅ [OFFLINE] Background sync completed');
-      } catch (e) {
-        console.error(tag, 'Error in background sync:', e);
-      }
-    };
-    this.loadPubkeyCache = async function (pubkeys) {
-      const tag = `${TAG} | loadPubkeyCache | `;
-      try {
-        console.log(
-          '🚀 [DEBUG CACHE] loadPubkeyCache called with:',
-          pubkeys ? pubkeys.length : 'NULL',
-          'pubkeys',
-        );
-
-        if (!pubkeys || !Array.isArray(pubkeys)) {
-          console.log('🚀 [DEBUG CACHE] Empty or invalid pubkeys input, using empty array');
-          pubkeys = [];
-        }
-
-        // Use a Map for efficient duplicate checking
-        const pubkeyMap = new Map();
-
-        // Add existing pubkeys to the Map
-        console.log('🚀 [DEBUG CACHE] Existing this.pubkeys count:', this.pubkeys.length);
-        for (const existingPubkey of this.pubkeys) {
-          pubkeyMap.set(existingPubkey.pubkey, existingPubkey);
-        }
-
-        // Filter the pubkeys by enabled blockchains
-        const enabledNetworkIds = new Set(this.blockchains);
-        console.log('🚀 [DEBUG CACHE] Enabled networks:', Array.from(enabledNetworkIds));
-
-        const filteredPubkeys = pubkeys.filter((pubkey) => {
-          // pubkey.networks is an array of networkIds
-          return pubkey.networks.some((networkId) => enabledNetworkIds.has(networkId));
-        });
-        console.log('🚀 [DEBUG CACHE] Filtered pubkeys count:', filteredPubkeys.length);
-
-        // Add new pubkeys from the cache, avoiding duplicates
-        for (const newPubkey of filteredPubkeys) {
-          if (!pubkeyMap.has(newPubkey.pubkey)) {
-            pubkeyMap.set(newPubkey.pubkey, newPubkey);
-          } else {
-            console.log('🚀 [DEBUG CACHE] Duplicate pubkey found, skipping');
-          }
-        }
-
-        // Update this.pubkeys with the unique values
-        this.pubkeys = Array.from(pubkeyMap.values());
-        console.log(
-          '🚀 [DEBUG CACHE] ✅ loadPubkeyCache completed, total pubkeys:',
-          this.pubkeys.length,
-        );
-      } catch (e) {
-        console.error('🚀 [DEBUG CACHE] ❌ Error in loadPubkeyCache:', e);
-        console.error(tag, 'Error loading pubkey cache:', e);
-        throw e;
-      }
-    };
+    // this.backgroundSync = async function () {
+    //   const tag = `${TAG} | backgroundSync | `;
+    //   try {
+    //     if (!this.offlineClient || !this.offlineClient.isAvailable()) {
+    //       console.log('⚠️ [OFFLINE] Vault not available for background sync');
+    //       return;
+    //     }
+    //
+    //     console.log('🔄 [OFFLINE] Starting background sync...');
+    //
+    //     const pathStrings = this.paths
+    //       .map((path: any) => {
+    //         if (typeof path === 'string') return path;
+    //         if (path.addressNListMaster) {
+    //           return addressNListToBIP32(path.addressNListMaster);
+    //         }
+    //         return path.path || '';
+    //       })
+    //       .filter(Boolean);
+    //
+    //     await this.offlineClient.backgroundSync(pathStrings);
+    //     console.log('✅ [OFFLINE] Background sync completed');
+    //   } catch (e) {
+    //     console.error(tag, 'Error in background sync:', e);
+    //   }
+    // };
+    // this.loadPubkeyCache = async function (pubkeys) {
+    //   const tag = `${TAG} | loadPubkeyCache | `;
+    //   try {
+    //     console.log(
+    //       '🚀 [DEBUG CACHE] loadPubkeyCache called with:',
+    //       pubkeys ? pubkeys.length : 'NULL',
+    //       'pubkeys',
+    //     );
+    //
+    //     if (!pubkeys || !Array.isArray(pubkeys)) {
+    //       console.log('🚀 [DEBUG CACHE] Empty or invalid pubkeys input, using empty array');
+    //       pubkeys = [];
+    //     }
+    //
+    //     // Use a Map for efficient duplicate checking
+    //     const pubkeyMap = new Map();
+    //
+    //     // Add existing pubkeys to the Map
+    //     console.log('🚀 [DEBUG CACHE] Existing this.pubkeys count:', this.pubkeys.length);
+    //     for (const existingPubkey of this.pubkeys) {
+    //       pubkeyMap.set(existingPubkey.pubkey, existingPubkey);
+    //     }
+    //
+    //     // Filter the pubkeys by enabled blockchains
+    //     const enabledNetworkIds = new Set(this.blockchains);
+    //     console.log('🚀 [DEBUG CACHE] Enabled networks:', Array.from(enabledNetworkIds));
+    //
+    //     const filteredPubkeys = pubkeys.filter((pubkey) => {
+    //       // pubkey.networks is an array of networkIds
+    //       return pubkey.networks.some((networkId) => enabledNetworkIds.has(networkId));
+    //     });
+    //     console.log('🚀 [DEBUG CACHE] Filtered pubkeys count:', filteredPubkeys.length);
+    //
+    //     // Add new pubkeys from the cache, avoiding duplicates
+    //     for (const newPubkey of filteredPubkeys) {
+    //       if (!pubkeyMap.has(newPubkey.pubkey)) {
+    //         pubkeyMap.set(newPubkey.pubkey, newPubkey);
+    //       } else {
+    //         console.log('🚀 [DEBUG CACHE] Duplicate pubkey found, skipping');
+    //       }
+    //     }
+    //
+    //     // Update this.pubkeys with the unique values
+    //     this.pubkeys = Array.from(pubkeyMap.values());
+    //     console.log(
+    //       '🚀 [DEBUG CACHE] ✅ loadPubkeyCache completed, total pubkeys:',
+    //       this.pubkeys.length,
+    //     );
+    //   } catch (e) {
+    //     console.error('🚀 [DEBUG CACHE] ❌ Error in loadPubkeyCache:', e);
+    //     console.error(tag, 'Error loading pubkey cache:', e);
+    //     throw e;
+    //   }
+    // };
     this.estimateMax = async function (sendPayload: any) {
       try {
         sendPayload.isMax = true;
@@ -1717,7 +1641,6 @@ export class SDK {
         throw e;
       }
     };
-
     this.getBalances = async function () {
       const tag = `${TAG} | getBalances | `;
       try {
@@ -1728,7 +1651,6 @@ export class SDK {
         throw e;
       }
     };
-
     this.getBalance = async function (networkId: string) {
       const tag = `${TAG} | getBalance | `;
       try {

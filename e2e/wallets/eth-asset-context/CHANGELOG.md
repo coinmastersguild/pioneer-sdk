@@ -1,5 +1,12 @@
 # @coinmasters/eth-asset-context-test
 
+## 1.0.4
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.4
+
 ## 1.0.3
 
 ### Patch Changes

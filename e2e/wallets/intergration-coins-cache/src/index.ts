@@ -44,12 +44,6 @@ let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 console.log("spec: ",spec)
 
 
-
-let txid:string
-let IS_SIGNED: boolean
-
-
-
 const test_service = async function (this: any) {
     let tag = TAG + " | test_service | "
     try {
@@ -131,8 +125,10 @@ const test_service = async function (this: any) {
                 }
                 
                 const portfolio: any = await portfolioResponse.json();
-                console.log('portfolioResponse: ',portfolio)
-                console.log('portfolioResponse: ',JSON.stringify(portfolio))
+                console.log('portfolioResponse assets: ',portfolio.assets.length)
+                console.log('portfolioResponse balances: ',portfolio.balances.length)
+                console.log('portfolioResponse pubkeys: ',portfolio.pubkeys.length)
+                // console.log('portfolioResponse: ',JSON.stringify(portfolio))
                 console.log('✅ [CACHE CHECK] Found cached portfolio balances:', portfolio.balances?.length || 0);
                 
                 return { 
