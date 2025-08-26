@@ -180,10 +180,7 @@ const test_service = async function (this: any) {
                     if (invalidPubkeys.length > 0) {
                         
                         console.error('❌ [VALIDATION] Found', invalidPubkeys.length, 'invalid pubkeys:');
-                        invalidPubkeys.forEach((invalid, idx) => {
-                            console.error(`   ${idx + 1}. Index ${invalid.index}: ${invalid.issue}`, 
-                                         invalid.pubkey ? {caip: invalid.pubkey.caip, path: invalid.pubkey.path} : 'no pubkey data');
-                        });
+
                         throw new Error(`Portfolio validation failed: ${invalidPubkeys.length} pubkeys have invalid networks`);
                         process.exit(1);
                     } else {

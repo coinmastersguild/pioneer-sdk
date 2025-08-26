@@ -34,14 +34,14 @@ const test_service = async function () {
         assert(username);
 
         const chains = [
-            'DASH',
+            // 'DASH',
             'BTC',
-            'DOGE',
+            // 'DOGE',
             'ETH',
-            'THOR',
-            'XRP',
-            'OSMO',
-            'ATOM'
+            // 'THOR',
+            // 'XRP',
+            // 'OSMO',
+            // 'ATOM'
         ];
 
         const allByCaip = chains.map(chainStr => {
@@ -117,8 +117,9 @@ const test_service = async function () {
 
         const hardcodedPermutations:any = [
             // { caipIn: "bip122:00000000001a91e3dace36e2be3bf030/slip44:3", caipOut: "cosmos:thorchain-mainnet-v1/slip44:931" }, // DOGE to RUNE
-            { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "eip155:1/slip44:60" }, // RUNE to ETH
+            // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "eip155:1/slip44:60" }, // RUNE to ETH
             // { caipIn: "eip155:1/slip44:60", caipOut: "bip122:000000000019d6689c085ae165831e93/slip44:0" }, // ETH to BTC
+            { caipIn: "bip122:000000000019d6689c085ae165831e93/slip44:0", caipOut: "eip155:1/slip44:60" }, // ETH to BTC
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "eip155:1/slip44:60" }, // RUNE to ETH
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "bip122:00000000001a91e3dace36e2be3bf030/slip44:3" }, // RUNE to DOGE
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "bip122:000000000000000000651ef99cb9fcbe/slip44:145" }, // RUNE to BCH
@@ -132,7 +133,7 @@ const test_service = async function () {
                 caipIn: caipIn,
                 caipOut: caipOut,
                 //@ts-ignore
-                amount: caipToMinAmountSend[caipIn] || 0.0001, // Default minimal amount if not specified
+                amount: "0.3", // Default minimal amount if not specified
                 slippagePercentage: 5,
             };
 

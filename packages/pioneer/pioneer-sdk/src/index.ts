@@ -1179,8 +1179,15 @@ export class SDK {
           recipientAddress = recipientAddress.replace('bitcoincash:', '');
         }
 
-        //TODO type safety on amount
-        let inputAmount = swapPayload.amount;
+        //Convert amount to number for type safety
+        let inputAmount = typeof swapPayload.amount === 'string' 
+          ? parseFloat(swapPayload.amount) 
+          : swapPayload.amount;
+        
+        // Validate the amount is a valid number
+        if (isNaN(inputAmount)) {
+          throw new Error(`Invalid amount provided: ${swapPayload.amount}`);
+        }
 
         let quote = {
           affiliate: '0x658DE0443259a1027caA976ef9a42E6982037A03',
@@ -1197,7 +1204,7 @@ export class SDK {
         try {
           result = await this.pioneer.Quote(quote);
           result = result.data;
-          //console.log(tag, 'result: ', result);
+          console.log(tag, 'result: ', result);
         } catch (e) {
           console.error(tag, 'Failed to get quote: ', e);
         }
@@ -1245,6 +1252,7 @@ export class SDK {
               undefined,
             );
           } else {
+            if (!tx.txParams.memo) throw Error('memo required on swaps!');
             const sendPayload = {
               caip,
               to: tx.txParams.recipientAddress,
@@ -1253,7 +1261,7 @@ export class SDK {
               memo: tx.txParams.memo,
               //Options
             };
-            //console.log(tag, 'sendPayload: ', sendPayload);
+            console.log(tag, 'sendPayload: ', sendPayload);
             unsignedTx = await txManager.transfer(sendPayload);
             //console.log(tag, 'unsignedTx: ', unsignedTx);
           }
