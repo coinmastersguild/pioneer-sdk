@@ -185,6 +185,7 @@ const test_service = async function (this: any) {
                                          invalid.pubkey ? {caip: invalid.pubkey.caip, path: invalid.pubkey.path} : 'no pubkey data');
                         });
                         throw new Error(`Portfolio validation failed: ${invalidPubkeys.length} pubkeys have invalid networks`);
+                        process.exit(1);
                     } else {
                         console.log('✅ [VALIDATION] All', portfolio.pubkeys.length, 'pubkeys have valid networks arrays');
                     }
@@ -267,7 +268,7 @@ const test_service = async function (this: any) {
                 
             } catch (error: any) {
                 console.log('❌ [CACHE CHECK] Cache check failed:', error.message);
-                return { available: false, reason: 'error', error: error.message };
+                throw Error(error);
             }
         }
 
