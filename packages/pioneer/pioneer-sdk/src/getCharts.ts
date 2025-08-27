@@ -50,12 +50,17 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
           
           // Set required fields
           balance.context = context;
-          balance.identifier = balance.caip + ':' + primaryAddress;
           balance.contextType = 'keepkey';
-          balance.pubkey = primaryAddress;
           balance.chain = networkId;
           balance.balance = balance.balance.toString();
           balance.valueUsd = balance.valueUsd.toString();
+          
+          // CRITICAL FIX: Use the original balance.pubkey from API if it exists, 
+          // otherwise fall back to primaryAddress. This ensures identifier consistency
+          // with regular balance fetching which uses the API's balance.pubkey value.
+          const balancePubkey = balance.pubkey || primaryAddress;
+          balance.pubkey = balancePubkey;
+          balance.identifier = balance.caip + ':' + balancePubkey;
           
           // Check if a balance with the same caip already exists
           const existingBalance = balances.find(
@@ -94,6 +99,9 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
               // Hydrate token with assetData
               const tokenAssetInfo = assetData[token.assetCaip] || assetData[token.assetCaip.toLowerCase()];
               
+              // CRITICAL FIX: Use consistent pubkey for tokens too
+              const tokenPubkey = token.pubkey || primaryAddress;
+              
               const balanceString = {
                 context: context,
                 chart: 'pioneer',
@@ -101,10 +109,10 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                 name: tokenAssetInfo?.name || token.token?.coingeckoId || token.token?.name || 'Unknown',
                 caip: token.assetCaip,
                 icon: tokenAssetInfo?.icon || token.token?.icon || '',
-                pubkey: primaryAddress,
+                pubkey: tokenPubkey,
                 ticker: tokenAssetInfo?.symbol || token.token?.symbol || 'UNK',
                 ref: `${context}${token.assetCaip}`,
-                identifier: token.assetCaip + ':' + primaryAddress,
+                identifier: token.assetCaip + ':' + tokenPubkey,
                 networkId: token.assetCaip.caip.split('/')[0],
                 symbol: tokenAssetInfo?.symbol || token.token?.symbol || 'UNK',
                 type: tokenAssetInfo?.type || 'token',

@@ -32,7 +32,7 @@ import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermint
 const TAG = ' | Pioneer-sdk | ';
 
 // Utility function to detect if kkapi is available with smart environment detection
-async function detectKkApiAvailability(): Promise<{
+async function detectKkApiAvailability(forceLocalhost?: boolean): Promise<{
   isAvailable: boolean;
   baseUrl: string;
   basePath: string;
@@ -42,14 +42,18 @@ async function detectKkApiAvailability(): Promise<{
   try {
     console.log('🔍 [KKAPI DETECTION] Starting smart environment detection...');
 
-    // Smart detection: Check if we're in Tauri or browser
+    // Smart detection: Check environment (Tauri, browser, or Node.js)
     const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
-    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+    const isBrowser = typeof window !== 'undefined';
+    const isNodeJS = typeof process !== 'undefined' && process.versions && process.versions.node;
+    const isLocalhost = isBrowser && window.location.hostname === 'localhost';
 
     console.log('🔍 [KKAPI DETECTION] Environment:', {
       isTauri,
+      isBrowser,
+      isNodeJS,
       isLocalhost,
-      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'SSR',
+      userAgent: isBrowser ? window.navigator.userAgent : isNodeJS ? 'Node.js' : 'SSR',
     });
 
     // If in Tauri, use kkapi:// (will be proxied by Tauri)
@@ -62,11 +66,14 @@ async function detectKkApiAvailability(): Promise<{
       };
     }
 
-    // If in development browser, test if localhost:1646 is available
-    if (isLocalhost) {
-      console.log(
-        '🔄 [KKAPI DETECTION] Running in development browser, testing http://localhost:1646...',
-      );
+    // In Node.js test environment or localhost browser, test if localhost:1646 is available
+    // Force localhost if flag is set
+    const shouldTestLocalhost = forceLocalhost || isLocalhost || isNodeJS;
+    console.log(tag, 'shouldTestLocalhost', shouldTestLocalhost, 'forceLocalhost:', forceLocalhost);
+
+    if (shouldTestLocalhost) {
+      const testEnv = isNodeJS ? 'Node.js test environment' : 'development browser';
+      console.log(`🔄 [KKAPI DETECTION] Running in ${testEnv}, testing http://localhost:1646...`);
       try {
         const httpResponse = await fetch('http://localhost:1646/api/v1/health', {
           method: 'GET',
@@ -122,6 +129,7 @@ export interface PioneerSDKConfig {
   walletConnectProjectId?: string;
   offlineFirst?: boolean;
   vaultUrl?: string;
+  forceLocalhost?: boolean;
 }
 
 // Helper function to format time differences
@@ -183,6 +191,7 @@ export class SDK {
   public keepkeyApiKey: string | undefined;
   public isPioneer: string | null;
   public keepkeyEndpoint: { isAvailable: boolean; baseUrl: string; basePath: string } | null;
+  public forceLocalhost: boolean;
   public loadPubkeyCache: (pubkeys: any) => Promise<void>;
   public getPubkeys: (wallets?: string[]) => Promise<any[]>;
   public getBalances: (filter?: any) => Promise<any[]>;
@@ -249,6 +258,7 @@ export class SDK {
     this.queryKey = config.queryKey;
     this.keepkeyApiKey = config.keepkeyApiKey;
     this.keepkeyEndpoint = null;
+    this.forceLocalhost = config.forceLocalhost || false;
     this.paths = config.paths || [];
     this.blockchains = config.blockchains || [];
     this.pubkeys = config.pubkeys || [];
@@ -301,7 +311,7 @@ export class SDK {
           const baseUrl = this.keepkeyEndpoint?.baseUrl || 'kkapi://';
           const portfolioUrl = `${baseUrl}/api/portfolio`;
           console.log(`🔧 [UNIFIED PORTFOLIO] Using endpoint: ${portfolioUrl}`);
-          
+
           const portfolioResponse = await fetch(portfolioUrl, {
             method: 'GET',
             signal: AbortSignal.timeout(2000), // 2 second timeout
@@ -348,7 +358,9 @@ export class SDK {
             // Convert vault pubkey format to pioneer-sdk format
             this.pubkeys = this.convertVaultPubkeysToPioneerFormat(portfolioData.pubkeys);
             this.events.emit('SET_PUBKEYS', this.pubkeys);
-            console.log(`🔑 [UNIFIED PORTFOLIO] Loaded ${portfolioData.pubkeys.length} pubkeys from cache`);
+            console.log(
+              `🔑 [UNIFIED PORTFOLIO] Loaded ${portfolioData.pubkeys.length} pubkeys from cache`,
+            );
           }
 
           // Update wallets from devices
@@ -364,31 +376,68 @@ export class SDK {
             console.log(`👛 [UNIFIED PORTFOLIO] Loaded ${this.wallets.length} wallets from cache`);
           }
 
-          // Create dashboard data
-          const dashboardData = {
-            totalValueUsd: portfolioData.totalValueUsd,
-            pairedDevices: portfolioData.pairedDevices,
-            devices: portfolioData.devices || [],
-            networks: portfolioData.networks || [],
-            assets: portfolioData.assets || [],
-            statistics: portfolioData.statistics || {},
-            cached: portfolioData.cached,
-            lastUpdated: portfolioData.lastUpdated,
-            cacheAge: portfolioData.lastUpdated
-              ? Math.floor((Date.now() - portfolioData.lastUpdated) / 1000)
-              : 0,
-            networkPercentages: portfolioData.networks?.map((network: any) => ({
-              networkId: network.network_id || network.networkId,
-              percentage: network.percentage || 0,
-            })) || [],
+          // Validate cache data before using it
+          const isCacheDataValid = (portfolioData: any): boolean => {
+            // Check if networks data is reasonable (should be < 50 networks, not thousands)
+            if (!portfolioData.networks || !Array.isArray(portfolioData.networks)) {
+              console.warn('[CACHE VALIDATION] Networks is not an array');
+              return false;
+            }
+            
+            if (portfolioData.networks.length > 50) {
+              console.error(`[CACHE VALIDATION] CORRUPTED: ${portfolioData.networks.length} networks (should be < 50)`);
+              return false;
+            }
+            
+            // Check if at least some networks have required fields
+            const validNetworks = portfolioData.networks.filter((n: any) => 
+              n.networkId && n.totalValueUsd !== undefined && n.gasAssetSymbol
+            );
+            
+            if (validNetworks.length === 0 && portfolioData.networks.length > 0) {
+              console.error('[CACHE VALIDATION] CORRUPTED: No networks have required fields');
+              return false;
+            }
+            
+            console.log(`[CACHE VALIDATION] Found ${portfolioData.networks.length} networks, ${validNetworks.length} valid`);
+            return true;
           };
 
-          this.dashboard = dashboardData;
-          this.events.emit('SET_DASHBOARD', this.dashboard);
+          // Only use cache data if it's valid
+          if (isCacheDataValid(portfolioData)) {
+            console.log('[CACHE VALIDATION] ✅ Cache data is valid, using fast path');
+            const dashboardData = {
+              totalValueUsd: portfolioData.totalValueUsd,
+              pairedDevices: portfolioData.pairedDevices,
+              devices: portfolioData.devices || [],
+              networks: portfolioData.networks || [],
+              assets: portfolioData.assets || [],
+              statistics: portfolioData.statistics || {},
+              cached: portfolioData.cached,
+              lastUpdated: portfolioData.lastUpdated,
+              cacheAge: portfolioData.lastUpdated
+                ? Math.floor((Date.now() - portfolioData.lastUpdated) / 1000)
+                : 0,
+              networkPercentages:
+                portfolioData.networks?.map((network: any) => ({
+                  networkId: network.network_id || network.networkId,
+                  percentage: network.percentage || 0,
+                })) || [],
+            };
+            
+            this.dashboard = dashboardData;
+            this.events.emit('SET_DASHBOARD', this.dashboard);
+          } else {
+            console.warn('[CACHE VALIDATION] ❌ Cache data corrupted, building dashboard from cached balances');
+            // Build dashboard from cached balances without hitting Pioneer APIs
+            const dashboardData = this.buildDashboardFromBalances();
+            this.dashboard = dashboardData;
+            this.events.emit('SET_DASHBOARD', this.dashboard);
+          }
 
           return {
             balances: allBalances,
-            dashboard: dashboardData,
+            dashboard: this.dashboard, // Use the dashboard that was set (or undefined if cache was invalid)
             cached: portfolioData.cached,
             loadTimeMs: loadTime,
             totalValueUsd: portfolioData.totalValueUsd,
@@ -448,7 +497,7 @@ export class SDK {
 
         // Detect KeepKey endpoint
         console.log('🚀 [INIT] Detecting KeepKey endpoint...');
-        this.keepkeyEndpoint = await detectKkApiAvailability();
+        this.keepkeyEndpoint = await detectKkApiAvailability(this.forceLocalhost);
         const keepkeyEndpoint = this.keepkeyEndpoint;
 
         // Initialize KeepKey SDK if available
@@ -503,6 +552,7 @@ export class SDK {
 
           try {
             const unifiedResult = await this.getUnifiedPortfolio();
+            console.log('unifiedResult: ', unifiedResult);
 
             if (unifiedResult && unifiedResult.cached && unifiedResult.totalValueUsd > 0) {
               console.log(
@@ -514,25 +564,19 @@ export class SDK {
                 } assets)`,
               );
 
-              // Start background sync for fresh data (non-blocking)
-              console.log('🔄 [SYNC] Starting background sync...');
-              this.sync()
-                .then(() => {
-                  console.log('✅ [SYNC] Background sync completed');
-                  this.events.emit('SYNC_COMPLETE');
-                })
-                .catch((error) => {
-                  console.error('❌ [SYNC] Background sync failed:', error);
-                });
+              // Skip background sync when cache is valid - we already have the data!
+              console.log('✅ [FAST PORTFOLIO] Cache valid - skipping sync');
+              this.events.emit('SYNC_COMPLETE');
             } else {
               console.log('⚠️ [FAST PORTFOLIO] Unavailable, using full sync...');
+              throw Error('Failing fast TEST');
               const syncStart = performance.now();
-              await this.sync();
-              console.log(
-                '✅ [SYNC] Full sync completed in',
-                (performance.now() - syncStart).toFixed(0),
-                'ms',
-              );
+              // await this.sync();
+              // console.log(
+              //   '✅ [SYNC] Full sync completed in',
+              //   (performance.now() - syncStart).toFixed(0),
+              //   'ms',
+              // );
             }
           } catch (fastError) {
             console.warn('⚠️ [FAST PORTFOLIO] Failed, using full sync');
@@ -555,6 +599,110 @@ export class SDK {
         throw e;
       }
     };
+    // Build dashboard from cached balances (no Pioneer API calls)
+    this.buildDashboardFromBalances = function() {
+      const tag = `${TAG} | buildDashboardFromBalances | `;
+      console.log('[FAST DASHBOARD] Building dashboard from cached balances...');
+      
+      const dashboardData: {
+        networks: {
+          networkId: string;
+          totalValueUsd: number;
+          gasAssetCaip: string | null;
+          gasAssetSymbol: string | null;
+          icon: string | null;
+          color: string | null;
+          totalNativeBalance: string;
+        }[];
+        totalValueUsd: number;
+        networkPercentages: { networkId: string; percentage: number }[];
+      } = {
+        networks: [],
+        totalValueUsd: 0,
+        networkPercentages: [],
+      };
+
+      let totalPortfolioValue = 0;
+      const networksTemp: {
+        networkId: string;
+        totalValueUsd: number;
+        gasAssetCaip: string | null;
+        gasAssetSymbol: string | null;
+        icon: string | null;
+        color: string | null;
+        totalNativeBalance: string;
+      }[] = [];
+
+      // Calculate totals for each blockchain (SAME logic as sync())
+      for (const blockchain of this.blockchains) {
+        const networkBalances = this.balances.filter((b) => {
+          const networkId = caipToNetworkId(b.caip);
+          return (
+            networkId === blockchain ||
+            (blockchain === 'eip155:*' && networkId.startsWith('eip155:'))
+          );
+        });
+
+        // Ensure we're working with numbers for calculations
+        const networkTotal = networkBalances.reduce((sum, balance) => {
+          const valueUsd =
+            typeof balance.valueUsd === 'string'
+              ? parseFloat(balance.valueUsd)
+              : balance.valueUsd || 0;
+          return sum + valueUsd;
+        }, 0);
+
+        // Get native asset for this blockchain
+        const nativeAssetCaip = networkIdToCaip(blockchain);
+        const gasAsset = networkBalances.find((b) => b.caip === nativeAssetCaip);
+
+        // Calculate total native balance (sum of all balances for the native asset)
+        const totalNativeBalance = networkBalances
+          .filter((b) => b.caip === nativeAssetCaip)
+          .reduce((sum, balance) => {
+            const balanceNum =
+              typeof balance.balance === 'string'
+                ? parseFloat(balance.balance)
+                : balance.balance || 0;
+            return sum + balanceNum;
+          }, 0)
+          .toString();
+
+        // Get colors from assetMap since balances don't have them  
+        const assetInfo = nativeAssetCaip ? this.assetsMap.get(nativeAssetCaip) : null;
+        
+        networksTemp.push({
+          networkId: blockchain,
+          totalValueUsd: networkTotal,
+          gasAssetCaip: nativeAssetCaip || null,
+          gasAssetSymbol: gasAsset?.ticker || gasAsset?.symbol || assetInfo?.symbol || null,
+          icon: gasAsset?.icon || assetInfo?.icon || null,
+          color: gasAsset?.color || assetInfo?.color || null,
+          totalNativeBalance,
+        });
+
+        totalPortfolioValue += networkTotal;
+      }
+
+      // Sort networks by USD value and assign to dashboard
+      dashboardData.networks = networksTemp.sort((a, b) => b.totalValueUsd - a.totalValueUsd);
+      dashboardData.totalValueUsd = totalPortfolioValue;
+
+      // Calculate network percentages for pie chart
+      dashboardData.networkPercentages = dashboardData.networks
+        .map((network) => ({
+          networkId: network.networkId,
+          percentage:
+            totalPortfolioValue > 0
+              ? Number(((network.totalValueUsd / totalPortfolioValue) * 100).toFixed(2))
+              : 0,
+        }))
+        .filter((entry) => entry.percentage > 0); // Remove zero percentages
+
+      console.log(`[FAST DASHBOARD] ✅ Built dashboard: ${dashboardData.networks.length} networks, $${totalPortfolioValue.toFixed(2)} total`);
+      return dashboardData;
+    };
+
     this.syncMarket = async function () {
       const tag = `${TAG} | syncMarket | `;
       try {
@@ -596,7 +744,10 @@ export class SDK {
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-          let paths = this.paths.filter((path) => path.networks && Array.isArray(path.networks) && path.networks.includes(networkId));
+          let paths = this.paths.filter(
+            (path) =>
+              path.networks && Array.isArray(path.networks) && path.networks.includes(networkId),
+          );
           if (paths.length === 0) {
             //get paths for chain
             //console.log(tag, 'Adding paths for chain ' + networkId);
@@ -616,7 +767,10 @@ export class SDK {
           //console.log(tag, 'paths: ', this.paths.length);
           // //console.log(tag, 'paths: ', this.paths);
           // Filter paths related to the current blockchain
-          const pathsForChain = this.paths.filter((path) => path.networks && Array.isArray(path.networks) && path.networks.includes(networkId));
+          const pathsForChain = this.paths.filter(
+            (path) =>
+              path.networks && Array.isArray(path.networks) && path.networks.includes(networkId),
+          );
           //console.log(tag, 'pathsForChain: ', pathsForChain.length);
           if (!pathsForChain || pathsForChain.length === 0)
             throw Error('No paths found for blockchain: ' + networkId);
@@ -647,7 +801,10 @@ export class SDK {
                 //no logs
               }
               //if doesnt exist, add
-              let exists = this.pubkeys.filter((e: any) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
+              let exists = this.pubkeys.filter(
+                (e: any) =>
+                  e.networks && Array.isArray(e.networks) && e.networks.includes(networkId),
+              );
               if (!exists || exists.length === 0) {
                 this.pubkeys.push(pubkey);
               }
@@ -1089,8 +1246,11 @@ export class SDK {
 
         //get quote
         // Quote fetching logic
-        const pubkeys = this.pubkeys.filter((e: any) =>
-          e.networks && Array.isArray(e.networks) && e.networks.includes(this.assetContext.networkId),
+        const pubkeys = this.pubkeys.filter(
+          (e: any) =>
+            e.networks &&
+            Array.isArray(e.networks) &&
+            e.networks.includes(this.assetContext.networkId),
         );
         let senderAddress = pubkeys[0]?.address || pubkeys[0]?.master;
         if (!senderAddress) throw new Error('senderAddress not found! wallet not connected');
@@ -1147,8 +1307,11 @@ export class SDK {
           }
         }
 
-        const pubkeysOut = this.pubkeys.filter((e: any) =>
-          e.networks && Array.isArray(e.networks) && e.networks.includes(this.outboundAssetContext.networkId),
+        const pubkeysOut = this.pubkeys.filter(
+          (e: any) =>
+            e.networks &&
+            Array.isArray(e.networks) &&
+            e.networks.includes(this.outboundAssetContext.networkId),
         );
         console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
         console.log(tag, 'pubkeysOut:', pubkeysOut);
@@ -1180,10 +1343,11 @@ export class SDK {
         }
 
         //Convert amount to number for type safety
-        let inputAmount = typeof swapPayload.amount === 'string' 
-          ? parseFloat(swapPayload.amount) 
-          : swapPayload.amount;
-        
+        let inputAmount =
+          typeof swapPayload.amount === 'string'
+            ? parseFloat(swapPayload.amount)
+            : swapPayload.amount;
+
         // Validate the amount is a valid number
         if (isNaN(inputAmount)) {
           throw new Error(`Invalid amount provided: ${swapPayload.amount}`);
@@ -1637,11 +1801,14 @@ export class SDK {
           }
 
           const isEip155 = adjustedNetworkId.includes('eip155');
-          const pubkeys = this.pubkeys.filter((pubkey) =>
-            pubkey.networks && Array.isArray(pubkey.networks) && pubkey.networks.some((network) => {
-              if (isEip155) return network.startsWith('eip155:');
-              return network === adjustedNetworkId;
-            }),
+          const pubkeys = this.pubkeys.filter(
+            (pubkey) =>
+              pubkey.networks &&
+              Array.isArray(pubkey.networks) &&
+              pubkey.networks.some((network) => {
+                if (isEip155) return network.startsWith('eip155:');
+                return network === adjustedNetworkId;
+              }),
           );
 
           const caipNative = await networkIdToCaip(networkId);
@@ -1846,9 +2013,13 @@ export class SDK {
         const assetBalances = this.balances.filter((b) => b.caip === asset.caip);
         const assetPubkeys = this.pubkeys.filter(
           (p) =>
-            (p.networks && Array.isArray(p.networks) && p.networks.includes(caipToNetworkId(asset.caip))) ||
+            (p.networks &&
+              Array.isArray(p.networks) &&
+              p.networks.includes(caipToNetworkId(asset.caip))) ||
             (caipToNetworkId(asset.caip).includes('eip155') &&
-              p.networks && Array.isArray(p.networks) && p.networks.some((n) => n.startsWith('eip155'))),
+              p.networks &&
+              Array.isArray(p.networks) &&
+              p.networks.some((n) => n.startsWith('eip155'))),
         );
 
         // Combine the user-provided asset with any additional info we have
@@ -2014,16 +2185,18 @@ export class SDK {
     // Convert vault pubkey format to pioneer-sdk format
     this.convertVaultPubkeysToPioneerFormat = (vaultPubkeys: any[]): any[] => {
       const tag = `| convertVaultPubkeys | `;
-      console.log(`🔄 [VAULT CONVERSION] Converting ${vaultPubkeys.length} vault pubkeys to pioneer format...`);
-      
+      console.log(
+        `🔄 [VAULT CONVERSION] Converting ${vaultPubkeys.length} vault pubkeys to pioneer format...`,
+      );
+
       return vaultPubkeys.map((vaultPubkey: any, index: number) => {
         // Handle different vault pubkey formats
         let pubkey: any = {};
-        
+
         // Copy basic properties
         pubkey.path = vaultPubkey.path;
         pubkey.pathMaster = vaultPubkey.pathMaster || vaultPubkey.path;
-        
+
         // Convert xpub to pubkey field
         if (vaultPubkey.xpub) {
           pubkey.pubkey = vaultPubkey.xpub;
@@ -2031,10 +2204,13 @@ export class SDK {
         } else if (vaultPubkey.pubkey) {
           pubkey.pubkey = vaultPubkey.pubkey;
         } else {
-          console.warn(`⚠️ [VAULT CONVERSION] Warning: Pubkey ${index} has no xpub or pubkey field`, vaultPubkey);
+          console.warn(
+            `⚠️ [VAULT CONVERSION] Warning: Pubkey ${index} has no xpub or pubkey field`,
+            vaultPubkey,
+          );
           pubkey.pubkey = vaultPubkey.address || 'unknown';
         }
-        
+
         // Handle networks
         if (vaultPubkey.networks && Array.isArray(vaultPubkey.networks)) {
           pubkey.networks = vaultPubkey.networks;
@@ -2042,7 +2218,7 @@ export class SDK {
           // Try to derive networks from path or coin info
           pubkey.networks = this.deriveNetworksFromPath(vaultPubkey.path || '');
         }
-        
+
         // Handle other properties
         pubkey.scriptType = vaultPubkey.scriptType || vaultPubkey.script_type || 'p2pkh';
         pubkey.type = vaultPubkey.type || (vaultPubkey.xpub ? 'xpub' : 'address');
@@ -2050,7 +2226,7 @@ export class SDK {
         pubkey.coin = vaultPubkey.coin;
         pubkey.cached = true;
         pubkey.source = 'vault_cache';
-        
+
         return pubkey;
       });
     };
@@ -2060,12 +2236,12 @@ export class SDK {
       // Parse BIP44 path format: m/44'/coin_type'/account'/change/address_index
       const pathParts = path.split('/');
       if (pathParts.length < 3) return ['unknown'];
-      
+
       const coinTypeMatch = pathParts[2]?.match(/^(\d+)'?$/);
       if (!coinTypeMatch) return ['unknown'];
-      
+
       const coinType = parseInt(coinTypeMatch[1]);
-      
+
       // Map coin types to network IDs (BIP44 standard)
       const coinTypeToNetwork: { [key: number]: string[] } = {
         0: ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin
@@ -2077,9 +2253,9 @@ export class SDK {
         118: ['cosmos:cosmoshub-4'], // Cosmos
         144: ['ripple:4109c6f2045fc7eff4cde8f9905d19c2'], // XRP
         145: ['bip122:000000000000000000651ef99cb9fcbe'], // Bitcoin Cash
-        931: ['cosmos:thorchain-mainnet-v1', 'cosmos:mayachain-mainnet-v1'] // THORChain/Maya
+        931: ['cosmos:thorchain-mainnet-v1', 'cosmos:mayachain-mainnet-v1'], // THORChain/Maya
       };
-      
+
       return coinTypeToNetwork[coinType] || ['unknown'];
     };
   }
