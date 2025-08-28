@@ -225,7 +225,7 @@ const test_service = async function () {
           let address
           switch (networkType) {
             case 'UTXO':
-              ({ address } = await app.address.utxoGetAddress(addressInfo));
+              ({ address } = await app.keepKeySdk.address.utxoGetAddress(addressInfo));
               break;
             case 'EVM':
               ({ address } = await app.keepKeySdk.address.ethereumGetAddress(addressInfo));
