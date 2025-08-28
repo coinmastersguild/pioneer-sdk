@@ -1,6 +1,6 @@
 {
   "name": "pioneer-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pioneer MCP server for cryptocurrency wallet and blockchain operations",
   "main": "dist/app.js",
   "scripts": {

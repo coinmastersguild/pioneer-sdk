@@ -258,15 +258,15 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                     result: {
                         tools: [
                             {
-                                name: "pioneer.getInfo",
-                                description: "Get general information about the Pioneer SDK",
+                                name: "keepkey.getInfo",
+                                description: "Get general information about the KeepKey SDK",
                                 inputSchema: {
                                     type: "object",
                                     properties: {}
                                 }
                             },
                             {
-                                name: "pioneer.getPubkeys",
+                                name: "keepkey.getPubkeys",
                                 description: "Get public keys for configured blockchains",
                                 inputSchema: {
                                     type: "object",
@@ -274,7 +274,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                                 }
                             },
                             {
-                                name: "pioneer.getBalances",
+                                name: "keepkey.getBalances",
                                 description: "Get balances for all accounts",
                                 inputSchema: {
                                     type: "object",
@@ -282,7 +282,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                                 }
                             },
                             {
-                                name: "pioneer.getCharts",
+                                name: "keepkey.getCharts",
                                 description: "Get price charts for assets",
                                 inputSchema: {
                                     type: "object",
@@ -290,7 +290,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                                 }
                             },
                             {
-                                name: "pioneer.getWallets",
+                                name: "keepkey.getWallets",
                                 description: "Get available wallets",
                                 inputSchema: {
                                     type: "object",
@@ -298,7 +298,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                                 }
                             },
                             {
-                                name: "pioneer.setBlockchains",
+                                name: "keepkey.setBlockchains",
                                 description: "Configure blockchain support",
                                 inputSchema: {
                                     type: "object",
@@ -315,7 +315,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                                 }
                             },
                             {
-                                name: "pioneer.getAssets",
+                                name: "keepkey.getAssets",
                                 description: "Get supported asset information",
                                 inputSchema: {
                                     type: "object",
@@ -323,7 +323,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                                 }
                             },
                             {
-                                name: "pioneer.sync",
+                                name: "keepkey.sync",
                                 description: "Sync all wallet data",
                                 inputSchema: {
                                     type: "object",
@@ -342,7 +342,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
 
                 // Handle specific tool calls
                 switch (toolName) {
-                    case 'pioneer.getInfo':
+                    case 'keepkey.getInfo':
                         sseRes.write(`event: message\n`);
                         sseRes.write(`data: ${JSON.stringify({
                             jsonrpc: "2.0",
@@ -363,7 +363,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })}\n\n`);
                         break;
 
-                    case 'pioneer.getPubkeys':
+                    case 'keepkey.getPubkeys':
                         sseRes.write(`event: message\n`);
                         sseRes.write(`data: ${JSON.stringify({
                             jsonrpc: "2.0",
@@ -377,7 +377,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })}\n\n`);
                         break;
 
-                    case 'pioneer.getBalances':
+                    case 'keepkey.getBalances':
                         sseRes.write(`event: message\n`);
                         sseRes.write(`data: ${JSON.stringify({
                             jsonrpc: "2.0",
@@ -391,7 +391,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })}\n\n`);
                         break;
 
-                    case 'pioneer.getCharts':
+                    case 'keepkey.getCharts':
                         (async () => {
                             try {
                                 await pioneerSdk.getCharts();
@@ -425,7 +425,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })();
                         break;
 
-                    case 'pioneer.getWallets':
+                    case 'keepkey.getWallets':
                         sseRes.write(`event: message\n`);
                         sseRes.write(`data: ${JSON.stringify({
                             jsonrpc: "2.0",
@@ -439,7 +439,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })}\n\n`);
                         break;
 
-                    case 'pioneer.setBlockchains':
+                    case 'keepkey.setBlockchains':
                         const newBlockchains = toolArgs.blockchains;
                         if (!newBlockchains || !Array.isArray(newBlockchains)) {
                             sseRes.write(`event: message\n`);
@@ -489,7 +489,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })();
                         break;
 
-                    case 'pioneer.getAssets':
+                    case 'keepkey.getAssets':
                         const assetsEntries: Array<[string, any]> = Array.from(pioneerSdk.assetsMap.entries() as Iterable<[string, any]>);
                         const assets = assetsEntries.map(([caip, asset]) => {
                             return { caip, ...asset };
@@ -508,7 +508,7 @@ expressApp.post('/mcp/message', (req: any, res: any) => {
                         })}\n\n`);
                         break;
 
-                    case 'pioneer.sync':
+                    case 'keepkey.sync':
                         (async () => {
                             try {
                                 await pioneerSdk.sync();
@@ -631,14 +631,14 @@ async function startServer() {
             console.log('═══════════════════════════════════════════════════════════════');
             console.log('');
             console.log('📝 Available MCP Tools:');
-            console.log('   • pioneer.getInfo      - Get SDK information');
-            console.log('   • pioneer.getPubkeys   - Get public keys');
-            console.log('   • pioneer.getBalances  - Get account balances');
-            console.log('   • pioneer.getCharts    - Get price charts');
-            console.log('   • pioneer.getWallets   - Get available wallets');
-            console.log('   • pioneer.setBlockchains - Configure blockchains');
-            console.log('   • pioneer.getAssets    - Get asset information');
-            console.log('   • pioneer.sync         - Sync wallet data');
+            console.log('   • keepkey.getInfo      - Get SDK information');
+            console.log('   • keepkey.getPubkeys   - Get public keys');
+            console.log('   • keepkey.getBalances  - Get account balances');
+            console.log('   • keepkey.getCharts    - Get price charts');
+            console.log('   • keepkey.getWallets   - Get available wallets');
+            console.log('   • keepkey.setBlockchains - Configure blockchains');
+            console.log('   • keepkey.getAssets    - Get asset information');
+            console.log('   • keepkey.sync         - Sync wallet data');
             console.log('');
             console.log('═══════════════════════════════════════════════════════════════');
             console.log('                    CLAUDE INTEGRATION                          ');
@@ -684,7 +684,7 @@ expressApp.post('/mcp/request', async (req: any, res: any) => {
     try {
         // Process different methods
         switch (rpcRequest.method) {
-            case 'pioneer.getInfo':
+            case 'keepkey.getInfo':
                 return res.json({
                     jsonrpc: "2.0",
                     id: rpcRequest.id,
@@ -698,21 +698,21 @@ expressApp.post('/mcp/request', async (req: any, res: any) => {
                     }
                 });
 
-            case 'pioneer.getPubkeys':
+            case 'keepkey.getPubkeys':
                 return res.json({
                     jsonrpc: "2.0",
                     id: rpcRequest.id,
                     result: pioneerSdk.pubkeys
                 });
 
-            case 'pioneer.getBalances':
+            case 'keepkey.getBalances':
                 return res.json({
                     jsonrpc: "2.0",
                     id: rpcRequest.id,
                     result: pioneerSdk.balances
                 });
 
-            case 'pioneer.getCharts':
+            case 'keepkey.getCharts':
                 await pioneerSdk.getCharts();
                 return res.json({
                     jsonrpc: "2.0",
@@ -723,14 +723,14 @@ expressApp.post('/mcp/request', async (req: any, res: any) => {
                     }
                 });
 
-            case 'pioneer.getWallets':
+            case 'keepkey.getWallets':
                 return res.json({
                     jsonrpc: "2.0",
                     id: rpcRequest.id,
                     result: pioneerSdk.wallets
                 });
 
-            case 'pioneer.setBlockchains':
+            case 'keepkey.setBlockchains':
                 const newBlockchains = rpcRequest.params?.blockchains;
                 if (!newBlockchains || !Array.isArray(newBlockchains)) {
                     return res.json({
@@ -755,7 +755,7 @@ expressApp.post('/mcp/request', async (req: any, res: any) => {
                     }
                 });
 
-            case 'pioneer.getAssets':
+            case 'keepkey.getAssets':
                 const assetsEntries2: Array<[string, any]> = Array.from(pioneerSdk.assetsMap.entries() as Iterable<[string, any]>);
                 const assets2 = assetsEntries2.map(([caip, asset]) => {
                     return { caip, ...asset };
@@ -767,7 +767,7 @@ expressApp.post('/mcp/request', async (req: any, res: any) => {
                     result: assets2
                 });
 
-            case 'pioneer.sync':
+            case 'keepkey.sync':
                 await pioneerSdk.sync();
                 
                 return res.json({
@@ -876,15 +876,15 @@ expressApp.post('/mcp', (req: any, res: any) => {
             result: {
                 tools: [
                     {
-                        name: "pioneer.getInfo",
-                        description: "Get general information about the Pioneer SDK",
+                        name: "keepkey.getInfo",
+                        description: "Get general information about the KeepKey SDK",
                         inputSchema: {
                             type: "object",
                             properties: {}
                         }
                     },
                     {
-                        name: "pioneer.getPubkeys",
+                        name: "keepkey.getPubkeys",
                         description: "Get public keys for configured blockchains",
                         inputSchema: {
                             type: "object",
@@ -892,7 +892,7 @@ expressApp.post('/mcp', (req: any, res: any) => {
                         }
                     },
                     {
-                        name: "pioneer.getBalances",
+                        name: "keepkey.getBalances",
                         description: "Get balances for all accounts",
                         inputSchema: {
                             type: "object",
@@ -900,7 +900,7 @@ expressApp.post('/mcp', (req: any, res: any) => {
                         }
                     },
                     {
-                        name: "pioneer.getCharts",
+                        name: "keepkey.getCharts",
                         description: "Get price charts for assets",
                         inputSchema: {
                             type: "object",
@@ -908,7 +908,7 @@ expressApp.post('/mcp', (req: any, res: any) => {
                         }
                     },
                     {
-                        name: "pioneer.getWallets",
+                        name: "keepkey.getWallets",
                         description: "Get available wallets",
                         inputSchema: {
                             type: "object",
@@ -916,7 +916,7 @@ expressApp.post('/mcp', (req: any, res: any) => {
                         }
                     },
                     {
-                        name: "pioneer.setBlockchains",
+                        name: "keepkey.setBlockchains",
                         description: "Configure blockchain support",
                         inputSchema: {
                             type: "object",
@@ -933,7 +933,7 @@ expressApp.post('/mcp', (req: any, res: any) => {
                         }
                     },
                     {
-                        name: "pioneer.getAssets",
+                        name: "keepkey.getAssets",
                         description: "Get supported asset information",
                         inputSchema: {
                             type: "object",
@@ -941,7 +941,7 @@ expressApp.post('/mcp', (req: any, res: any) => {
                         }
                     },
                     {
-                        name: "pioneer.sync",
+                        name: "keepkey.sync",
                         description: "Sync all wallet data",
                         inputSchema: {
                             type: "object",

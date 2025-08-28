@@ -163,6 +163,7 @@ export class SDK {
   public outboundAssetContext: any;
   public outboundBlockchainContext: any;
   public outboundPubkeyContext: any;
+  public buildDashboardFromBalances: any;
   // public swapKit: any | null;
   public pioneer: any;
   public charts: any[];
@@ -208,6 +209,18 @@ export class SDK {
   public verifyWallet: () => Promise<void>;
   public convertVaultPubkeysToPioneerFormat: (vaultPubkeys: any[]) => any[];
   public deriveNetworksFromPath: (path: string) => string[];
+  public getAddress: (options: {
+    networkId?: string;
+    showDevice?: boolean;
+    path?: any;
+  }) => Promise<string>;
+  public app: {
+    getAddress: (options: {
+      networkId?: string;
+      showDevice?: boolean;
+      path?: any;
+    }) => Promise<string>;
+  };
   public addAsset: (caip: string, data?: any) => Promise<any>;
   public getAssets: (filter?: string) => Promise<any>;
   public getBalance: (networkId: string) => Promise<any>;
@@ -933,138 +946,6 @@ export class SDK {
         throw e;
       }
     };
-
-    // Offline-first initialization method
-    // this.initOffline = async function () {
-    //   const tag = `${TAG} | initOffline | `;
-    //   try {
-    //     console.log('🚀 [OFFLINE] Starting offline initialization...');
-    //
-    //     if (!this.offlineClient) {
-    //       console.log('⚠️ [OFFLINE] No offline client available, falling back to normal init');
-    //       return null;
-    //     }
-    //
-    //     // Convert paths to string format
-    //     const pathStrings = this.paths
-    //       .map((path: any) => {
-    //         if (typeof path === 'string') return path;
-    //         if (path.addressNListMaster) {
-    //           return addressNListToBIP32(path.addressNListMaster);
-    //         }
-    //         return path.path || '';
-    //       })
-    //       .filter(Boolean);
-    //
-    //     console.log(`🚀 [OFFLINE] Getting cached data for ${pathStrings.length} paths`);
-    //
-    //     // Get cached data from vault
-    //     const cachedData = await this.offlineClient.initOffline(pathStrings);
-    //
-    //     if (cachedData.cached && cachedData.pubkeys.length > 0) {
-    //       // Load cached data
-    //       this.pubkeys = [...this.pubkeys, ...cachedData.pubkeys];
-    //       this.balances = [...this.balances, ...cachedData.balances];
-    //
-    //       console.log(
-    //         `✅ [OFFLINE] Loaded ${cachedData.pubkeys.length} cached pubkeys, ${cachedData.balances.length} cached balances`,
-    //       );
-    //
-    //       return {
-    //         pubkeys: this.pubkeys,
-    //         balances: this.balances,
-    //         cached: true,
-    //       };
-    //     }
-    //
-    //     console.log('⚠️ [OFFLINE] No cached data available');
-    //     return null;
-    //   } catch (e) {
-    //     console.error(tag, 'Error in offline init:', e);
-    //     return null;
-    //   }
-    // };
-    // Background sync method
-    // this.backgroundSync = async function () {
-    //   const tag = `${TAG} | backgroundSync | `;
-    //   try {
-    //     if (!this.offlineClient || !this.offlineClient.isAvailable()) {
-    //       console.log('⚠️ [OFFLINE] Vault not available for background sync');
-    //       return;
-    //     }
-    //
-    //     console.log('🔄 [OFFLINE] Starting background sync...');
-    //
-    //     const pathStrings = this.paths
-    //       .map((path: any) => {
-    //         if (typeof path === 'string') return path;
-    //         if (path.addressNListMaster) {
-    //           return addressNListToBIP32(path.addressNListMaster);
-    //         }
-    //         return path.path || '';
-    //       })
-    //       .filter(Boolean);
-    //
-    //     await this.offlineClient.backgroundSync(pathStrings);
-    //     console.log('✅ [OFFLINE] Background sync completed');
-    //   } catch (e) {
-    //     console.error(tag, 'Error in background sync:', e);
-    //   }
-    // };
-    // this.loadPubkeyCache = async function (pubkeys) {
-    //   const tag = `${TAG} | loadPubkeyCache | `;
-    //   try {
-    //     console.log(
-    //       '🚀 [DEBUG CACHE] loadPubkeyCache called with:',
-    //       pubkeys ? pubkeys.length : 'NULL',
-    //       'pubkeys',
-    //     );
-    //
-    //     if (!pubkeys || !Array.isArray(pubkeys)) {
-    //       console.log('🚀 [DEBUG CACHE] Empty or invalid pubkeys input, using empty array');
-    //       pubkeys = [];
-    //     }
-    //
-    //     // Use a Map for efficient duplicate checking
-    //     const pubkeyMap = new Map();
-    //
-    //     // Add existing pubkeys to the Map
-    //     console.log('🚀 [DEBUG CACHE] Existing this.pubkeys count:', this.pubkeys.length);
-    //     for (const existingPubkey of this.pubkeys) {
-    //       pubkeyMap.set(existingPubkey.pubkey, existingPubkey);
-    //     }
-    //
-    //     // Filter the pubkeys by enabled blockchains
-    //     const enabledNetworkIds = new Set(this.blockchains);
-    //     console.log('🚀 [DEBUG CACHE] Enabled networks:', Array.from(enabledNetworkIds));
-    //
-    //     const filteredPubkeys = pubkeys.filter((pubkey) => {
-    //       // pubkey.networks is an array of networkIds
-    //       return pubkey.networks.some((networkId) => enabledNetworkIds.has(networkId));
-    //     });
-    //     console.log('🚀 [DEBUG CACHE] Filtered pubkeys count:', filteredPubkeys.length);
-    //
-    //     // Add new pubkeys from the cache, avoiding duplicates
-    //     for (const newPubkey of filteredPubkeys) {
-    //       if (!pubkeyMap.has(newPubkey.pubkey)) {
-    //         pubkeyMap.set(newPubkey.pubkey, newPubkey);
-    //       } else {
-    //         console.log('🚀 [DEBUG CACHE] Duplicate pubkey found, skipping');
-    //       }
-    //     }
-    //
-    //     // Update this.pubkeys with the unique values
-    //     this.pubkeys = Array.from(pubkeyMap.values());
-    //     console.log(
-    //       '🚀 [DEBUG CACHE] ✅ loadPubkeyCache completed, total pubkeys:',
-    //       this.pubkeys.length,
-    //     );
-    //   } catch (e) {
-    //     console.error('🚀 [DEBUG CACHE] ❌ Error in loadPubkeyCache:', e);
-    //     console.error(tag, 'Error loading pubkey cache:', e);
-    //     throw e;
-    //   }
-    // };
     this.estimateMax = async function (sendPayload: any) {
       try {
         sendPayload.isMax = true;
@@ -1089,90 +970,6 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let unsignedTx = await txManager.transfer(sendPayload);
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
-        return unsignedTx;
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
-    };
-    this.buildDelegateTx = async function (caip: string, params: StakingTxParams) {
-      let tag = TAG + ' | buildDelegateTx | ';
-      try {
-        const delegateParams = {
-          ...params,
-          type: 'delegate' as const,
-        };
-        let unsignedTx = await createUnsignedStakingTx(
-          caip,
-          delegateParams,
-          this.pubkeys,
-          this.pioneer,
-          this.keepKeySdk,
-        );
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
-        return unsignedTx;
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
-    };
-    this.buildUndelegateTx = async function (caip: string, params: StakingTxParams) {
-      let tag = TAG + ' | buildUndelegateTx | ';
-      try {
-        const undelegateParams = {
-          ...params,
-          type: 'undelegate' as const,
-        };
-        let unsignedTx = await createUnsignedStakingTx(
-          caip,
-          undelegateParams,
-          this.pubkeys,
-          this.pioneer,
-          this.keepKeySdk,
-        );
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
-        return unsignedTx;
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
-    };
-    this.buildClaimRewardsTx = async function (caip: string, params: StakingTxParams) {
-      let tag = TAG + ' | buildClaimRewardsTx | ';
-      try {
-        const claimParams = {
-          ...params,
-          type: 'claim_rewards' as const,
-        };
-        let unsignedTx = await createUnsignedStakingTx(
-          caip,
-          claimParams,
-          this.pubkeys,
-          this.pioneer,
-          this.keepKeySdk,
-        );
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
-        return unsignedTx;
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
-    };
-    this.buildClaimAllRewardsTx = async function (caip: string, params: StakingTxParams) {
-      let tag = TAG + ' | buildClaimAllRewardsTx | ';
-      try {
-        const claimAllParams = {
-          ...params,
-          type: 'claim_all_rewards' as const,
-        };
-        let unsignedTx = await createUnsignedStakingTx(
-          caip,
-          claimAllParams,
-          this.pubkeys,
-          this.pioneer,
-          this.keepKeySdk,
-        );
         //console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
       } catch (e) {
@@ -1326,7 +1123,6 @@ export class SDK {
           );
         //TODO let user handle selecting quote?
         let selected = result[0];
-        let invocationId = selected.quote.id;
         //console.log('invocationId: ', invocationId);
 
         //console.log('txs: ', selected.quote.txs);
@@ -1624,25 +1420,7 @@ export class SDK {
           } else {
             //Discovery
             //TODO push to Discovery api
-
-            const explorerInfo = this.getExplorerForNetwork(networkId);
-            let asset = {
-              caip: caip,
-              chainId: networkId.replace('eip155:', ''),
-              networkId: networkId,
-              symbol: 'ETH',
-              name: networkId,
-              networkName: networkId,
-              precision: 18,
-              color: '#0000ff',
-              icon: 'https://pioneers.dev/coins/ethereum.png',
-              explorer: explorerInfo.explorer,
-              explorerAddressLink: explorerInfo.explorerAddressLink,
-              explorerTxLink: explorerInfo.explorerTxLink,
-            };
-            this.assetsMap.set(caip, asset);
-            //TODO build from scratch
-            //throw Error('unknown asset! ' + caip + ' not found in assetData!');
+            throw Error('GAS Asset MISSING from assetData ' + caip);
           }
         }
 
@@ -2170,91 +1948,6 @@ export class SDK {
         console.error(tag, 'e: ', e);
         throw e;
       }
-    };
-    this.verifyWallet = async (): Promise<void> => {
-      // Implementation will be added later
-      return Promise.resolve();
-    };
-    this.search = async (query: string, config: any): Promise<void> => {
-      // Implementation will be added later
-      return Promise.resolve();
-    };
-
-    // Convert vault pubkey format to pioneer-sdk format
-    this.convertVaultPubkeysToPioneerFormat = (vaultPubkeys: any[]): any[] => {
-      const tag = `| convertVaultPubkeys | `;
-      console.log(
-        `🔄 [VAULT CONVERSION] Converting ${vaultPubkeys.length} vault pubkeys to pioneer format...`,
-      );
-
-      return vaultPubkeys.map((vaultPubkey: any, index: number) => {
-        // Handle different vault pubkey formats
-        let pubkey: any = {};
-
-        // Copy basic properties
-        pubkey.path = vaultPubkey.path;
-        pubkey.pathMaster = vaultPubkey.pathMaster || vaultPubkey.path;
-
-        // Convert xpub to pubkey field
-        if (vaultPubkey.xpub) {
-          pubkey.pubkey = vaultPubkey.xpub;
-          pubkey.type = 'xpub'; // Default for extended public keys
-        } else if (vaultPubkey.pubkey) {
-          pubkey.pubkey = vaultPubkey.pubkey;
-        } else {
-          console.warn(
-            `⚠️ [VAULT CONVERSION] Warning: Pubkey ${index} has no xpub or pubkey field`,
-            vaultPubkey,
-          );
-          pubkey.pubkey = vaultPubkey.address || 'unknown';
-        }
-
-        // Handle networks
-        if (vaultPubkey.networks && Array.isArray(vaultPubkey.networks)) {
-          pubkey.networks = vaultPubkey.networks;
-        } else {
-          // Try to derive networks from path or coin info
-          pubkey.networks = this.deriveNetworksFromPath(vaultPubkey.path || '');
-        }
-
-        // Handle other properties
-        pubkey.scriptType = vaultPubkey.scriptType || vaultPubkey.script_type || 'p2pkh';
-        pubkey.type = vaultPubkey.type || (vaultPubkey.xpub ? 'xpub' : 'address');
-        pubkey.address = vaultPubkey.address;
-        pubkey.coin = vaultPubkey.coin;
-        pubkey.cached = true;
-        pubkey.source = 'vault_cache';
-
-        return pubkey;
-      });
-    };
-
-    // Helper method to derive networks from BIP32 path
-    this.deriveNetworksFromPath = (path: string): string[] => {
-      // Parse BIP44 path format: m/44'/coin_type'/account'/change/address_index
-      const pathParts = path.split('/');
-      if (pathParts.length < 3) return ['unknown'];
-
-      const coinTypeMatch = pathParts[2]?.match(/^(\d+)'?$/);
-      if (!coinTypeMatch) return ['unknown'];
-
-      const coinType = parseInt(coinTypeMatch[1]);
-
-      // Map coin types to network IDs (BIP44 standard)
-      const coinTypeToNetwork: { [key: number]: string[] } = {
-        0: ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin
-        1: ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin Testnet
-        2: ['bip122:12a765e31ffd4059bada1e25190f6e98'], // Litecoin
-        3: ['bip122:00000000001a91e3dace36e2be3bf030'], // Dogecoin
-        5: ['bip122:000007d91d1254d60e2dd1ae58038307'], // Dash
-        60: ['eip155:1', 'eip155:*'], // Ethereum
-        118: ['cosmos:cosmoshub-4'], // Cosmos
-        144: ['ripple:4109c6f2045fc7eff4cde8f9905d19c2'], // XRP
-        145: ['bip122:000000000000000000651ef99cb9fcbe'], // Bitcoin Cash
-        931: ['cosmos:thorchain-mainnet-v1', 'cosmos:mayachain-mainnet-v1'], // THORChain/Maya
-      };
-
-      return coinTypeToNetwork[coinType] || ['unknown'];
     };
   }
 }

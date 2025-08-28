@@ -6,7 +6,7 @@ import {
   xpubConvert,
 } from '@pioneer-platform/pioneer-coins';
 
-export const getPubkey = async (networkId: string, path: any, sdk: any, context: string) => {
+export const getPubkey = async (networkId: string, path: any, sdk: any, context: string, showDisplay?: boolean) => {
   const tag = `| getPubkey | `;
   try {
       // Reduced logging for performance
@@ -24,6 +24,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
       //@ts-ignore
       coin: COIN_MAP_KEEPKEY_LONG[chain],
       script_type: path.script_type,
+      show_display: showDisplay || false,
     };
     // AddressInfo prepared
     const networkIdToType: any = {
@@ -81,7 +82,7 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
           throw new Error(`Unsupported network type for networkId: ${networkId}`);
       }
       clearTimeout(addressTimeout);
-    } catch (addressError) {
+    } catch (addressError: any) {
       clearTimeout(addressTimeout);
       console.error('❌ [PUBKEY] Address retrieval failed:', addressError.message);
       throw addressError;

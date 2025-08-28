@@ -114,6 +114,7 @@ const test_service = async function () {
             log.debug(tag,"balanceNative: ",balanceNative)
 
             //
+            log.info(tag,"app.pubkeys: ",app.pubkeys)
             const pubkey = app.pubkeys.find((p:any) => p.networks?.includes(blockchain));
             assert(pubkey)
 
@@ -137,6 +138,34 @@ const test_service = async function () {
 
         for (let i = 0; i < hardcodedPermutations.length; i++) {
             const { caipIn, caipOut } = hardcodedPermutations[i];
+
+            //confirm UX flow
+            //TODO a user might want to specify FROM what pubkey* (multiple for a caip)
+            //set input
+            await app.setAssetContext({caip:caipIn});
+            console.log("assetContext: ",app.assetContext)
+            //TODO validate "from" address
+
+            //TODO a user might specify TO what pubkey (multiple for a caip)
+            //set output
+            await app.setOutboundAssetContext({caip:caipOut});
+            console.log("outboundAssetContext: ",app.outboundAssetContext)
+            assert(app.outboundAssetContext)
+            assert(app.outboundAssetContext.address)
+            //TODO get pubkey info from outbound context (what path)
+            let proofPayload = {
+              addressNList: @TODO,
+
+              coin: @TODO,
+              scriptType: @TODO,
+              showDisplay: true
+            }
+            //use keepkeysdk to view on device to confirm receipt address
+            let deviceProffAddress = app.keepkeySdk()
+            assert(deviceProffAddress)
+            if(deviceProffAddress.address !=== app.outboundAssetContext.address) throw Error('Invalid proff address')
+
+            //TODO Audit deposit conensus
 
             const swapPayload:any = {
                 caipIn: caipIn,
