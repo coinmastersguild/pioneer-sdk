@@ -1,0 +1,27 @@
+{
+  "name": "@coinmasters/integration-mcp",
+  "version": "1.0.0",
+  "description": "E2E integration test for Pioneer MCP server",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node dist/index.js",
+    "dev": "pnpm run build && pnpm run start",
+    "test": "pnpm run dev"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "pioneer",
+    "sdk",
+    "e2e"
+  ],
+  "author": "Pioneer Team"
+}

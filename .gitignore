@@ -121,3 +121,5 @@ apps/*/.next
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+examples/*
