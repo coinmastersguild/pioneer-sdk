@@ -6,6 +6,8 @@ const TAG = " | test swap suite | ";
 // @ts-ignore
 import { shortListSymbolToCaip, caipToNetworkId, networkIdToCaip } from '@pioneer-platform/pioneer-caip';
 import { getChainEnumValue, NetworkIdToChain } from '@coinmasters/types';
+//
+import { bip32ToAddressNList, COIN_MAP_KEEPKEY_LONG } from '@pioneer-platform/pioneer-coins'
 const log = require("@pioneer-platform/loggerdog")();
 const assert = require('assert');
 const SDK = require('@coinmasters/pioneer-sdk');
@@ -152,18 +154,104 @@ const test_service = async function () {
             console.log("outboundAssetContext: ",app.outboundAssetContext)
             assert(app.outboundAssetContext)
             assert(app.outboundAssetContext.address)
-            //TODO get pubkey info from outbound context (what path)
-            let proofPayload = {
-              addressNList: @TODO,
 
-              coin: @TODO,
-              scriptType: @TODO,
-              showDisplay: true
-            }
-            //use keepkeysdk to view on device to confirm receipt address
-            let deviceProffAddress = app.keepkeySdk()
-            assert(deviceProffAddress)
-            if(deviceProffAddress.address !=== app.outboundAssetContext.address) throw Error('Invalid proff address')
+            /*
+
+                  outboundAssetContext:  {
+                  assetId: 'eip155:1/slip44:60',
+                  chainId: 'eip155:1',
+                  symbol: 'ETH',
+                  name: 'Ethereum',
+                  networkName: 'Ethereum',
+                  precision: 18,
+                  color: '#5C6BC0',
+                  icon: 'https://assets.coincap.io/assets/icons/256/eth.png',
+                  explorer: 'https://etherscan.io',
+                  explorerAddressLink: 'https://etherscan.io/address/',
+                  explorerTxLink: 'https://etherscan.io/tx/',
+                  relatedAssetKey: 'eip155:1/slip44:60',
+                  caip: 'eip155:1/slip44:60',
+                  networkId: 'eip155:1',
+                  priceUsd: '3520.20',
+                  balance: '0.04880758',
+                  valueUsd: '171.81',
+                  type: 'address',
+                  master: '0x141D9959cAe3853b035000490C03991eB70Fc4aC',
+                  address: '0x141D9959cAe3853b035000490C03991eB70Fc4aC',
+                  pubkey: '0x141D9959cAe3853b035000490C03991eB70Fc4aC',
+                  path: "m/44'/60'/0'",
+                  scriptType: 'ethereum',
+                  note: ' ETH primary (default)',
+                  available_scripts_types: undefined,
+                  context: 'keepkey:undefined.json',
+                  networks: [ 'eip155:1', 'eip155:*' ]
+
+                }
+
+
+
+
+             */
+            assert(app.keepKeySdk)
+
+          // AddressInfo prepared
+          const networkIdToType: any = {
+            'bip122:000000000019d6689c085ae165831e93': 'UTXO',
+            'bip122:000000000000000000651ef99cb9fcbe': 'UTXO',
+            'bip122:000007d91d1254d60e2dd1ae58038307': 'UTXO',
+            'bip122:00000000001a91e3dace36e2be3bf030': 'UTXO',
+            'bip122:12a765e31ffd4059bada1e25190f6e98': 'UTXO',
+            'cosmos:mayachain-mainnet-v1': 'MAYACHAIN',
+            'cosmos:osmosis-1': 'OSMOSIS',
+            'cosmos:cosmoshub-4': 'COSMOS',
+            'cosmos:kaiyo-1': 'COSMOS',
+            'cosmos:thorchain-mainnet-v1': 'THORCHAIN',
+            'eip155:1': 'EVM',
+            'eip155:137': 'EVM',
+            'eip155:*': 'EVM',
+            'ripple:4109c6f2045fc7eff4cde8f9905d19c2': 'XRP',
+            'zcash:main': 'UTXO',
+          }
+          let networkType = networkIdToType[app.outboundAssetContext.networkId]
+
+          let addressInfo = {
+            address_n: bip32ToAddressNList(app.outboundAssetContext.pathMaster),
+            script_type:app.outboundAssetContext.scriptType,
+            // @ts-ignore
+            coin:COIN_MAP_KEEPKEY_LONG[NetworkIdToChain[app.outboundAssetContext.networkId]],
+            show_display: true
+          }
+          console.log('addressInfo: ',addressInfo)
+          let address
+          switch (networkType) {
+            case 'UTXO':
+              ({ address } = await app.address.utxoGetAddress(addressInfo));
+              break;
+            case 'EVM':
+              ({ address } = await app.keepKeySdk.address.ethereumGetAddress(addressInfo));
+              break;
+            case 'OSMOSIS':
+              ({ address } = await app.keepKeySdk.address.osmosisGetAddress(addressInfo));
+              break;
+            case 'COSMOS':
+              ({ address } = await app.keepKeySdk.address.cosmosGetAddress(addressInfo));
+              break;
+            case 'MAYACHAIN':
+              ({ address } = await app.keepKeySdk.address.mayachainGetAddress(addressInfo));
+              break;
+            case 'THORCHAIN':
+              ({ address } = await app.keepKeySdk.address.thorchainGetAddress(addressInfo));
+              break;
+            case 'XRP':
+              ({ address } = await app.keepKeySdk.address.xrpGetAddress(addressInfo));
+              break;
+            default:
+              throw new Error(`Unsupported network type for networkId: ${app.outboundAssetContext.networkId}`);
+          }
+
+            console.log('deviceProffAddress: ',address)
+            console.log('app.outboundAssetContext.address: ',app.outboundAssetContext.address)
+            if(address !== app.outboundAssetContext.address) throw Error('Invalid proff address')
 
             //TODO Audit deposit conensus
 
