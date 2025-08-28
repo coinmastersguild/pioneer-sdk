@@ -112,6 +112,11 @@ const test_service = async function () {
             const balanceNative = app.balances.find((balance:any) => balance.caip === caip);
             assert(balanceNative)
             log.debug(tag,"balanceNative: ",balanceNative)
+
+            //
+            const pubkey = app.pubkeys.find((p:any) => p.networks?.includes(blockchain));
+            assert(pubkey)
+
         }
 
 

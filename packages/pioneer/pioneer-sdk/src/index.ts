@@ -2097,7 +2097,6 @@ export class SDK {
       const tag = `${TAG} | setOutputAssetContext | `;
       try {
         console.log(tag, '0. asset: ', asset);
-
         // Accept null
         if (!asset) {
           this.outboundAssetContext = null;
@@ -2110,6 +2109,10 @@ export class SDK {
         if (!asset.networkId) asset.networkId = caipToNetworkId(asset.caip);
 
         console.log(tag, 'networkId: ', asset.networkId);
+        console.log(tag, 'this.pubkeys: ', this.pubkeys);
+        //get a pubkey for network
+        const pubkey = this.pubkeys.find((p) => p.networks?.includes(asset.networkId));
+        if (!pubkey) throw Error('Invalid network! missing pubkey for network! ' + asset.networkId);
 
         // Try to find the asset in the local assetsMap
         let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
@@ -2147,7 +2150,7 @@ export class SDK {
         console.log(tag, 'CHECKPOINT 1');
 
         // Combine the user-provided asset with any additional info we have
-        this.outboundAssetContext = { ...assetInfo, ...asset };
+        this.outboundAssetContext = { ...assetInfo, ...asset, ...pubkey };
 
         console.log(tag, 'CHECKPOINT 3');
         console.log(tag, 'outboundAssetContext: assetInfo: ', assetInfo);
