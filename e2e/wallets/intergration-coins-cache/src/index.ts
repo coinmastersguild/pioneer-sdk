@@ -152,6 +152,7 @@ const test_service = async function (this: any) {
                         const pubkey = portfolio.pubkeys[i];
                         console.log(`   Pubkey ${i}:`, {
                             path: pubkey.path,
+                            pathMaster: pubkey.pathMaster,
                             type: pubkey.type,
                             scriptType: pubkey.scriptType,
                             networks: pubkey.networks,
@@ -179,8 +180,14 @@ const test_service = async function (this: any) {
                         } else if (pubkey.networks.length === 0) {
                             invalidPubkeys.push({index: i, issue: 'networks array is empty', pubkey: pubkey});
                         }
+
+                      if(!pubkey.pathMaster) throw Error("Invalid pubkey! missing pathMaster")
+                      if(!pubkey.networks) throw Error("Invalid pubkey! missing networks")
+                      if(!pubkey.addresses) throw Error("Invalid pubkey! missing addresses")
                     }
-                    
+
+
+
                     if (invalidPubkeys.length > 0) {
                         
                         console.error('❌ [VALIDATION] Found', invalidPubkeys.length, 'invalid pubkeys:');

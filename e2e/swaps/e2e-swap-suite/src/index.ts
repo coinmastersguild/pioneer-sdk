@@ -115,6 +115,9 @@ const test_service = async function () {
         }
 
 
+        // Test validation: Try to set context for an unsupported asset (should fail)
+        console.log('\n🧪 Testing validation for unsupported assets...');
+
         const hardcodedPermutations:any = [
             // { caipIn: "bip122:00000000001a91e3dace36e2be3bf030/slip44:3", caipOut: "cosmos:thorchain-mainnet-v1/slip44:931" }, // DOGE to RUNE
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "eip155:1/slip44:60" }, // RUNE to ETH
@@ -126,6 +129,7 @@ const test_service = async function () {
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "bip122:000007d91d1254d60e2dd1ae58038307/slip44:5" }, // RUNE to DASH
         ];
 
+
         for (let i = 0; i < hardcodedPermutations.length; i++) {
             const { caipIn, caipOut } = hardcodedPermutations[i];
 
@@ -133,7 +137,7 @@ const test_service = async function () {
                 caipIn: caipIn,
                 caipOut: caipOut,
                 //@ts-ignore
-                amount: "0.3", // Default minimal amount if not specified
+                amount: "0.0001", // Default minimal amount if not specified
                 slippagePercentage: 5,
             };
 

@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/bip85-subaccounts",
-  "version": "1.12.13",
+  "version": "1.12.14",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

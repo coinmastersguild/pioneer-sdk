@@ -383,23 +383,27 @@ export class SDK {
               console.warn('[CACHE VALIDATION] Networks is not an array');
               return false;
             }
-            
+
             if (portfolioData.networks.length > 50) {
-              console.error(`[CACHE VALIDATION] CORRUPTED: ${portfolioData.networks.length} networks (should be < 50)`);
+              console.error(
+                `[CACHE VALIDATION] CORRUPTED: ${portfolioData.networks.length} networks (should be < 50)`,
+              );
               return false;
             }
-            
+
             // Check if at least some networks have required fields
-            const validNetworks = portfolioData.networks.filter((n: any) => 
-              n.networkId && n.totalValueUsd !== undefined && n.gasAssetSymbol
+            const validNetworks = portfolioData.networks.filter(
+              (n: any) => n.networkId && n.totalValueUsd !== undefined && n.gasAssetSymbol,
             );
-            
+
             if (validNetworks.length === 0 && portfolioData.networks.length > 0) {
               console.error('[CACHE VALIDATION] CORRUPTED: No networks have required fields');
               return false;
             }
-            
-            console.log(`[CACHE VALIDATION] Found ${portfolioData.networks.length} networks, ${validNetworks.length} valid`);
+
+            console.log(
+              `[CACHE VALIDATION] Found ${portfolioData.networks.length} networks, ${validNetworks.length} valid`,
+            );
             return true;
           };
 
@@ -424,11 +428,13 @@ export class SDK {
                   percentage: network.percentage || 0,
                 })) || [],
             };
-            
+
             this.dashboard = dashboardData;
             this.events.emit('SET_DASHBOARD', this.dashboard);
           } else {
-            console.warn('[CACHE VALIDATION] ❌ Cache data corrupted, building dashboard from cached balances');
+            console.warn(
+              '[CACHE VALIDATION] ❌ Cache data corrupted, building dashboard from cached balances',
+            );
             // Build dashboard from cached balances without hitting Pioneer APIs
             const dashboardData = this.buildDashboardFromBalances();
             this.dashboard = dashboardData;
@@ -600,10 +606,10 @@ export class SDK {
       }
     };
     // Build dashboard from cached balances (no Pioneer API calls)
-    this.buildDashboardFromBalances = function() {
+    this.buildDashboardFromBalances = function () {
       const tag = `${TAG} | buildDashboardFromBalances | `;
       console.log('[FAST DASHBOARD] Building dashboard from cached balances...');
-      
+
       const dashboardData: {
         networks: {
           networkId: string;
@@ -668,9 +674,9 @@ export class SDK {
           }, 0)
           .toString();
 
-        // Get colors from assetMap since balances don't have them  
+        // Get colors from assetMap since balances don't have them
         const assetInfo = nativeAssetCaip ? this.assetsMap.get(nativeAssetCaip) : null;
-        
+
         networksTemp.push({
           networkId: blockchain,
           totalValueUsd: networkTotal,
@@ -699,7 +705,11 @@ export class SDK {
         }))
         .filter((entry) => entry.percentage > 0); // Remove zero percentages
 
-      console.log(`[FAST DASHBOARD] ✅ Built dashboard: ${dashboardData.networks.length} networks, $${totalPortfolioValue.toFixed(2)} total`);
+      console.log(
+        `[FAST DASHBOARD] ✅ Built dashboard: ${
+          dashboardData.networks.length
+        } networks, $${totalPortfolioValue.toFixed(2)} total`,
+      );
       return dashboardData;
     };
 
@@ -1241,6 +1251,8 @@ export class SDK {
           throw Error('Invalid networkId for assetContext');
         if (!this.outboundAssetContext || !this.outboundAssetContext.networkId)
           throw Error('Invalid networkId for outboundAssetContext');
+        if (!this.outboundAssetContext || !this.outboundAssetContext.address)
+          throw Error('Invalid outboundAssetContext missing address');
         //console.log(tag, 'assetContext networkId: ', this.assetContext.networkId);
         //console.log(tag, 'outboundAssetContext  networkId: ', this.outboundAssetContext.networkId);
 
@@ -1252,59 +1264,10 @@ export class SDK {
             Array.isArray(e.networks) &&
             e.networks.includes(this.assetContext.networkId),
         );
-        let senderAddress = pubkeys[0]?.address || pubkeys[0]?.master;
+        let senderAddress = pubkeys[0]?.address || pubkeys[0]?.master || pubkeys[0]?.pubkey;
         if (!senderAddress) throw new Error('senderAddress not found! wallet not connected');
         if (senderAddress.includes('bitcoincash:')) {
           senderAddress = senderAddress.replace('bitcoincash:', '');
-        }
-
-        /* Old debug code commented out
-        //console.log(
-          tag,
-          'this.outboundAssetContext.networkId',
-          this.outboundAssetContext.networkId,
-        );
-        */
-        console.log(tag, 'Looking for recipient address...');
-        console.log(
-          tag,
-          'this.outboundAssetContext.networkId:',
-          this.outboundAssetContext.networkId,
-        );
-        console.log(tag, 'this.pubkeys count:', this.pubkeys.length);
-        console.log(
-          tag,
-          'Sample pubkey networks:',
-          this.pubkeys.slice(0, 3).map((p: any) => ({
-            networks: p.networks,
-            address: p.address?.substring(0, 10) + '...',
-            master: p.master?.substring(0, 10) + '...',
-          })),
-        );
-
-        // Check if we need to fetch pubkeys for this network
-        const existingNetworks = [...new Set(this.pubkeys.flatMap((p: any) => p.networks))];
-        if (!existingNetworks.includes(this.outboundAssetContext.networkId)) {
-          console.log(
-            tag,
-            'Network not found in pubkeys, attempting to add paths for:',
-            this.outboundAssetContext.networkId,
-          );
-
-          // Try to get paths for this network
-          try {
-            const newPaths = getPaths([this.outboundAssetContext.networkId]);
-            if (newPaths && newPaths.length > 0) {
-              console.log(tag, 'Found', newPaths.length, 'paths for network');
-              this.paths = this.paths.concat(newPaths);
-
-              // Get pubkeys for these new paths
-              const newPubkeys = await this.getPubkeys();
-              console.log(tag, 'Fetched', newPubkeys.length, 'new pubkeys');
-            }
-          } catch (pathError) {
-            console.error(tag, 'Failed to get paths for network:', pathError);
-          }
         }
 
         const pubkeysOut = this.pubkeys.filter(
@@ -1316,28 +1279,13 @@ export class SDK {
         console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
         console.log(tag, 'pubkeysOut:', pubkeysOut);
 
-        let recipientAddress = pubkeysOut[0]?.address || pubkeysOut[0]?.master;
-        if (!recipientAddress) {
-          console.error(tag, 'Failed to find recipient address!');
-          console.error(tag, 'Available networks in pubkeys:', [
-            ...new Set(this.pubkeys.flatMap((p: any) => p.networks)),
-          ]);
-          console.error(tag, 'Looking for network:', this.outboundAssetContext.networkId);
+        // Handle both regular addresses and xpubs for recipient
+        let recipientAddress;
 
-          // Try to use the sender address as a fallback if both assets are on the same network
-          if (
-            this.assetContext.networkId === this.outboundAssetContext.networkId &&
-            senderAddress
-          ) {
-            console.warn(tag, 'Using sender address as recipient for same-network swap');
-            recipientAddress = senderAddress;
-          } else {
-            throw new Error(
-              'recipientAddress not found! wallet not connected or missing pubkey for network: ' +
-                this.outboundAssetContext.networkId,
-            );
-          }
-        }
+        // First priority: use actual address if available
+        recipientAddress = pubkeysOut[0]?.address || pubkeysOut[0]?.master || pubkeysOut[0]?.pubkey;
+
+        if (!recipientAddress) throw Error('Failed to Find recepient address');
         if (recipientAddress.includes('bitcoincash:')) {
           recipientAddress = recipientAddress.replace('bitcoincash:', '');
         }
@@ -1974,6 +1922,53 @@ export class SDK {
 
         if (!asset.caip) throw Error('Invalid Asset! missing caip!');
         if (!asset.networkId) asset.networkId = caipToNetworkId(asset.caip);
+
+        // CRITICAL VALIDATION: Check if we have an address/xpub for this network
+        if (!this.pubkeys || this.pubkeys.length === 0) {
+          const errorMsg = `Cannot set asset context for ${asset.caip} - no pubkeys loaded. Please initialize wallet first.`;
+          console.error(tag, errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        const pubkeysForNetwork = this.pubkeys.filter(
+          (e: any) =>
+            e.networks && Array.isArray(e.networks) && e.networks.includes(asset.networkId),
+        );
+
+        if (pubkeysForNetwork.length === 0) {
+          const errorMsg = `Cannot set asset context for ${asset.caip} - no address/xpub found for network ${asset.networkId}`;
+          console.error(tag, errorMsg);
+          console.error(tag, 'Available networks in pubkeys:', [
+            ...new Set(this.pubkeys.flatMap((p: any) => p.networks || [])),
+          ]);
+          throw new Error(errorMsg);
+        }
+
+        // For UTXO chains, verify we have xpub
+        const isUtxoChain = asset.networkId.startsWith('bip122:');
+        if (isUtxoChain) {
+          const xpubFound = pubkeysForNetwork.some((p: any) => p.type === 'xpub' && p.pubkey);
+          if (!xpubFound) {
+            const errorMsg = `Cannot set asset context for UTXO chain ${asset.caip} - xpub required but not found`;
+            console.error(tag, errorMsg);
+            throw new Error(errorMsg);
+          }
+        }
+
+        // Verify we have a valid address or pubkey
+        const hasValidAddress = pubkeysForNetwork.some(
+          (p: any) => p.address || p.master || p.pubkey,
+        );
+        if (!hasValidAddress) {
+          const errorMsg = `Cannot set asset context for ${asset.caip} - no valid address found in pubkeys`;
+          console.error(tag, errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        console.log(
+          tag,
+          `✅ Validated: Found ${pubkeysForNetwork.length} addresses for ${asset.networkId}`,
+        );
 
         // Try to find the asset in the local assetsMap
         let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
