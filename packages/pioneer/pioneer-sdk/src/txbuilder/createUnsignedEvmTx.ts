@@ -34,7 +34,7 @@ const extractChainIdFromNetworkId = (networkId) => {
 // Fetch the current ETH price in USD from CoinGecko
 async function fetchEthPriceInUsd() {
   const response = await fetch(
-    'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+    'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
   );
   const data = await response.json();
   return data.ethereum.usd;
@@ -79,7 +79,7 @@ const encodeTransferData = (toAddress, amountWei) => {
 async function fetchTokenPriceInUsd(contractAddress) {
   // Use CoinGecko API to get token price by contract address
   const response = await fetch(
-    `https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=${contractAddress}&vs_currencies=usd`
+    `https://api.coingecko.com/api/v3/simple/token_price/ethereum?contract_addresses=${contractAddress}&vs_currencies=usd`,
   );
   const data = await response.json();
   const price = data[contractAddress.toLowerCase()]?.usd;
@@ -112,7 +112,9 @@ export async function createUnsignedEvmTx(
 
     // Find relevant public keys for the network
     const blockchain = networkId.includes('eip155') ? 'eip155:*' : '';
-    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(blockchain));
+    const relevantPubkeys = pubkeys.filter(
+      (e) => e.networks && Array.isArray(e.networks) && e.networks.includes(blockchain),
+    );
     const address = relevantPubkeys[0]?.address;
     if (!address) throw new Error('No address found for the specified network');
 
@@ -170,6 +172,46 @@ export async function createUnsignedEvmTx(
         }
 
         //console.log(tag, 'amountWei:', amountWei.toString());
+
+        // Check if this is a THORChain swap (memo starts with '=' or 'SWAP' or contains ':')
+        const isThorchainSwap =
+          memo && (memo.startsWith('=') || memo.startsWith('SWAP') || memo.includes(':'));
+
+        let txData = '0x';
+
+        if (isThorchainSwap) {
+          // This is a THORChain swap - need to encode the deposit function call
+          console.log(tag, 'Detected THORChain swap, encoding deposit data for memo:', memo);
+
+          try {
+            // Call the Pioneer server to encode the THORChain deposit data
+            const thorchainData = await pioneer.GetThorchainMemoEncoded({
+              inboundAddress: {
+                router: to, // The router address
+                address: to, // The vault address (same as router for now, will be fetched from inbound addresses)
+              },
+              amount: Number(amountWei) / 1e18, // Convert wei back to ETH
+              memo: memo,
+            });
+            console.log(tag, 'Encoded THORChain deposit data:', txData);
+            if (thorchainData && thorchainData.data) {
+              txData = thorchainData.data;
+              console.log(tag, 'Encoded THORChain deposit data:', txData);
+            } else {
+              // Fallback if encoding fails
+              console.warn(tag, 'Failed to encode THORChain data, using memo as hex');
+              txData = utf8ToHex(memo);
+            }
+          } catch (error) {
+            console.error(tag, 'Error encoding THORChain deposit:', error);
+            // Fallback to memo as hex if server call fails
+            txData = utf8ToHex(memo);
+          }
+        } else if (memo) {
+          // Regular transaction with memo
+          txData = utf8ToHex(memo);
+        }
+
         unsignedTx = {
           chainId,
           nonce: toHex(nonce),
@@ -177,7 +219,7 @@ export async function createUnsignedEvmTx(
           gasPrice: toHex(gasPrice),
           to,
           value: toHex(amountWei),
-          data: memo ? utf8ToHex(memo) : '0x',
+          data: txData,
         };
         break;
       }
@@ -189,20 +231,23 @@ export async function createUnsignedEvmTx(
         // Common token decimals:
         // USDT: 6, USDC: 6, DAI: 18, WETH: 18, most others: 18
         let tokenDecimals = 18; // Default to 18 if not specified
-        
+
         // Check for known stablecoins with 6 decimals
         const contractLower = contractAddress.toLowerCase();
-        if (contractLower === '0xdac17f958d2ee523a2206206994597c13d831ec7' || // USDT on Ethereum
-            contractLower === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' || // USDC on Ethereum
-            contractLower === '0x4fabb145d64652a948d72533023f6e7a623c7c53' || // BUSD on Ethereum
-            contractLower === '0x8e870d67f660d95d5be530380d0ec0bd388289e1') { // USDP on Ethereum
+        if (
+          contractLower === '0xdac17f958d2ee523a2206206994597c13d831ec7' || // USDT on Ethereum
+          contractLower === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' || // USDC on Ethereum
+          contractLower === '0x4fabb145d64652a948d72533023f6e7a623c7c53' || // BUSD on Ethereum
+          contractLower === '0x8e870d67f660d95d5be530380d0ec0bd388289e1'
+        ) {
+          // USDP on Ethereum
           tokenDecimals = 6;
           console.log(tag, 'Using 6 decimals for stablecoin:', contractAddress);
         }
-        
+
         // TODO: Fetch decimals from contract in the future:
         // const decimals = await getTokenDecimals(contractAddress, networkId);
-        
+
         const tokenMultiplier = Math.pow(10, tokenDecimals);
 
         // Increase gas limit for ERC-20 transfers - 60k was insufficient on Polygon
@@ -235,7 +280,7 @@ export async function createUnsignedEvmTx(
             inputAmount: amount,
             decimals: tokenDecimals,
             multiplier: tokenMultiplier,
-            resultWei: amountWei.toString()
+            resultWei: amountWei.toString(),
           });
         }
 

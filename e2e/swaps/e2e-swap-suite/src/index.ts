@@ -129,8 +129,8 @@ const test_service = async function () {
         const hardcodedPermutations:any = [
             // { caipIn: "bip122:00000000001a91e3dace36e2be3bf030/slip44:3", caipOut: "cosmos:thorchain-mainnet-v1/slip44:931" }, // DOGE to RUNE
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "eip155:1/slip44:60" }, // RUNE to ETH
-            // { caipIn: "eip155:1/slip44:60", caipOut: "bip122:000000000019d6689c085ae165831e93/slip44:0" }, // ETH to BTC
-            { caipIn: "bip122:000000000019d6689c085ae165831e93/slip44:0", caipOut: "eip155:1/slip44:60" }, // ETH to BTC
+            { caipIn: "eip155:1/slip44:60", caipOut: "bip122:000000000019d6689c085ae165831e93/slip44:0" }, // ETH to BTC
+            // { caipIn: "bip122:000000000019d6689c085ae165831e93/slip44:0", caipOut: "eip155:1/slip44:60" }, // BTC to ETH
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "eip155:1/slip44:60" }, // RUNE to ETH
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "bip122:00000000001a91e3dace36e2be3bf030/slip44:3" }, // RUNE to DOGE
             // { caipIn: "cosmos:thorchain-mainnet-v1/slip44:931", caipOut: "bip122:000000000000000000651ef99cb9fcbe/slip44:145" }, // RUNE to BCH
@@ -154,6 +154,14 @@ const test_service = async function () {
             console.log("outboundAssetContext: ",app.outboundAssetContext)
             assert(app.outboundAssetContext)
             assert(app.outboundAssetContext.address)
+
+            // Get balance for the input asset to calculate max swap amount
+            const inputBalance = app.balances.find((balance:any) => balance.caip === caipIn);
+            if (!inputBalance) {
+                console.error(`No balance found for input asset ${caipIn}`);
+                continue;
+            }
+            console.log(`Input balance for ${caipIn}:`, inputBalance);
 
             /*
 
@@ -255,22 +263,46 @@ const test_service = async function () {
 
             //TODO Audit deposit conensus
 
+            // Use isMax flag to swap maximum available amount
+            // Following the same pattern as transfer() function in SDK
             const swapPayload:any = {
                 caipIn: caipIn,
                 caipOut: caipOut,
-                //@ts-ignore
-                amount: "0.0001", // Default minimal amount if not specified
+                isMax: true, // Set isMax to true - SDK will calculate max amount
                 slippagePercentage: 5,
+                // Note: amount is NOT provided when isMax is true
             };
+            
+            // Log balance information for audit
+            console.log(`\n🔍 Swap Audit for ${caipIn} -> ${caipOut}:`);
+            console.log(`  Input balance: ${inputBalance.balance} ${inputBalance.symbol || ''}`);
+            console.log(`  Using MAX amount (SDK will calculate after fee reserves)`);
 
             try {
                 log.info(tag,'swapPayload: ', swapPayload);
+                
+                // Perform the swap with max amount
                 const txid = await app.swap(swapPayload);
-                log.info('txid: ',txid)
+                
+                // Audit: Log successful swap details
+                console.log(`✅ Swap initiated successfully!`);
+                console.log(`  Transaction ID: ${txid}`);
+                console.log(`  Amount: MAX (calculated by SDK)`);
+                console.log(`  Path: ${caipIn} -> ${caipOut}`);
+                
                 //on prompt to sign
 
-            } catch (error) {
-                console.error(`Failed to swap from ${caipIn} to ${caipOut}:`, error);
+            } catch (error: any) {
+                console.error(`❌ Failed to swap from ${caipIn} to ${caipOut}:`, error);
+                
+                // Detailed error logging for audit
+                if (error.message?.includes('balance')) {
+                    console.error(`  ⚠️ Balance issue detected. Current balance: ${inputBalance?.balance}`);
+                } else if (error.message?.includes('amount')) {
+                    console.error(`  ⚠️ Amount validation failed. Max amount calculation may have issues.`);
+                } else {
+                    console.error(`  ⚠️ Unexpected error: ${error.message}`);
+                }
             }
         }
 

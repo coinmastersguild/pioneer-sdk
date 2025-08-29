@@ -23,10 +23,7 @@ import { getPubkey } from './getPubkey.js';
 import { optimizedGetPubkeys } from './kkapi-batch-client.js';
 import { OfflineClient } from './offline-client.js';
 import { TransactionManager } from './TransactionManager.js';
-import {
-  createUnsignedStakingTx,
-  type StakingTxParams,
-} from './txbuilder/createUnsignedStakingTx.js';
+import { type StakingTxParams } from './txbuilder/createUnsignedStakingTx.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
 
 const TAG = ' | Pioneer-sdk | ';
@@ -1029,7 +1026,8 @@ export class SDK {
         if (!swapPayload) throw Error('swapPayload required!');
         if (!swapPayload.caipIn) throw Error('caipIn required!');
         if (!swapPayload.caipOut) throw Error('caipOut required!');
-        if (!swapPayload.amount) throw Error('amount required!');
+        if (!swapPayload.isMax && !swapPayload.amount)
+          throw Error('amount required! Set either amount or isMax: true');
 
         //Set contexts
         console.log(tag, 'Setting contexts for swap...');
@@ -1087,15 +1085,68 @@ export class SDK {
           recipientAddress = recipientAddress.replace('bitcoincash:', '');
         }
 
-        //Convert amount to number for type safety
-        let inputAmount =
-          typeof swapPayload.amount === 'string'
-            ? parseFloat(swapPayload.amount)
-            : swapPayload.amount;
+        // Handle max amount if isMax flag is set (consistent with transfer function pattern)
+        let inputAmount;
+        if (swapPayload.isMax) {
+          // Find ALL balances for the input asset (important for UTXO chains with multiple xpubs)
+          const inputBalances = this.balances.filter(
+            (balance: any) => balance.caip === swapPayload.caipIn,
+          );
 
-        // Validate the amount is a valid number
-        if (isNaN(inputAmount)) {
-          throw new Error(`Invalid amount provided: ${swapPayload.amount}`);
+          if (!inputBalances || inputBalances.length === 0) {
+            throw new Error(`Cannot use max amount: no balance found for ${swapPayload.caipIn}`);
+          }
+
+          // Aggregate all balances for this asset (handles multiple xpubs for BTC, etc.)
+          let totalBalance = 0;
+          console.log(
+            tag,
+            `Found ${inputBalances.length} balance entries for ${swapPayload.caipIn}`,
+          );
+
+          for (const balanceEntry of inputBalances) {
+            const balance = parseFloat(balanceEntry.balance) || 0;
+            totalBalance += balance;
+            console.log(tag, `  - ${balanceEntry.pubkey || balanceEntry.identifier}: ${balance}`);
+          }
+
+          // CRITICAL: Update the assetContext with the aggregated balance
+          // This ensures the quote gets the correct total balance, not just one xpub
+          this.assetContext.balance = totalBalance.toString();
+          this.assetContext.valueUsd = (
+            totalBalance * parseFloat(this.assetContext.priceUsd || '0')
+          ).toFixed(2);
+          console.log(tag, `Updated assetContext balance to aggregated total: ${totalBalance}`);
+
+          // Fee reserves by network (conservative estimates)
+          // These match the pattern used in transfer functions
+          const feeReserves: any = {
+            'bip122:000000000019d6689c085ae165831e93/slip44:0': 0.00005, // BTC
+            'eip155:1/slip44:60': 0.001, // ETH
+            'cosmos:thorchain-mainnet-v1/slip44:931': 0.02, // RUNE
+            'bip122:00000000001a91e3dace36e2be3bf030/slip44:3': 1, // DOGE
+            'bip122:000007d91d1254d60e2dd1ae58038307/slip44:5': 0.001, // DASH
+            'bip122:000000000000000000651ef99cb9fcbe/slip44:145': 0.0005, // BCH
+          };
+
+          const reserve = feeReserves[swapPayload.caipIn] || 0.0001;
+          inputAmount = Math.max(0, totalBalance - reserve);
+
+          console.log(
+            tag,
+            `Using max amount for swap: ${inputAmount} (total balance: ${totalBalance}, reserve: ${reserve})`,
+          );
+        } else {
+          // Convert amount to number for type safety
+          inputAmount =
+            typeof swapPayload.amount === 'string'
+              ? parseFloat(swapPayload.amount)
+              : swapPayload.amount;
+
+          // Validate the amount is a valid number
+          if (isNaN(inputAmount) || inputAmount <= 0) {
+            throw new Error(`Invalid amount provided: ${swapPayload.amount}`);
+          }
         }
 
         let quote = {
@@ -1107,7 +1158,9 @@ export class SDK {
           senderAddress, // Fill this based on your logic
           slippage: '3',
         };
-        //console.log(tag, 'quote: ', quote);
+        console.log(tag, 'quote: ', quote);
+        console.log(tag, 'inputAmount:', inputAmount);
+        console.log(tag, 'sellAmount (after toPrecision):', inputAmount.toPrecision(8));
 
         let result: any;
         try {
@@ -1161,7 +1214,7 @@ export class SDK {
             );
           } else {
             if (!tx.txParams.memo) throw Error('memo required on swaps!');
-            const sendPayload = {
+            const sendPayload: any = {
               caip,
               to: tx.txParams.recipientAddress,
               amount: tx.txParams.amount,
@@ -1169,19 +1222,23 @@ export class SDK {
               memo: tx.txParams.memo,
               //Options
             };
+
+            //if isMax
+            if (swapPayload.isMax) sendPayload.isMax = true;
+
             console.log(tag, 'sendPayload: ', sendPayload);
             unsignedTx = await txManager.transfer(sendPayload);
-            //console.log(tag, 'unsignedTx: ', unsignedTx);
+            console.log(tag, 'unsignedTx: ', unsignedTx);
           }
 
           let signedTx = await txManager.sign({ caip, unsignedTx });
-          //console.log(tag, 'signedTx: ', signedTx);
+          console.log(tag, 'signedTx: ', signedTx);
 
           let payload = {
             networkId: caipToNetworkId(caip),
             serialized: signedTx,
           };
-          //console.log(tag, 'payload: ', payload);
+          console.log(tag, 'payload: ', payload);
 
           let txid = await txManager.broadcast(payload);
           if (txid.error) {
@@ -1766,20 +1823,32 @@ export class SDK {
         }
 
         // Look for price and balance information in balances
-        const matchingBalance = this.balances.find((b) => b.caip === asset.caip);
-        if (matchingBalance) {
-          if (matchingBalance.priceUsd) {
-            console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
-            assetInfo.priceUsd = matchingBalance.priceUsd;
+        // CRITICAL: For UTXO chains, we need to aggregate ALL balances across all xpubs
+        const matchingBalances = this.balances.filter((b) => b.caip === asset.caip);
+
+        if (matchingBalances.length > 0) {
+          // Use price from first balance entry (all should have same price)
+          if (matchingBalances[0].priceUsd) {
+            console.log(tag, 'detected priceUsd from balance:', matchingBalances[0].priceUsd);
+            assetInfo.priceUsd = matchingBalances[0].priceUsd;
           }
-          if (matchingBalance.balance !== undefined) {
-            console.log(tag, 'detected balance from balance:', matchingBalance.balance);
-            assetInfo.balance = matchingBalance.balance;
+
+          // Aggregate all balances for this asset (critical for UTXO chains with multiple xpubs)
+          let totalBalance = 0;
+          let totalValueUsd = 0;
+
+          console.log(tag, `Found ${matchingBalances.length} balance entries for ${asset.caip}`);
+          for (const balanceEntry of matchingBalances) {
+            const balance = parseFloat(balanceEntry.balance) || 0;
+            const valueUsd = parseFloat(balanceEntry.valueUsd) || 0;
+            totalBalance += balance;
+            totalValueUsd += valueUsd;
+            console.log(tag, `  Balance entry: ${balance} (${valueUsd} USD)`);
           }
-          if (matchingBalance.valueUsd !== undefined) {
-            console.log(tag, 'detected valueUsd from balance:', matchingBalance.valueUsd);
-            assetInfo.valueUsd = matchingBalance.valueUsd;
-          }
+
+          assetInfo.balance = totalBalance.toString();
+          assetInfo.valueUsd = totalValueUsd.toFixed(2);
+          console.log(tag, `Aggregated balance: ${totalBalance} (${totalValueUsd.toFixed(2)} USD)`);
         }
 
         // Filter balances and pubkeys for this asset
@@ -1909,20 +1978,32 @@ export class SDK {
         }
 
         // Look for price and balance information in balances
-        const matchingBalance = this.balances.find((b) => b.caip === asset.caip);
-        if (matchingBalance) {
-          if (matchingBalance.priceUsd) {
-            console.log(tag, 'detected priceUsd from balance:', matchingBalance.priceUsd);
-            assetInfo.priceUsd = matchingBalance.priceUsd;
+        // CRITICAL: For UTXO chains, we need to aggregate ALL balances across all xpubs
+        const matchingBalances = this.balances.filter((b) => b.caip === asset.caip);
+
+        if (matchingBalances.length > 0) {
+          // Use price from first balance entry (all should have same price)
+          if (matchingBalances[0].priceUsd) {
+            console.log(tag, 'detected priceUsd from balance:', matchingBalances[0].priceUsd);
+            assetInfo.priceUsd = matchingBalances[0].priceUsd;
           }
-          if (matchingBalance.balance !== undefined) {
-            console.log(tag, 'detected balance from balance:', matchingBalance.balance);
-            assetInfo.balance = matchingBalance.balance;
+
+          // Aggregate all balances for this asset (critical for UTXO chains with multiple xpubs)
+          let totalBalance = 0;
+          let totalValueUsd = 0;
+
+          console.log(tag, `Found ${matchingBalances.length} balance entries for ${asset.caip}`);
+          for (const balanceEntry of matchingBalances) {
+            const balance = parseFloat(balanceEntry.balance) || 0;
+            const valueUsd = parseFloat(balanceEntry.valueUsd) || 0;
+            totalBalance += balance;
+            totalValueUsd += valueUsd;
+            console.log(tag, `  Balance entry: ${balance} (${valueUsd} USD)`);
           }
-          if (matchingBalance.valueUsd !== undefined) {
-            console.log(tag, 'detected valueUsd from balance:', matchingBalance.valueUsd);
-            assetInfo.valueUsd = matchingBalance.valueUsd;
-          }
+
+          assetInfo.balance = totalBalance.toString();
+          assetInfo.valueUsd = totalValueUsd.toFixed(2);
+          console.log(tag, `Aggregated balance: ${totalBalance} (${totalValueUsd.toFixed(2)} USD)`);
         }
 
         console.log(tag, 'CHECKPOINT 1');
