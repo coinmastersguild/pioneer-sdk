@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/e2e-staking-suite",
-  "version": "1.12.16",
+  "version": "1.12.18",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

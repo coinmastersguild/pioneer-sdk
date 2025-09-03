@@ -757,6 +757,14 @@ export class SDK {
         console.log('🚀 [DEBUG SYNC] Current paths length:', this.paths.length);
         console.log('🚀 [DEBUG SYNC] Current pubkeys length:', this.pubkeys.length);
 
+        // Helper to check network match with EVM wildcard support (works for both paths and pubkeys)
+        const matchesNetwork = (item: any, networkId: string) => {
+          if (!item.networks || !Array.isArray(item.networks)) return false;
+          if (item.networks.includes(networkId)) return true;
+          if (networkId.startsWith('eip155:') && item.networks.includes('eip155:*')) return true;
+          return false;
+        };
+
         console.log('🚀 [DEBUG SYNC] About to call getPubkeys() - this might hang...');
         //at least 1 path per chain
         await this.getPubkeys();
@@ -764,10 +772,8 @@ export class SDK {
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-          let paths = this.paths.filter(
-            (path) =>
-              path.networks && Array.isArray(path.networks) && path.networks.includes(networkId),
-          );
+          
+          let paths = this.paths.filter((path) => matchesNetwork(path, networkId));
           if (paths.length === 0) {
             //get paths for chain
             //console.log(tag, 'Adding paths for chain ' + networkId);
@@ -787,10 +793,7 @@ export class SDK {
           //console.log(tag, 'paths: ', this.paths.length);
           // //console.log(tag, 'paths: ', this.paths);
           // Filter paths related to the current blockchain
-          const pathsForChain = this.paths.filter(
-            (path) =>
-              path.networks && Array.isArray(path.networks) && path.networks.includes(networkId),
-          );
+          const pathsForChain = this.paths.filter((path) => matchesNetwork(path, networkId));
           //console.log(tag, 'pathsForChain: ', pathsForChain.length);
           if (!pathsForChain || pathsForChain.length === 0)
             throw Error('No paths found for blockchain: ' + networkId);
@@ -821,10 +824,7 @@ export class SDK {
                 //no logs
               }
               //if doesnt exist, add
-              let exists = this.pubkeys.filter(
-                (e: any) =>
-                  e.networks && Array.isArray(e.networks) && e.networks.includes(networkId),
-              );
+              let exists = this.pubkeys.filter((e: any) => matchesNetwork(e, networkId));
               if (!exists || exists.length === 0) {
                 this.pubkeys.push(pubkey);
               }
@@ -1053,24 +1053,24 @@ export class SDK {
 
         //get quote
         // Quote fetching logic
-        const pubkeys = this.pubkeys.filter(
-          (e: any) =>
-            e.networks &&
-            Array.isArray(e.networks) &&
-            e.networks.includes(this.assetContext.networkId),
-        );
+        // Helper function to check if pubkey matches network (handles EVM wildcard)
+        const matchesNetwork = (pubkey: any, networkId: string) => {
+          if (!pubkey.networks || !Array.isArray(pubkey.networks)) return false;
+          // Exact match
+          if (pubkey.networks.includes(networkId)) return true;
+          // For EVM chains, check if pubkey has eip155:* wildcard
+          if (networkId.startsWith('eip155:') && pubkey.networks.includes('eip155:*')) return true;
+          return false;
+        };
+
+        const pubkeys = this.pubkeys.filter((e: any) => matchesNetwork(e, this.assetContext.networkId));
         let senderAddress = pubkeys[0]?.address || pubkeys[0]?.master || pubkeys[0]?.pubkey;
         if (!senderAddress) throw new Error('senderAddress not found! wallet not connected');
         if (senderAddress.includes('bitcoincash:')) {
           senderAddress = senderAddress.replace('bitcoincash:', '');
         }
 
-        const pubkeysOut = this.pubkeys.filter(
-          (e: any) =>
-            e.networks &&
-            Array.isArray(e.networks) &&
-            e.networks.includes(this.outboundAssetContext.networkId),
-        );
+        const pubkeysOut = this.pubkeys.filter((e: any) => matchesNetwork(e, this.outboundAssetContext.networkId));
         console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
         console.log(tag, 'pubkeysOut:', pubkeysOut);
 
@@ -1231,21 +1231,7 @@ export class SDK {
             console.log(tag, 'unsignedTx: ', unsignedTx);
           }
 
-          let signedTx = await txManager.sign({ caip, unsignedTx });
-          console.log(tag, 'signedTx: ', signedTx);
-
-          let payload = {
-            networkId: caipToNetworkId(caip),
-            serialized: signedTx,
-          };
-          console.log(tag, 'payload: ', payload);
-
-          let txid = await txManager.broadcast(payload);
-          if (txid.error) {
-            throw Error('Failed to broadcast transaction! error:' + txid.error);
-          }
-          //console.log(tag, 'txid: ', txid);
-          return { txid, events: this.events };
+          return unsignedTx
         }
       } catch (e) {
         console.error(tag, 'Error: ', e);
@@ -1765,9 +1751,21 @@ export class SDK {
           throw new Error(errorMsg);
         }
 
+        // For EVM chains, check for wildcard eip155:* in addition to exact match
         const pubkeysForNetwork = this.pubkeys.filter(
-          (e: any) =>
-            e.networks && Array.isArray(e.networks) && e.networks.includes(asset.networkId),
+          (e: any) => {
+            if (!e.networks || !Array.isArray(e.networks)) return false;
+            
+            // Exact match
+            if (e.networks.includes(asset.networkId)) return true;
+            
+            // For EVM chains, check if pubkey has eip155:* wildcard
+            if (asset.networkId.startsWith('eip155:') && e.networks.includes('eip155:*')) {
+              return true;
+            }
+            
+            return false;
+          }
         );
 
         if (pubkeysForNetwork.length === 0) {
@@ -1957,8 +1955,15 @@ export class SDK {
 
         console.log(tag, 'networkId: ', asset.networkId);
         console.log(tag, 'this.pubkeys: ', this.pubkeys);
-        //get a pubkey for network
-        const pubkey = this.pubkeys.find((p) => p.networks?.includes(asset.networkId));
+        //get a pubkey for network (handle EVM wildcard)
+        const pubkey = this.pubkeys.find((p) => {
+          if (!p.networks || !Array.isArray(p.networks)) return false;
+          // Exact match
+          if (p.networks.includes(asset.networkId)) return true;
+          // For EVM chains, check if pubkey has eip155:* wildcard
+          if (asset.networkId.startsWith('eip155:') && p.networks.includes('eip155:*')) return true;
+          return false;
+        });
         if (!pubkey) throw Error('Invalid network! missing pubkey for network! ' + asset.networkId);
 
         // Try to find the asset in the local assetsMap

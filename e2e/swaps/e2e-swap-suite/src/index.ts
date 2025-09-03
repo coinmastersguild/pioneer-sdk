@@ -80,6 +80,7 @@ const test_service = async function () {
 
         const app = new SDK.SDK(spec, config);
         await app.init({}, {});
+        console.log('keepkeyApiKey: ',app.keepkeyApiKey)
 
         //validate pubkeys for all chains
         for(let i = 0; i < blockchains.length; i++){
@@ -282,16 +283,27 @@ const test_service = async function () {
                 log.info(tag,'swapPayload: ', swapPayload);
                 
                 // Perform the swap with max amount
-                const txid = await app.swap(swapPayload);
-                
+                const unsignedTx = await app.swap(swapPayload);
+
+                let signedTx = await app.signTx({ caip: caipIn, unsignedTx });
+                log.info(tag, 'signedTx: ', signedTx);
+
+                //broadcast
+                log.info(tag, '📡 Broadcasting transaction...');
+                let broadcast = await app.broadcastTx(caipIn, signedTx);
+                assert(broadcast, `${tag} Broadcast failed for ${caipIn}`)
+                log.info(tag, 'broadcast: ', broadcast);
+                log.info(tag, 'broadcast: ', broadcast.txid);
+
                 // Audit: Log successful swap details
                 console.log(`✅ Swap initiated successfully!`);
-                console.log(`  Transaction ID: ${txid}`);
+                console.log(`  Transaction ID: ${broadcast}`);
                 console.log(`  Amount: MAX (calculated by SDK)`);
                 console.log(`  Path: ${caipIn} -> ${caipOut}`);
                 
-                //on prompt to sign
+                //TODO monitor swap till end
 
+                //register swap with pioneer
             } catch (error: any) {
                 console.error(`❌ Failed to swap from ${caipIn} to ${caipOut}:`, error);
                 

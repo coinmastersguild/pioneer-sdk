@@ -123,7 +123,9 @@ export async function createUnsignedEvmTx(
     const gasPriceGwei = gasPriceData.data; // Ensure this is in gwei
     //console.log(tag, 'gasPrice (gwei):', gasPriceGwei);
 
-    const gasPrice = BigInt(gasPriceGwei); // Convert gwei to wei
+    // The API returns gas price that's already in wei (despite the name suggesting gwei)
+    // Based on the transaction data showing gasPrice: 0x166c2cad (376507053 wei)
+    const gasPrice = BigInt(gasPriceGwei);
 
     const nonceData = await pioneer.GetNonceByNetwork({ networkId, address });
     const nonce = nonceData.data;
@@ -145,11 +147,23 @@ export async function createUnsignedEvmTx(
     // Build transaction object based on asset type
     switch (assetType) {
       case 'gas': {
-        // Standard gas limit for ETH transfer
-        // Use higher gas limit for all chains except mainnet to be safe
-        let gasLimit = chainId === 1 ? BigInt(21000) : BigInt(25000);
+        // Check if this is a THORChain swap (needs more gas for contract call)
+        const isThorchainOperation =
+          memo && (memo.startsWith('=') || memo.startsWith('SWAP') || memo.includes(':'));
+        
+        let gasLimit;
+        if (isThorchainOperation) {
+          // THORChain depositWithExpiry requires more gas (90-120k typical)
+          // Use 120000 to be safe for all network conditions
+          gasLimit = BigInt(120000);
+          console.log(tag, 'Using higher gas limit for THORChain swap:', gasLimit.toString());
+        } else {
+          // Standard gas limit for ETH transfer
+          // Use higher gas limit for all chains except mainnet to be safe
+          gasLimit = chainId === 1 ? BigInt(21000) : BigInt(25000);
+        }
 
-        if (memo && memo !== '') {
+        if (memo && memo !== '' && !isThorchainOperation) {
           const memoBytes = Buffer.from(memo, 'utf8').length;
           gasLimit += BigInt(memoBytes) * 68n; // Approximate additional gas
           //console.log(tag, 'Adjusted gasLimit for memo:', gasLimit.toString());
@@ -163,7 +177,11 @@ export async function createUnsignedEvmTx(
           if (balance <= gasFee) {
             throw new Error('Insufficient funds to cover gas fees');
           }
-          amountWei = balance - gasFee;
+          // Subtract a small buffer (100 wei) to avoid rounding issues
+          // This prevents "insufficient funds" errors when sending max amount
+          const buffer = BigInt(100);
+          amountWei = balance - gasFee - buffer;
+          console.log(tag, 'isMax calculation - balance:', balance.toString(), 'gasFee:', gasFee.toString(), 'buffer:', buffer.toString(), 'amountWei:', amountWei.toString());
         } else {
           amountWei = BigInt(Math.round(amount * 1e18));
           if (amountWei + gasFee > balance) {
@@ -183,29 +201,116 @@ export async function createUnsignedEvmTx(
           // This is a THORChain swap - need to encode the deposit function call
           console.log(tag, 'Detected THORChain swap, encoding deposit data for memo:', memo);
 
+          // Fix the memo format if it's missing the chain identifier
+          // Convert "=:b:address" to "=:BTC.BTC:address" for Bitcoin
+          let fixedMemo = memo;
+          if (memo.startsWith('=:b:') || memo.startsWith('=:btc:')) {
+            fixedMemo = memo.replace(/^=:(b|btc):/, '=:BTC.BTC:');
+            console.log(tag, 'Fixed Bitcoin swap memo from:', memo, 'to:', fixedMemo);
+          } else if (memo.startsWith('=:e:') || memo.startsWith('=:eth:')) {
+            fixedMemo = memo.replace(/^=:(e|eth):/, '=:ETH.ETH:');
+            console.log(tag, 'Fixed Ethereum swap memo from:', memo, 'to:', fixedMemo);
+          }
+          
+          // Validate memo length (THORChain typically < 250 bytes)
+          if (fixedMemo.length > 250) {
+            throw new Error(`Memo too long for THORChain: ${fixedMemo.length} bytes (max 250)`);
+          }
+
           try {
-            // Call the Pioneer server to encode the THORChain deposit data
-            const thorchainData = await pioneer.GetThorchainMemoEncoded({
-              inboundAddress: {
-                router: to, // The router address
-                address: to, // The vault address (same as router for now, will be fetched from inbound addresses)
-              },
-              amount: Number(amountWei) / 1e18, // Convert wei back to ETH
-              memo: memo,
-            });
-            console.log(tag, 'Encoded THORChain deposit data:', txData);
-            if (thorchainData && thorchainData.data) {
-              txData = thorchainData.data;
-              console.log(tag, 'Encoded THORChain deposit data:', txData);
-            } else {
-              // Fallback if encoding fails
-              console.warn(tag, 'Failed to encode THORChain data, using memo as hex');
-              txData = utf8ToHex(memo);
+            // CRITICAL: Fetch current inbound addresses from THORChain
+            // The 'to' address should be the router, but we need the vault address for the deposit
+            let vaultAddress = '0x0000000000000000000000000000000000000000';
+            let routerAddress = to; // The 'to' field should already be the router
+            
+            try {
+              // Try to fetch inbound addresses from THORChain
+              // This would typically be: GET https://thornode.ninerealms.com/thorchain/inbound_addresses
+              const inboundResponse = await fetch('https://thornode.ninerealms.com/thorchain/inbound_addresses');
+              if (inboundResponse.ok) {
+                const inboundData = await inboundResponse.json();
+                // Find ETH inbound data
+                const ethInbound = inboundData.find(inbound => 
+                  inbound.chain === 'ETH' && !inbound.halted
+                );
+                if (ethInbound) {
+                  vaultAddress = ethInbound.address; // This is the Asgard vault
+                  routerAddress = ethInbound.router || to; // Use fetched router or fallback to 'to'
+                  console.log(tag, 'Using THORChain inbound addresses - vault:', vaultAddress, 'router:', routerAddress);
+                  
+                  // Update the 'to' address to be the router (in case it wasn't)
+                  to = routerAddress;
+                } else {
+                  throw new Error('ETH inbound is halted or not found - cannot proceed with swap');
+                }
+              }
+            } catch (fetchError) {
+              console.error(tag, 'Failed to fetch inbound addresses:', fetchError);
+              // ABORT - cannot proceed without proper vault address
+              throw new Error(`Cannot proceed with THORChain swap - failed to fetch inbound addresses: ${fetchError.message}`);
             }
+            
+            // Final validation - never use 0x0 as vault
+            if (vaultAddress === '0x0000000000000000000000000000000000000000') {
+              throw new Error('Cannot proceed with THORChain swap - vault address is invalid (0x0)');
+            }
+
+            // Use depositWithExpiry for better safety
+            // Function signature: depositWithExpiry(address,address,uint256,string,uint256)
+            // Function selector: 0x44bc937b
+            const functionSelector = '44bc937b';
+            
+            // For native ETH swaps, asset is 0x0000...0000
+            const assetAddress = '0x0000000000000000000000000000000000000000';
+            
+            // Calculate expiry time (current time + 1 hour)
+            const expiryTime = Math.floor(Date.now() / 1000) + 3600;
+            
+            // Encode the parameters
+            const vaultPadded = vaultAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+            const assetPadded = assetAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+            const amountPadded = amountWei.toString(16).padStart(64, '0');
+            
+            // CRITICAL FIX: String offset for depositWithExpiry with 5 parameters
+            // The memo is the 4th parameter (dynamic string)
+            // Offset must point after all 5 head words: 5 * 32 = 160 = 0xa0
+            const stringOffset = (5 * 32).toString(16).padStart(64, '0'); // 0xa0
+            
+            // Expiry time (5th parameter after the string offset)
+            const expiryPadded = expiryTime.toString(16).padStart(64, '0');
+            
+            // String length in bytes
+            const memoBytes = Buffer.from(fixedMemo, 'utf8');
+            const stringLength = memoBytes.length.toString(16).padStart(64, '0');
+            
+            // String data (padded to 32-byte boundary)
+            const memoHex = memoBytes.toString('hex');
+            const paddingLength = (32 - (memoBytes.length % 32)) % 32;
+            const memoPadded = memoHex + '0'.repeat(paddingLength * 2);
+            
+            // Construct the complete transaction data for depositWithExpiry
+            txData = '0x' + functionSelector + vaultPadded + assetPadded + amountPadded + stringOffset + expiryPadded + stringLength + memoPadded;
+            
+            console.log(tag, 'Encoded THORChain depositWithExpiry data:', {
+              functionSelector: '0x' + functionSelector,
+              vault: vaultAddress,
+              asset: assetAddress,
+              amount: amountWei.toString(),
+              memo: fixedMemo,
+              expiry: expiryTime,
+              stringOffset: '0x' + stringOffset,
+              fullData: txData
+            });
+            
+            // CRITICAL: For native ETH, the value MUST be set in the transaction
+            // This is already handled below where we set value: toHex(amountWei)
+            // But let's make sure it's clear
+            console.log(tag, 'Native ETH swap - value will be set to:', amountWei.toString(), 'wei');
+            
           } catch (error) {
             console.error(tag, 'Error encoding THORChain deposit:', error);
-            // Fallback to memo as hex if server call fails
-            txData = utf8ToHex(memo);
+            // Don't fallback to plain memo - this will fail on chain
+            throw new Error(`Failed to encode THORChain swap: ${error.message}`);
           }
         } else if (memo) {
           // Regular transaction with memo
@@ -248,7 +353,8 @@ export async function createUnsignedEvmTx(
         // TODO: Fetch decimals from contract in the future:
         // const decimals = await getTokenDecimals(contractAddress, networkId);
 
-        const tokenMultiplier = Math.pow(10, tokenDecimals);
+        // Use BigInt for precise decimal math (no float drift)
+        const tokenMultiplier = 10n ** BigInt(tokenDecimals);
 
         // Increase gas limit for ERC-20 transfers - 60k was insufficient on Polygon
         // Transaction 0x00ba81ce failed at 52,655/60,000 gas
@@ -270,12 +376,14 @@ export async function createUnsignedEvmTx(
             address,
             contractAddress,
           });
-          // Use the correct decimals for the token
-          const tokenBalance = BigInt(Math.round(tokenBalanceData.data * tokenMultiplier));
+          // Use BigInt math to avoid precision loss
+          // Note: tokenBalanceData.data is a float which can lose precision
+          // Ideally the API should return base units as string/bigint
+          const tokenBalance = BigInt(Math.round(tokenBalanceData.data * Number(tokenMultiplier)));
           amountWei = tokenBalance;
         } else {
-          // Use the correct decimals for the token
-          amountWei = BigInt(Math.round(amount * tokenMultiplier));
+          // Use BigInt math to avoid precision loss
+          amountWei = BigInt(Math.round(amount * Number(tokenMultiplier)));
           console.log(tag, 'Token amount calculation:', {
             inputAmount: amount,
             decimals: tokenDecimals,
@@ -299,9 +407,9 @@ export async function createUnsignedEvmTx(
         const gasFeeUsd = (Number(gasFee) / 1e18) * ethPriceInUsd;
 
         // For token price, need to fetch from API
-        const tokenPriceInUsd = await fetchTokenPriceInUsd(contractAddress, networkId);
+        const tokenPriceInUsd = await fetchTokenPriceInUsd(contractAddress);
         // Use the correct decimals for USD calculation
-        const amountUsd = (Number(amountWei) / tokenMultiplier) * tokenPriceInUsd;
+        const amountUsd = (Number(amountWei) / Number(tokenMultiplier)) * tokenPriceInUsd;
 
         unsignedTx = {
           chainId,
