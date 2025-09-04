@@ -11,14 +11,14 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
     // ONLY use EVM addresses since the portfolio endpoint uses Zapper which only supports Ethereum
     const evmPubkey = pubkeys.find((e: any) => e.networks && Array.isArray(e.networks) && e.networks.includes('eip155:*'));
     const primaryAddress = evmPubkey?.address || evmPubkey?.master;
-    
+
     console.log(tag, 'Total pubkeys available:', pubkeys.length);
     console.log(tag, 'Blockchains to process:', blockchains);
 
     // Only call portfolio endpoint if we have an EVM address (Zapper requirement)
     if (primaryAddress) {
       console.log(tag, 'Using EVM address for portfolio:', primaryAddress);
-      
+
       try {
         let portfolio = await pioneer.GetPortfolio({ address: primaryAddress });
         portfolio = portfolio.data;
@@ -29,14 +29,14 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
               console.error(tag, 'No caip found for: ',balance);
               continue;
           }
-          
+
           // Always derive networkId from CAIP
           const networkId = balance.caip.split('/')[0];
           balance.networkId = networkId;
-          
+
           // Skip if not in requested blockchains
           if (!blockchains.includes(networkId)) continue;
-          
+
           // Hydrate with assetData
           const assetInfo = assetData[balance.caip] || assetData[balance.caip.toLowerCase()];
           if (assetInfo) {
@@ -47,29 +47,29 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
             balance.decimal = assetInfo.decimal || balance.decimal;
             balance.type = assetInfo.type || balance.type;
           }
-          
+
           // Set required fields
           balance.context = context;
           balance.contextType = 'keepkey';
           balance.chain = networkId;
           balance.balance = balance.balance.toString();
           balance.valueUsd = balance.valueUsd.toString();
-          
-          // CRITICAL FIX: Use the original balance.pubkey from API if it exists, 
+
+          // CRITICAL FIX: Use the original balance.pubkey from API if it exists,
           // otherwise fall back to primaryAddress. This ensures identifier consistency
           // with regular balance fetching which uses the API's balance.pubkey value.
           const balancePubkey = balance.pubkey || primaryAddress;
           balance.pubkey = balancePubkey;
           balance.identifier = balance.caip + ':' + balancePubkey;
-          
+
           // Check if a balance with the same caip already exists
           const existingBalance = balances.find(
             (b: any) => b.caip + ':' + b.pubkey === balance.caip + ':' + balance.pubkey,
           );
-          
+
           if (balance.display)
             balance.icon = ['multi', balance.icon, balance.display.toString()].toString();
-            
+
           if (!existingBalance) {
             balances.push(balance);
           }
@@ -78,7 +78,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
         // Process tokens from portfolio (if they exist)
         if (portfolio.tokens && portfolio.tokens.length > 0) {
           console.log(tag, 'Processing portfolio.tokens:', portfolio.tokens.length);
-          
+
           for (const token of portfolio.tokens) {
             if (token.assetCaip && token.networkId) {
               // Extract the networkId from the assetCaip for special token formats like MAYA
@@ -98,10 +98,10 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
               
               // Hydrate token with assetData
               const tokenAssetInfo = assetData[token.assetCaip] || assetData[token.assetCaip.toLowerCase()];
-              
+
               // CRITICAL FIX: Use consistent pubkey for tokens too
               const tokenPubkey = token.pubkey || primaryAddress;
-              
+
               const balanceString = {
                 context: context,
                 chart: 'pioneer',
@@ -163,7 +163,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
             // First try GetPortfolioBalances with MAYA token CAIP
             const mayaBalanceResponse = await pioneer.GetPortfolioBalances([
               { 
-                caip: 'cosmos:mayachain-mainnet-v1/denom:maya', 
+                caip: 'cosmos:mayachain-mainnet-v1/denom:maya',
                 pubkey: mayaPubkey.address 
               }
             ]);
@@ -177,7 +177,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                 if (mayaBalance.caip === 'cosmos:mayachain-mainnet-v1/denom:maya') {
                   // Hydrate MAYA token with assetData
                   const mayaAssetInfo = assetData[mayaBalance.caip] || assetData[mayaBalance.caip.toLowerCase()];
-                  
+
                   const mayaTokenBalance = {
                     context: context,
                     chart: 'pioneer',
@@ -222,28 +222,28 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
     // Add Cosmos Staking Positions to charts
     try {
       console.log(tag, 'Adding Cosmos staking positions to charts...');
-      
+
       // Find cosmos pubkeys that could have staking positions
-      const cosmosPubkeys = pubkeys.filter((p: any) => 
+      const cosmosPubkeys = pubkeys.filter((p: any) =>
         p.networks && Array.isArray(p.networks) && p.networks.some((n: string) => n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis'))
       );
-      
+
       if (cosmosPubkeys.length > 0) {
         console.log(tag, 'Found cosmos pubkeys for staking:', cosmosPubkeys.length);
-        
+
         for (const cosmosPubkey of cosmosPubkeys) {
           if (cosmosPubkey.address) {
             // Check which cosmos networks this pubkey supports
-            const cosmosNetworks = cosmosPubkey.networks.filter((n: string) => 
+            const cosmosNetworks = cosmosPubkey.networks.filter((n: string) =>
               n.includes('cosmos:cosmoshub') || n.includes('cosmos:osmosis')
             );
-            
+
             for (const networkId of cosmosNetworks) {
               // Only process if this network is in our blockchains list
               if (blockchains.includes(networkId)) {
                 try {
                   console.log(tag, `Fetching staking positions for ${cosmosPubkey.address} on ${networkId}...`);
-                  
+
                   // Convert networkId to network name for API
                   let network;
                   if (networkId === 'cosmos:cosmoshub-4') {
@@ -254,22 +254,22 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                     console.error(tag, `Unsupported networkId for staking: ${networkId}`);
                     continue;
                   }
-                  
+
                   // Get staking positions from pioneer server
                   const stakingResponse = await pioneer.GetStakingPositions({
                     network: network,
                     address: cosmosPubkey.address
                   });
-                  
+
                   if (stakingResponse?.data && Array.isArray(stakingResponse.data)) {
                     console.log(tag, `Found ${stakingResponse.data.length} staking positions for ${networkId}`);
-                    
+
                     for (const position of stakingResponse.data) {
                       // Validate position has required fields
                       if (position.balance && position.balance > 0 && position.caip) {
                         // Hydrate staking position with assetData
                         const stakingAssetInfo = assetData[position.caip] || assetData[position.caip.toLowerCase()];
-                        
+
                         const stakingBalance = {
                           context: context,
                           chart: 'staking',
@@ -292,14 +292,14 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
                           validator: position.validatorAddress || position.validator || '',
                           updated: new Date().getTime(),
                         };
-                        
+
                         // Check if already exists to avoid duplicates
-                        const exists = balances.some((b: any) => 
-                          b.caip === stakingBalance.caip && 
+                        const exists = balances.some((b: any) =>
+                          b.caip === stakingBalance.caip &&
                           b.pubkey === stakingBalance.pubkey &&
                           b.validator === stakingBalance.validator
                         );
-                        
+
                         if (!exists) {
                           balances.push(stakingBalance);
                           console.log(tag, `Added ${position.type} position:`, {

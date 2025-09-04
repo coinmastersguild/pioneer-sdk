@@ -1,5 +1,5 @@
 {
-  "name": "@coinmasters/integration-coins",
+  "name": "@coinmasters/integration-bex",
   "version": "1.13.18",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",

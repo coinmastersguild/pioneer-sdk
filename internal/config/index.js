@@ -33,9 +33,9 @@ const baseConfig = (name) =>
     base: './',
     plugins: [
       nodePolyfills(),
-      dts({ 
-        skipDiagnostics: true, 
-        clearPureImport: true, 
+      dts({
+        skipDiagnostics: true,
+        clearPureImport: true,
         rollupTypes: false,
         beforeWriteFile,
         compilerOptions: {
