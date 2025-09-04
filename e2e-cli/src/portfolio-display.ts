@@ -26,6 +26,7 @@ require('dotenv').config({path: "../../../.env"});
 const log = require("@pioneer-platform/loggerdog")();
 
 // Configuration
+// const SPEC_URL = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json';
 const SPEC_URL = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json';
 const SUPPORTED_CHAINS = ['ETH', 'BTC', 'AVAX', 'BASE', 'BSC', 'MATIC', 'OP', 'ARB'];
 
@@ -100,25 +101,49 @@ async function initializeSDK() {
 }
 
 function isNativeAsset(balance: any): boolean {
-  // Native assets typically don't have a contract address
-  // and their symbol matches the chain symbol
-  const nativeSymbols = ['ETH', 'BTC', 'AVAX', 'BNB', 'MATIC', 'BCH', 'LTC', 'DOGE', 'DASH'];
+  // Check if it's explicitly marked as a token
+  if (balance.type === 'token' || balance.isToken) {
+    return false;
+  }
   
+  // Check if the CAIP identifier contains 'erc20' or token-specific patterns
+  if (balance.caip) {
+    if (balance.caip.includes('/erc20:') || 
+        balance.caip.includes('/slip44:maya') ||
+        balance.caip.includes('/cacao')) {
+      return false;
+    }
+  }
+  
+  // Check if identifier contains token patterns
+  if (balance.identifier) {
+    if (balance.identifier.includes('/erc20:') || 
+        balance.identifier.includes('/slip44:maya') ||
+        balance.identifier.includes('/cacao')) {
+      return false;
+    }
+  }
+  
+  // Check for contract address properties
   if (balance.contract || balance.contractAddress || balance.address) {
     return false;
   }
   
-  // Check if symbol matches native chain symbols
-  if (nativeSymbols.includes(balance.symbol)) {
-    return true;
+  // Native assets typically have these symbols and simple CAIP patterns
+  const nativeSymbols = ['ETH', 'BTC', 'AVAX', 'BNB', 'MATIC', 'BCH', 'LTC', 'DOGE', 'DASH'];
+  const nativePatterns = ['/slip44:60', '/slip44:0', '/slip44:2'];
+  
+  // If it's a native symbol with a simple slip44 pattern, it's native
+  if (nativeSymbols.includes(balance.symbol) && balance.caip) {
+    for (const pattern of nativePatterns) {
+      if (balance.caip.endsWith(pattern)) {
+        return true;
+      }
+    }
   }
   
-  // Check identifier pattern for native assets
-  if (balance.identifier && !balance.identifier.includes('/')) {
-    return false;
-  }
-  
-  return !balance.isToken;
+  // Default to false for safety (treat as token if unsure)
+  return false;
 }
 
 function processBalances(rawBalances: any[]): PortfolioSummary {
@@ -320,11 +345,21 @@ async function main() {
     console.log(chalk.cyan('📊 Fetching portfolio data...\n'));
     const balancesStart = Date.now();
     
-    // Get balances for all chains
-    const balances = await app.getBalances();
+    // Get native balances first
+    const nativeBalances = await app.getBalances();
+    console.log(chalk.green(`✅ Fetched ${nativeBalances.length} native balances\n`));
     
-    const balancesFetchTime = Date.now() - balancesStart;
-    console.log(chalk.green(`✅ Fetched ${balances.length} balances in ${balancesFetchTime}ms\n`));
+    // Now get the full portfolio including tokens via getCharts
+    console.log(chalk.cyan('📊 Fetching token data via getCharts...\n'));
+    const chartsStart = Date.now();
+    const allBalances = await app.getCharts();
+    const chartsFetchTime = Date.now() - chartsStart;
+    
+    // getCharts returns the combined balances (native + tokens)
+    const balances = allBalances;
+    
+    const totalFetchTime = Date.now() - balancesStart;
+    console.log(chalk.green(`✅ Fetched ${balances.length} total balances (native + tokens) in ${totalFetchTime}ms\n`));
     
     // Process and categorize balances
     const portfolioSummary = processBalances(balances);
@@ -334,9 +369,10 @@ async function main() {
     
     // Performance metrics
     console.log(chalk.gray('Performance Metrics:'));
-    console.log(chalk.gray(`  • SDK Initialization: ${balancesFetchTime}ms`));
-    console.log(chalk.gray(`  • Balance Fetch: ${balancesFetchTime}ms`));
-    console.log(chalk.gray(`  • Total Time: ${Date.now() - balancesStart}ms\n`));
+    console.log(chalk.gray(`  • SDK Initialization: ${(balancesStart - Date.now() + totalFetchTime)}ms`));
+    console.log(chalk.gray(`  • Native Balance Fetch: ${chartsStart - balancesStart}ms`));
+    console.log(chalk.gray(`  • Charts/Tokens Fetch: ${chartsFetchTime}ms`));
+    console.log(chalk.gray(`  • Total Balance Fetch: ${totalFetchTime}ms\n`));
     
     process.exit(0);
   } catch (error) {

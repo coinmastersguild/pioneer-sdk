@@ -67,8 +67,11 @@ const test_portfolio_display = async function() {
         let supportedChains = ['ETH', 'BTC', 'AVAX', 'BASE', 'BSC', 'MATIC', 'OP', 'DOGE', 'DASH', 'LTC', 'BCH'];
         
         let blockchains = supportedChains.map(
-            (chainStr: any) => ChainToNetworkId[getChainEnumValue(chainStr)],
-        );
+            (chainStr: any) => {
+                const chainEnum = getChainEnumValue(chainStr);
+                return chainEnum ? ChainToNetworkId[chainEnum] : undefined;
+            }
+        ).filter(Boolean);
         
         // Generate paths for blockchains
         let paths = getPaths(blockchains);

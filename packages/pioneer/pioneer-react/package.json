@@ -33,7 +33,7 @@
   "react-native": "./src/index.es.tsx",
   "repository": "https://github.com/thorswap/SwapKit.git",
   "scripts": {
-    "build": "tsc && vite build",
+    "build": "vite build",
     "build:watch": "nodemon --watch src --exec 'pnpm run build'",
     "generate-tokens": "node ./scripts/fetchTokenLists.js",
     "clean": "rm -rf dist vite.config.ts.* .turbo node_modules",

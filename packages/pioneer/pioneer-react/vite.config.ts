@@ -18,15 +18,15 @@ const viteConfig = defineConfig({
       external: ['react', 'uuid', '@chakra-ui/react', '@tanstack/react-query'],
       output: {
         preserveModules: true,
-        exports: 'named'
-      }
+        exports: 'named',
+      },
     },
   },
   plugins: [
     dts({
-      rollupTypes: true,
+      rollupTypes: false,
       include: ['src/**/*.ts', 'src/**/*.tsx'],
-    })
+    }),
   ],
 });
 

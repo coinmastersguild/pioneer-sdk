@@ -103,9 +103,9 @@ export const configCommand = new Command('config')
       
       // Parse arrays
       if (key === 'chains' && value.includes(',')) {
-        config[key as keyof Config] = value.split(',').map(s => s.trim()) as any;
+        config[key as keyof Config] = value.split(',').map((s: string) => s.trim()) as any;
       } else if (key === 'verbose') {
-        config[key] = value === 'true';
+        (config as any)[key] = value === 'true';
       } else {
         config[key as keyof Config] = value as any;
       }

@@ -56,7 +56,7 @@ export async function runTest(options: TestOptions): Promise<TestResult> {
     };
     
     const app = new SDK.SDK(config.spec, config);
-    await app.init();
+    await app.init([], {});
     total++;
     passed++;
     console.log(chalk.green('✓ SDK initialized'));

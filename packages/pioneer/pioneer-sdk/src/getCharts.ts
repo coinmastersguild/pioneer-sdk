@@ -22,7 +22,7 @@ export const getCharts = async (blockchains: any, pioneer: any, pubkeys: any, co
     try {
       let portfolio = await pioneer.GetPortfolio({ address: primaryAddress });
       portfolio = portfolio.data;
-      //console.log(tag, 'portfolio: ', portfolio);
+      console.log(tag, 'portfolio: ', portfolio);
 
       if (portfolio && portfolio.balances) {
         for (const balance of portfolio.balances) {

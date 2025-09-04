@@ -5,14 +5,12 @@ import { testCommand } from './commands/test';
 import { portfolioCommand } from './commands/portfolio';
 import { walletCommand } from './commands/wallet';
 import { configCommand } from './commands/config';
-import { version } from '../package.json';
-
 const program = new Command();
 
 program
   .name('pioneer')
   .description('Pioneer SDK CLI - Streamlined testing and development tools')
-  .version(version);
+  .version('1.0.0');
 
 // Add commands
 program.addCommand(testCommand);

@@ -33,7 +33,7 @@ const baseConfig = (name) =>
     base: './',
     plugins: [
       nodePolyfills(),
-      dts({ skipDiagnostics: false, clearPureImport: true, rollupTypes: true, beforeWriteFile }),
+      dts({ skipDiagnostics: false, clearPureImport: true, rollupTypes: false, beforeWriteFile }),
     ],
     build: {
       lib: {
