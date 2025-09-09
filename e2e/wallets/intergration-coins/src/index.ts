@@ -486,7 +486,10 @@ const test_service = async function (this: any) {
                 assert(pubkey.pubkey)
                 assert(pubkey.type)
                 assert(pubkey.path)
-                assert(pubkey.scriptType)
+                // scriptType is only required for UTXO-based chains (Bitcoin, etc)
+                if (pubkey.type !== 'address') {
+                    assert(pubkey.scriptType)
+                }
                 assert(pubkey.networks)
                 assert(pubkey.networks[0])
             } catch (error) {
