@@ -27,14 +27,21 @@ export async function createUnsignedRippleTx(
     const networkId = caipToNetworkId(caip);
     //console.log(tag, 'networkId:', networkId);
 
-    const relevantPubkeys = pubkeys.filter((e: any) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
-    if (relevantPubkeys.length === 0) {
+    // Auto-correct context if wrong network
+    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
+      keepKeySdk.pubkeyContext = pubkeys.find((pk: any) => 
+        pk.networks?.includes(networkId)
+      );
+    }
+    
+    if (!keepKeySdk.pubkeyContext) {
       throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
     }
-    //console.log(tag, 'relevantPubkeys:', relevantPubkeys);
+
+    const fromAddress = keepKeySdk.pubkeyContext.address || keepKeySdk.pubkeyContext.pubkey;
 
     let accountInfo = await pioneer.GetAccountInfo({
-      address: relevantPubkeys[0].address,
+      address: fromAddress,
       network: 'ripple',
     });
     accountInfo = accountInfo.data;
@@ -42,7 +49,6 @@ export async function createUnsignedRippleTx(
 
     const sequence = accountInfo.Sequence.toString();
     const ledgerIndexCurrent = parseInt(accountInfo.ledger_index_current);
-    const fromAddress = relevantPubkeys[0].address;
     let desttag = memo;
     // Check if desttag is null, undefined, a space, or any non-numeric value
     //@ts-ignore

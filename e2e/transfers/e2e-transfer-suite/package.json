@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/e2e-transfer-suite",
-  "version": "1.12.19",
+  "version": "1.12.21",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

@@ -24,8 +24,15 @@ export async function createUnsignedTendermintTx(
     if (!pioneer) throw new Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
-    if (relevantPubkeys.length === 0) {
+    
+    // Auto-correct context if wrong network
+    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
+      keepKeySdk.pubkeyContext = pubkeys.find(pk => 
+        pk.networks?.includes(networkId)
+      );
+    }
+    
+    if (!keepKeySdk.pubkeyContext) {
       throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
     }
 
@@ -50,7 +57,7 @@ export async function createUnsignedTendermintTx(
 
     //console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
 
-    const fromAddress = relevantPubkeys[0].address;
+    const fromAddress = keepKeySdk.pubkeyContext.address || keepKeySdk.pubkeyContext.pubkey;
     let asset = caip.split(':')[1]; // Assuming format is "network:asset"
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;

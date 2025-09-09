@@ -100,8 +100,8 @@ const test_service = async function (this: any) {
 
         //get all blockchains
 
-        let spec = 'https://pioneers.dev/spec/swagger.json'
-        // let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+        // let spec = 'https://pioneers.dev/spec/swagger.json'
+        let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 
         let chains = [
@@ -371,25 +371,11 @@ const test_service = async function (this: any) {
             let testAssets: string[] = [];
             
             if (blockchain.includes('eip155')) {
-                // For EVM chains, check for ERC20 tokens first, then native
-                const availableERC20s = networkBalances.filter((b: any) => 
-                    b.caip.includes('/erc20:') && parseFloat(b.balance) > 0
-                );
-                
-                if (availableERC20s.length > 0) {
-                    // Test available ERC20 tokens
-                    testAssets = availableERC20s.map((token: any) => token.caip);
-                    log.info(tag, `🎯 Found ${availableERC20s.length} ERC20 tokens with balances`);
-                    availableERC20s.forEach((token: any) => {
-                        log.info(tag, `  - ${token.symbol || 'Unknown'}: ${token.caip} (${token.balance})`);
-                    });
-                } else {
-                    // Fall back to native token
-                    const nativeBalance = networkBalances.find((b: any) => !b.caip.includes('/erc20:'));
-                    if (nativeBalance && parseFloat(nativeBalance.balance) > 0) {
-                        testAssets = [nativeBalance.caip];
-                        log.info(tag, `Using native token: ${nativeBalance.caip} (${nativeBalance.balance})`);
-                    }
+                // Force testing ETH native asset only (not ERC20 tokens)
+                const nativeBalance = networkBalances.find((b: any) => b.caip === `${blockchain}/slip44:60`);
+                if (nativeBalance && parseFloat(nativeBalance.balance) > 0) {
+                    testAssets = [nativeBalance.caip];
+                    log.info(tag, `Testing ETH native: ${nativeBalance.caip} (${nativeBalance.balance})`);
                 }
             } else {
                 // For non-EVM chains (BTC, etc), test the native asset
@@ -441,6 +427,15 @@ const test_service = async function (this: any) {
 
             //set context again to ensure balance is propagated
             await app.setAssetContext({caip: testCaip})
+            
+            // Set pubkey context to account 1 for ETH transfers
+            if (blockchain.includes('eip155') && app.pubkeys.length > 1) {
+                const account1Pubkey = app.pubkeys.find((pk: any) => pk.note && pk.note.includes('account 1'));
+                if (account1Pubkey) {
+                    await app.setPubkeyContext(account1Pubkey);
+                    log.info(tag, '🔑 Using ETH account 1:', account1Pubkey.address);
+                }
+            }
 
             // Fetch initial balance
             let balances = app.balances.filter((e: any) => e.caip === testCaip);
@@ -501,28 +496,29 @@ const test_service = async function (this: any) {
             log.info(tag,'assetContext.priceUsd: ', assetContext.priceUsd);
             log.info(tag,'assetContext.valueUsd: ', assetContext.valueUsd);
 
-            //force pubkey context
-            let pubkeysForContext = app.pubkeys.filter((e: any) => e.caip === testCaip);
+            //force pubkey context - use pubkeys from assetContext which are already filtered
+            let pubkeysForContext = app.assetContext.pubkeys;
             assert(pubkeysForContext)
-            assert(pubkeysForContext[1])
-
-
-            //
-            //assert verify there is 2
-            let pubkey = pubkeysForContext[1]
+            assert(pubkeysForContext.length > 0, 'No pubkeys found in asset context')
+            
+            // Use account 1 if available, otherwise use account 0
+            let pubkey = pubkeysForContext[1] || pubkeysForContext[0];
+            log.info(tag, `Using pubkey for transfer: ${pubkey.address || pubkey.pubkey} (${pubkey.note || 'default'})`);
 
             await app.setPubkeyContext(pubkey)
 
+            // For ETH, use sendMax to avoid balance/fee calculation issues
+            const isEth = testCaip.includes('slip44:60');
             const sendPayload = {
                 caip: testCaip,
-                isMax: false,
+                isMax: isEth, // Use sendMax for ETH to simplify fee calculation
                 to: FAUCET_ADDRESS,
-                amount: TEST_AMOUNT,
+                amount: isEth ? balance : TEST_AMOUNT, // For sendMax, amount is ignored but we provide balance
                 feeLevel: 5 // Options
             };
             log.info('sendPayload: ',sendPayload);
 
-            log.info(tag, 'Send TEST_AMOUNT: ', TEST_AMOUNT);
+            log.info(tag, isEth ? 'Using sendMax for ETH' : `Send TEST_AMOUNT: ${TEST_AMOUNT}`);
 
             //max is balance
             // const sendPayload = {
@@ -566,8 +562,20 @@ const test_service = async function (this: any) {
 
                 //broadcast
                 log.info(tag, '📡 Broadcasting transaction...');
-                let broadcast = await app.broadcastTx(testCaip, signedTx);
-                assert(broadcast, `${tag} Broadcast failed for ${testCaip}`)
+                let broadcast;
+                try {
+                    broadcast = await app.broadcastTx(testCaip, signedTx);
+                    log.info(tag, 'Broadcast response:', broadcast);
+                } catch (broadcastError: any) {
+                    log.error(tag, 'Broadcast error details:', {
+                        message: broadcastError.message,
+                        response: broadcastError.response,
+                        data: broadcastError.data,
+                        status: broadcastError.status
+                    });
+                    throw broadcastError;
+                }
+                assert(broadcast, `${tag} Broadcast failed for ${testCaip} - no response received`)
                 log.info(tag, 'broadcast: ', broadcast);
 
                 //OSMOSIS

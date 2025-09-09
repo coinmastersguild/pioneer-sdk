@@ -1938,6 +1938,17 @@ export class SDK {
           this.blockchainContext = asset.networkId;
         }
 
+        // Auto-set pubkey context for this asset's network
+        // Use the first matching pubkey from assetPubkeys we already filtered
+        if (assetPubkeys && assetPubkeys.length > 0) {
+          this.pubkeyContext = assetPubkeys[0];
+          // Also set it on keepKeySdk so tx builders can access it
+          if (this.keepKeySdk) {
+            this.keepKeySdk.pubkeyContext = assetPubkeys[0];
+          }
+          console.log(tag, 'Auto-set pubkey context for network:', this.pubkeyContext.address || this.pubkeyContext.pubkey);
+        }
+
         this.events.emit('SET_ASSET_CONTEXT', this.assetContext);
         return this.assetContext;
       } catch (e) {
@@ -1948,16 +1959,31 @@ export class SDK {
     this.setPubkeyContext = async function (pubkey?: any) {
       let tag = `${TAG} | setPubkeyContext | `;
       try {
-        if (!pubkey.pubkey) throw Error('invalid pubkey pubkey');
-
+        if (!pubkey) throw Error('pubkey is required');
+        if (!pubkey.pubkey && !pubkey.address) throw Error('invalid pubkey: missing pubkey or address');
+        
+        // Validate pubkey exists in our pubkeys array
+        const exists = this.pubkeys.some((pk: any) => 
+          (pk.pubkey === pubkey.pubkey) || 
+          (pk.address === pubkey.address) ||
+          (pk.pubkey === pubkey.address)
+        );
+        
+        if (!exists) {
+          console.warn(tag, 'Pubkey not found in current pubkeys array');
+        }
+        
         /*
             Pubkey context is what FROM address we use in a tx
             Example
             ethereum account 0/1/2
-            
-           
-           */
+        */
         this.pubkeyContext = pubkey;
+        // Also set it on keepKeySdk so tx builders can access it
+        if (this.keepKeySdk) {
+          this.keepKeySdk.pubkeyContext = pubkey;
+        }
+        console.log(tag, 'Pubkey context set to:', pubkey.address || pubkey.pubkey, 'note:', pubkey.note);
 
         return true;
       } catch (e) {

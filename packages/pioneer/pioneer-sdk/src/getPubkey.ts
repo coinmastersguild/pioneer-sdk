@@ -144,6 +144,9 @@ export const getPubkey = async (networkId: string, path: any, sdk: any, context:
     pubkey.available_scripts_types = path.available_scripts_types;
     pubkey.context = context;
     pubkey.networks = path.networks;
+    // CRITICAL: Copy the addressNList fields so signing knows which account to use
+    pubkey.addressNList = path.addressNList;
+    pubkey.addressNListMaster = path.addressNListMaster;
 
     console.log('🚀 [DEBUG PUBKEY] ✅ Pubkey generation completed successfully!');
     console.log('🚀 [DEBUG PUBKEY] Final pubkey summary:', {

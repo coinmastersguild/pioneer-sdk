@@ -20,6 +20,15 @@ export async function createUnsignedUxtoTx(
     if (!pioneer) throw Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
+    
+    // Auto-correct context if wrong network
+    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
+      keepKeySdk.pubkeyContext = pubkeys.find(pk => 
+        pk.networks?.includes(networkId)
+      );
+    }
+    
+    // For UTXO, we still need all relevant pubkeys to aggregate UTXOs
     const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
 
     const segwitNetworks = [

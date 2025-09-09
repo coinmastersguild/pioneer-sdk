@@ -32,8 +32,15 @@ export async function createUnsignedStakingTx(
     if (!pioneer) throw new Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
-    if (relevantPubkeys.length === 0) {
+    
+    // Auto-correct context if wrong network
+    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
+      keepKeySdk.pubkeyContext = pubkeys.find(pk => 
+        pk.networks?.includes(networkId)
+      );
+    }
+    
+    if (!keepKeySdk.pubkeyContext) {
       throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
     }
 
@@ -71,7 +78,7 @@ export async function createUnsignedStakingTx(
 
     console.log(tag, `Building ${params.type} transaction for ${chain}`);
 
-    const fromAddress = relevantPubkeys[0].address;
+    const fromAddress = keepKeySdk.pubkeyContext.address || keepKeySdk.pubkeyContext.pubkey;
     
     // Get account info
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))

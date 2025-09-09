@@ -175,23 +175,23 @@ const test_service = async function (this: any) {
 
         let AllChainsSupported = [
             'ETH',
-            // 'ARB',  //BROKE
-            // 'DOGE',
-            // 'OP',    //Fast
-            // 'MATIC', //SLOW charting
-            // 'AVAX',  //fast
-            // 'BASE',  //fast
-            // 'BSC',   //fast
-            // 'BTC',
-            // 'BCH',
-            // 'GAIA',
-            // 'OSMO',
-            // 'XRP',
-            // 'DOGE',
-            // 'DASH',
-            // 'MAYA',
-            // 'LTC',
-            // 'THOR'
+            'ARB',  //BROKE
+            'DOGE',
+            'OP',    //Fast
+            'MATIC', //SLOW charting
+            'AVAX',  //fast
+            'BASE',  //fast
+            'BSC',   //fast
+            'BTC',
+            'BCH',
+            'GAIA',
+            'OSMO',
+            'XRP',
+            'DOGE',
+            'DASH',
+            'MAYA',
+            'LTC',
+            'THOR'
         ]
 
         let blockchains = AllChainsSupported.map(

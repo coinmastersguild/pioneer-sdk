@@ -1,4 +1,5 @@
 import { caipToNetworkId } from '@pioneer-platform/pioneer-caip';
+import { bip32ToAddressNList } from '@pioneer-platform/pioneer-coins';
 
 const TAG = ' | createUnsignedEvmTx | ';
 
@@ -110,26 +111,73 @@ export async function createUnsignedEvmTx(
     // Extract chainId from networkId
     const chainId = extractChainIdFromNetworkId(networkId);
 
-    // Find relevant public keys for the network
-    const blockchain = networkId.includes('eip155') ? 'eip155:*' : '';
-    const relevantPubkeys = pubkeys.filter(
-      (e) => e.networks && Array.isArray(e.networks) && e.networks.includes(blockchain),
-    );
-    const address = relevantPubkeys[0]?.address;
+    // Check if context is valid for this network
+    const isValidForNetwork = (pubkey: any) => {
+      if (!pubkey?.networks) return false;
+      // For EVM, check if it has eip155:* wildcard OR the specific network
+      if (networkId.includes('eip155')) {
+        return pubkey.networks.includes('eip155:*') || pubkey.networks.includes(networkId);
+      }
+      // For non-EVM, check exact match
+      return pubkey.networks.includes(networkId);
+    };
+    
+    // Check if we have a context at all
+    if (!keepKeySdk.pubkeyContext) {
+      console.log(tag, 'No context set - auto-selecting first matching pubkey');
+      keepKeySdk.pubkeyContext = pubkeys.find(pk => isValidForNetwork(pk));
+    } else {
+      // We have a context - check if it's valid for this network
+      console.log(tag, 'Current context networks:', keepKeySdk.pubkeyContext.networks, 'For networkId:', networkId);
+      
+      if (!isValidForNetwork(keepKeySdk.pubkeyContext)) {
+        // Context exists but wrong network - auto-correct
+        console.log(tag, 'Auto-correcting context - wrong network detected');
+        keepKeySdk.pubkeyContext = pubkeys.find(pk => isValidForNetwork(pk));
+      } else {
+        console.log(tag, 'Context is valid for this network - using existing context');
+      }
+    }
+    
+    const address = keepKeySdk.pubkeyContext?.address || keepKeySdk.pubkeyContext?.pubkey;
+    console.log(tag, '✅ Using FROM address from pubkeyContext:', address, 'note:', keepKeySdk.pubkeyContext?.note);
     if (!address) throw new Error('No address found for the specified network');
 
     // Fetch gas price in gwei and convert to wei
     const gasPriceData = await pioneer.GetGasPriceByNetwork({ networkId });
-    const gasPriceGwei = gasPriceData.data; // Ensure this is in gwei
-    //console.log(tag, 'gasPrice (gwei):', gasPriceGwei);
+    let gasPrice: bigint;
+    
+    // Check if the returned value is reasonable (in wei or gwei)
+    // If it's less than 1 gwei (1e9 wei), it's probably already in wei but too low
+    // For mainnet, we need at least 10-30 gwei typically
+    const MIN_GAS_PRICE_WEI = BigInt(10e9); // 10 gwei minimum for mainnet
+    
+    if (BigInt(gasPriceData.data) < MIN_GAS_PRICE_WEI) {
+      // The API is returning a value that's way too low (like 0.296 gwei)
+      // Use a reasonable default for mainnet
+      console.log(tag, 'Gas price from API too low:', gasPriceData.data, 'wei - using minimum:', MIN_GAS_PRICE_WEI.toString());
+      gasPrice = MIN_GAS_PRICE_WEI;
+    } else {
+      gasPrice = BigInt(gasPriceData.data);
+    }
+    
+    console.log(tag, 'Using gasPrice:', gasPrice.toString(), 'wei (', Number(gasPrice) / 1e9, 'gwei)');
 
-    // The API returns gas price that's already in wei (despite the name suggesting gwei)
-    // Based on the transaction data showing gasPrice: 0x166c2cad (376507053 wei)
-    const gasPrice = BigInt(gasPriceGwei);
-
-    const nonceData = await pioneer.GetNonceByNetwork({ networkId, address });
-    const nonce = nonceData.data;
-    if (nonce === undefined || nonce === null) throw new Error('Failed to fetch nonce');
+    let nonce;
+    try {
+      const nonceData = await pioneer.GetNonceByNetwork({ networkId, address });
+      nonce = nonceData.data;
+      
+      // Handle fresh addresses that have never sent a transaction
+      if (nonce === undefined || nonce === null) {
+        console.log(tag, 'No nonce found for address (likely fresh address), defaulting to 0');
+        nonce = 0;
+      }
+    } catch (nonceError) {
+      // If the API fails to fetch nonce (e.g., for a fresh address), default to 0
+      console.log(tag, 'Failed to fetch nonce (likely fresh address):', nonceError.message, '- defaulting to 0');
+      nonce = 0;
+    }
     //console.log(tag, 'nonce:', nonce);
 
     const balanceData = await pioneer.GetBalanceAddressByNetwork({ networkId, address });
@@ -431,8 +479,29 @@ export async function createUnsignedEvmTx(
       }
     }
 
-    // Address path for hardware wallets (e.g., BIP44 path for Ethereum)
-    unsignedTx.addressNList = [0x80000000 + 44, 0x80000000 + 60, 0x80000000, 0, 0];
+    // Address path for hardware wallets - use the path from the pubkey context
+    // The pubkey context should have either addressNListMaster or pathMaster
+    if (keepKeySdk.pubkeyContext?.addressNListMaster) {
+      // Direct use if we have addressNListMaster
+      unsignedTx.addressNList = keepKeySdk.pubkeyContext.addressNListMaster;
+      console.log(tag, '✅ Using addressNListMaster from pubkey context:', unsignedTx.addressNList, 'for address:', address);
+    } else if (keepKeySdk.pubkeyContext?.pathMaster) {
+      // Convert BIP32 path to addressNList if we have pathMaster
+      unsignedTx.addressNList = bip32ToAddressNList(keepKeySdk.pubkeyContext.pathMaster);
+      console.log(tag, '✅ Converted pathMaster to addressNList:', keepKeySdk.pubkeyContext.pathMaster, '→', unsignedTx.addressNList);
+    } else if (keepKeySdk.pubkeyContext?.addressNList) {
+      // Use addressNList if available (but this would be the non-master path)
+      unsignedTx.addressNList = keepKeySdk.pubkeyContext.addressNList;
+      console.log(tag, '✅ Using addressNList from pubkey context:', unsignedTx.addressNList);
+    } else if (keepKeySdk.pubkeyContext?.path) {
+      // Last resort - convert regular path to addressNList
+      unsignedTx.addressNList = bip32ToAddressNList(keepKeySdk.pubkeyContext.path);
+      console.log(tag, '⚠️ Using regular path (not master):', keepKeySdk.pubkeyContext.path, '→', unsignedTx.addressNList);
+    } else {
+      // Fallback to default account 0
+      unsignedTx.addressNList = [0x80000000 + 44, 0x80000000 + 60, 0x80000000, 0, 0];
+      console.warn(tag, '⚠️ No path info in pubkey context, using default account 0');
+    }
 
     //console.log(tag, 'Unsigned Transaction:', unsignedTx);
     return unsignedTx;
