@@ -1,5 +1,15 @@
 # @coinmasters/pioneer-sdk
 
+## 4.13.22
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/api@3.10.9
+  - @coinmasters/types@4.10.2
+
 ## 4.13.21
 
 ### Patch Changes

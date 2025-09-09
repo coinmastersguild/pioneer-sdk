@@ -772,7 +772,7 @@ export class SDK {
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-          
+
           let paths = this.paths.filter((path) => matchesNetwork(path, networkId));
           if (paths.length === 0) {
             //get paths for chain
@@ -1063,14 +1063,18 @@ export class SDK {
           return false;
         };
 
-        const pubkeys = this.pubkeys.filter((e: any) => matchesNetwork(e, this.assetContext.networkId));
+        const pubkeys = this.pubkeys.filter((e: any) =>
+          matchesNetwork(e, this.assetContext.networkId),
+        );
         let senderAddress = pubkeys[0]?.address || pubkeys[0]?.master || pubkeys[0]?.pubkey;
         if (!senderAddress) throw new Error('senderAddress not found! wallet not connected');
         if (senderAddress.includes('bitcoincash:')) {
           senderAddress = senderAddress.replace('bitcoincash:', '');
         }
 
-        const pubkeysOut = this.pubkeys.filter((e: any) => matchesNetwork(e, this.outboundAssetContext.networkId));
+        const pubkeysOut = this.pubkeys.filter((e: any) =>
+          matchesNetwork(e, this.outboundAssetContext.networkId),
+        );
         console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
         console.log(tag, 'pubkeysOut:', pubkeysOut);
 
@@ -1231,7 +1235,7 @@ export class SDK {
             console.log(tag, 'unsignedTx: ', unsignedTx);
           }
 
-          return unsignedTx
+          return unsignedTx;
         }
       } catch (e) {
         console.error(tag, 'Error: ', e);
@@ -1752,21 +1756,19 @@ export class SDK {
         }
 
         // For EVM chains, check for wildcard eip155:* in addition to exact match
-        const pubkeysForNetwork = this.pubkeys.filter(
-          (e: any) => {
-            if (!e.networks || !Array.isArray(e.networks)) return false;
-            
-            // Exact match
-            if (e.networks.includes(asset.networkId)) return true;
-            
-            // For EVM chains, check if pubkey has eip155:* wildcard
-            if (asset.networkId.startsWith('eip155:') && e.networks.includes('eip155:*')) {
-              return true;
-            }
-            
-            return false;
+        const pubkeysForNetwork = this.pubkeys.filter((e: any) => {
+          if (!e.networks || !Array.isArray(e.networks)) return false;
+
+          // Exact match
+          if (e.networks.includes(asset.networkId)) return true;
+
+          // For EVM chains, check if pubkey has eip155:* wildcard
+          if (asset.networkId.startsWith('eip155:') && e.networks.includes('eip155:*')) {
+            return true;
           }
-        );
+
+          return false;
+        });
 
         if (pubkeysForNetwork.length === 0) {
           const errorMsg = `Cannot set asset context for ${asset.caip} - no address/xpub found for network ${asset.networkId}`;
@@ -1806,6 +1808,11 @@ export class SDK {
         // Try to find the asset in the local assetsMap
         let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
         console.log(tag, 'assetInfo: ', assetInfo);
+
+        //check discovery
+        let assetInfoDiscovery = assetData[asset.caip];
+        console.log(tag, 'assetInfoDiscovery: ', assetInfoDiscovery);
+        if (assetInfoDiscovery) assetInfo = assetInfoDiscovery;
 
         // If the asset is not found, create a placeholder object
         if (!assetInfo) {

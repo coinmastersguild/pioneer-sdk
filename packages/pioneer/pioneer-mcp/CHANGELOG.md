@@ -1,5 +1,15 @@
 # pioneer-mcp
 
+## 1.0.5
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.22
+  - @coinmasters/types@4.10.2
+
 ## 1.0.4
 
 ### Patch Changes

@@ -1,15 +1,19 @@
 {
-  "name": "@coinmasters/e2e-transfer-suite",
-  "version": "1.12.19",
+  "name": "@coinmasters/integration-report",
+  "version": "1.13.19",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
     "yarn": "yarn",
     "start": "node dist/index.js",
+    "start:optimized": "node dist/index-optimized.js",
     "build": "tsc -p .",
     "dev": "pnpm run build && pnpm run start",
+    "dev:fast": "pnpm run build && pnpm run start:optimized",
     "test": "rm -Rf ~/.pioneer && jest --verbose --silent=true  --forceExit",
     "test-debug": "rm -Rf ~/.pioneer && jest --verbose --forceExit",
+    "test:pdf-reports": "pnpm run build && node dist/pdf-report-test.js",
+    "test:pdf-reports-debug": "pnpm run build && node --inspect dist/pdf-report-test.js",
     "docker:build": "docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t pioneer/osmosis-e2e-sdk:latest ../..",
     "docker:run": "docker run --env-file=../../.env pioneer/osmosis-e2e-sdk:latest",
     "docker:tag": "docker tag pioneer/osmosis-e2e-sdk:latest registry.digitalocean.com/pioneer/pioneer/osmosis-e2e-sdk:latest",
@@ -19,18 +23,22 @@
   "dependencies": {
     "@coinmasters/pioneer-sdk": "workspace:*",
     "@coinmasters/types": "workspace:^",
+    "@pioneer-platform/helpers": "^4.0.13",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.31",
     "@pioneer-platform/pioneer-coins": "^9.2.26",
-    "@types/node": "^20.10.4",
+    "@types/node": "^20.13.0",
     "assert": "^2.1.0",
     "dotenv": "^6.2.0",
+    "fs-extra": "^11.1.1",
+    "pdfkit": "^0.17.2",
+    "pdfmake": "^0.2.20",
     "typescript": "5.2.2",
     "wait-promise": "^0.4.1"
   },
   "devDependencies": {
     "@internal/config": "workspace:*",
-    "@pioneer-platform/helpers": "^4.0.12"
+    "@pioneer-platform/helpers": "latest"
   },
   "gitHead": "54da909f74f91cd10e6161a06aa75638c147ff96"
 }
