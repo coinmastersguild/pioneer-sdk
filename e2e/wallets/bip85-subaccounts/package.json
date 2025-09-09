@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@coinmasters/pioneer-sdk": "workspace:*",
-    "@coinmasters/types": "workspace:^",
     "@pioneer-platform/helpers": "^4.0.12",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.31",

@@ -3,8 +3,6 @@
   "name": "@coinmasters/pioneer-sdk",
   "version": "4.13.22",
   "dependencies": {
-    "@coinmasters/api": "workspace:*",
-    "@coinmasters/types": "workspace:*",
     "@keepkey/keepkey-sdk": "^0.2.62",
     "@pioneer-platform/loggerdog": "^8.3.1",
     "@pioneer-platform/pioneer-caip": "^9.2.37",

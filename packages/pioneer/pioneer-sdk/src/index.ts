@@ -23,7 +23,6 @@ import { getPubkey } from './getPubkey.js';
 import { optimizedGetPubkeys } from './kkapi-batch-client.js';
 import { OfflineClient } from './offline-client.js';
 import { TransactionManager } from './TransactionManager.js';
-import { type StakingTxParams } from './txbuilder/createUnsignedStakingTx.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
 
 const TAG = ' | Pioneer-sdk | ';
@@ -190,7 +189,7 @@ export class SDK {
   public isPioneer: string | null;
   public keepkeyEndpoint: { isAvailable: boolean; baseUrl: string; basePath: string } | null;
   public forceLocalhost: boolean;
-  public loadPubkeyCache: (pubkeys: any) => Promise<void>;
+  // public loadPubkeyCache: (pubkeys: any) => Promise<void>;
   public getPubkeys: (wallets?: string[]) => Promise<any[]>;
   public getBalances: (filter?: any) => Promise<any[]>;
   public blockchains: any[];
@@ -199,18 +198,18 @@ export class SDK {
   public appName: string;
   public appIcon: any;
   public init: (walletsVerbose: any, setup: any) => Promise<any>;
-  public initOffline: () => Promise<any>;
-  public backgroundSync: () => Promise<void>;
+  // public initOffline: () => Promise<any>;
+  // public backgroundSync: () => Promise<void>;
   public getUnifiedPortfolio: () => Promise<any>;
   public offlineClient: OfflineClient | null;
-  public verifyWallet: () => Promise<void>;
+  // public verifyWallet: () => Promise<void>;
   public convertVaultPubkeysToPioneerFormat: (vaultPubkeys: any[]) => any[];
-  public deriveNetworksFromPath: (path: string) => string[];
-  public getAddress: (options: {
-    networkId?: string;
-    showDevice?: boolean;
-    path?: any;
-  }) => Promise<string>;
+  // public deriveNetworksFromPath: (path: string) => string[];
+  // public getAddress: (options: {
+  //   networkId?: string;
+  //   showDevice?: boolean;
+  //   path?: any;
+  // }) => Promise<string>;
   public app: {
     getAddress: (options: {
       networkId?: string;
@@ -244,18 +243,18 @@ export class SDK {
   }>;
   public broadcastTx: (caip: string, signedTx: any) => Promise<any>;
   public signTx: (unsignedTx: any) => Promise<any>;
-  private buildTx: (sendPayload: any) => Promise<any>;
-  public buildDelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  public buildUndelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  public buildClaimRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  public buildClaimAllRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  private estimateMax: (sendPayload: any) => Promise<void>;
-  private syncMarket: () => Promise<boolean>;
-  private getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
-  private search: (query: string, config: any) => Promise<void>;
-  public networkPercentages: { networkId: string; percentage: string | number }[] = [];
-  public assetQuery: { caip: string; pubkey: string }[] = [];
-
+  public buildTx: (sendPayload: any) => Promise<any>;
+  // public buildDelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  // public buildUndelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  // public buildClaimRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  // public buildClaimAllRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public estimateMax: (sendPayload: any) => Promise<void>;
+  public syncMarket: () => Promise<boolean>;
+  public getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
+  // private search: (query: string, config: any) => Promise<void>;
+  // public networkPercentages: { networkId: string; percentage: string | number }[] = [];
+  // public assetQuery: { caip: string; pubkey: string }[] = [];
+  public setPubkeyContext: (pubkey?: any) => Promise<boolean>;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -1891,6 +1890,7 @@ export class SDK {
           let nativeSymbol = 'GAS'; // default fallback
           let nativeCaip = '';
 
+          //TODO removeme
           if (networkId.includes('mayachain')) {
             nativeSymbol = 'CACAO';
             nativeCaip = 'cosmos:mayachain-mainnet-v1/slip44:931';
@@ -1940,6 +1940,26 @@ export class SDK {
 
         this.events.emit('SET_ASSET_CONTEXT', this.assetContext);
         return this.assetContext;
+      } catch (e) {
+        console.error(tag, 'e: ', e);
+        throw e;
+      }
+    };
+    this.setPubkeyContext = async function (pubkey?: any) {
+      let tag = `${TAG} | setPubkeyContext | `;
+      try {
+        if (!pubkey.pubkey) throw Error('invalid pubkey pubkey');
+
+        /*
+            Pubkey context is what FROM address we use in a tx
+            Example
+            ethereum account 0/1/2
+            
+           
+           */
+        this.pubkeyContext = pubkey;
+
+        return true;
       } catch (e) {
         console.error(tag, 'e: ', e);
         throw e;
