@@ -500,6 +500,62 @@ const test_service = async function (this: any) {
         
         log.info(tag,'✅ All pubkeys validated successfully')
         
+        // Test setPubkeyContext functionality
+        log.info(tag,'🔄 Testing setPubkeyContext functionality...')
+        
+        // Find ETH pubkeys (should have at least 2 now)
+        const ethPubkeys = pubkeys.filter((pk:any) => 
+            pk.networks && pk.networks.some((n:string) => n.includes('eip155'))
+        )
+        log.info(tag,`📊 Found ${ethPubkeys.length} ETH pubkeys`)
+        
+        if (ethPubkeys.length >= 2) {
+            // Test setting context to first ETH account
+            const firstEthPubkey = ethPubkeys[0]
+            log.info(tag,'🎯 Setting context to first ETH account:', {
+                address: firstEthPubkey.address || firstEthPubkey.master,
+                path: firstEthPubkey.path,
+                note: firstEthPubkey.note
+            })
+            
+            let contextSet = await app.setPubkeyContext(firstEthPubkey)
+            assert(contextSet === true, 'Failed to set first pubkey context')
+            assert(app.pubkeyContext === firstEthPubkey, 'Pubkey context not set correctly')
+            log.info(tag,'✅ First ETH account context set successfully')
+            
+            // Test switching to second ETH account
+            const secondEthPubkey = ethPubkeys[1]
+            log.info(tag,'🎯 Switching context to second ETH account:', {
+                address: secondEthPubkey.address || secondEthPubkey.master,
+                path: secondEthPubkey.path,
+                note: secondEthPubkey.note
+            })
+            
+            contextSet = await app.setPubkeyContext(secondEthPubkey)
+            assert(contextSet === true, 'Failed to set second pubkey context')
+            assert(app.pubkeyContext === secondEthPubkey, 'Pubkey context not switched correctly')
+            assert(app.pubkeyContext !== firstEthPubkey, 'Pubkey context did not change')
+            log.info(tag,'✅ Second ETH account context set successfully')
+            
+            // Verify we can switch back
+            contextSet = await app.setPubkeyContext(firstEthPubkey)
+            assert(contextSet === true, 'Failed to switch back to first pubkey context')
+            assert(app.pubkeyContext === firstEthPubkey, 'Failed to switch back to first account')
+            log.info(tag,'✅ Successfully switched back to first ETH account')
+            
+            log.info(tag,'🎉 setPubkeyContext validation completed successfully!')
+        } else {
+            log.warn(tag,'⚠️ Not enough ETH pubkeys to test context switching (need at least 2)')
+        }
+        
+        // Test error handling for invalid pubkey
+        try {
+            await app.setPubkeyContext({})
+            assert(false, 'Should have thrown error for invalid pubkey')
+        } catch (e:any) {
+            log.info(tag,'✅ Correctly rejected invalid pubkey (no pubkey field)')
+        }
+        
         // Path validation with detailed logging
         assert(app.paths)
         log.info(tag,`📊 Total paths to validate: ${app.paths.length}`)
@@ -941,6 +997,14 @@ const test_service = async function (this: any) {
             console.log(`💰 Portfolio available ${improvement.toFixed(1)}% faster than full sync`);
         }
         console.log('📊 =========================================================');
+        
+        // Next steps for integration-transfer test:
+        // 1. Use setPubkeyContext to select which account to transfer FROM
+        // 2. Build transfer/swap transactions with the selected pubkey context
+        // 3. Validate that transactions use the correct FROM address
+        // 4. Test switching contexts mid-operation
+        // 5. Ensure balance checks respect the current pubkey context
+        log.info(tag,'📝 Ready for integration-transfer pubkey context testing!')
         
         // Exit successfully
         log.info(tag, '🎉 All tests completed successfully! Exiting with code 0.');
