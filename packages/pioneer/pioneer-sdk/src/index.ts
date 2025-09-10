@@ -17,7 +17,7 @@ import { assetData } from '@pioneer-platform/pioneer-discovery';
 import { Events } from '@pioneer-platform/pioneer-events';
 import EventEmitter from 'events';
 
-import { getCharts } from './getCharts.js';
+import { getCharts } from './charts/index.js';
 //internal
 import { getPubkey } from './getPubkey.js';
 import { optimizedGetPubkeys } from './kkapi-batch-client.js';
@@ -872,31 +872,20 @@ export class SDK {
           }
         }
 
-        //console.log(tag, 'Paths (Checkpoint2)');
+        console.log(tag, 'Paths (Checkpoint2)');
 
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
-          //console.log(tag, `Processing blockchain: ${networkId}`);
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
-          //console.log(tag, 'paths: ', this.paths.length);
-          // //console.log(tag, 'paths: ', this.paths);
-          // Filter paths related to the current blockchain
           const pathsForChain = this.paths.filter((path) => matchesNetwork(path, networkId));
-          //console.log(tag, 'pathsForChain: ', pathsForChain.length);
           if (!pathsForChain || pathsForChain.length === 0)
             throw Error('No paths found for blockchain: ' + networkId);
 
           for (let j = 0; j < pathsForChain.length; j++) {
             const path = pathsForChain[j];
-            //console.log(tag, `Processing path: ${JSON.stringify(path)}`);
-
             let pathBip32 = addressNListToBIP32(path.addressNListMaster);
-            //console.log(tag, 'pathBip32: ', pathBip32);
-            //console.log(tag, 'this.pubkeys: ', this.pubkeys);
             let pubkey = this.pubkeys.find((pubkey) => pubkey.pathMaster === pathBip32);
-            //console.log(tag, 'pubkey: ', pubkey);
             if (!pubkey) {
-              //console.log(tag, 'NO PUBKEY FOUND IN CACHE!');
               const pubkey = await getPubkey(
                 this.blockchains[i],
                 path,
@@ -904,30 +893,13 @@ export class SDK {
                 this.context,
               );
               if (!pubkey) throw Error('Unable to get pubkey for network+ ' + networkId);
-              try {
-                // await this.keepKeySdk.storage
-                //   .createPubkey(pubkey)
-                //   .catch((error) => console.error('Error creating pubkey:', error));
-              } catch (e) {
-                //no logs
-              }
               // Use addPubkey method for proper duplicate checking
-              const added = this.addPubkey(pubkey);
-              if (added) {
-                console.log(
-                  tag,
-                  `Added new pubkey for ${networkId}: ${pubkey.pubkey?.substring(0, 20)}...`,
-                );
-              } else {
-                console.debug(tag, `Pubkey already exists for ${networkId}, skipping`);
-              }
-            } else {
-              //console.log(tag, ' **** CACHE **** Cache valid for pubkey: ', pubkey);
+              this.addPubkey(pubkey);
             }
           }
         }
         await this.getBalances();
-        //console.log(tag, 'balances (Checkpoint4)');
+        console.log(tag, 'balances (Checkpoint4)');
 
         //we should be fully synced so lets make the dashboard
         const dashboardData: {
@@ -959,8 +931,10 @@ export class SDK {
           totalNativeBalance: string;
         }[] = [];
 
+        console.log(tag, 'this.blockchains: ', this.blockchains);
         // Deduplicate blockchains before calculation to prevent double-counting
         const uniqueBlockchains = [...new Set(this.blockchains)];
+        console.log(tag, 'uniqueBlockchains: ', uniqueBlockchains);
 
         // Calculate totals for each blockchain
         for (const blockchain of uniqueBlockchains) {
@@ -971,15 +945,30 @@ export class SDK {
               (blockchain === 'eip155:*' && networkId.startsWith('eip155:'))
             );
           });
+          console.log(tag, 'networkBalances: ', networkBalances);
+          console.log(tag, 'networkBalances: ', networkBalances.length);
 
           // Ensure we're working with numbers for calculations
-          const networkTotal = networkBalances.reduce((sum, balance) => {
+          const networkTotal = networkBalances.reduce((sum, balance, idx) => {
             const valueUsd =
               typeof balance.valueUsd === 'string'
                 ? parseFloat(balance.valueUsd)
                 : balance.valueUsd || 0;
+
+            console.log(
+              tag,
+              `{$tag} [${idx}] valueUsd:`,
+              balance.valueUsd,
+              '→ parsed:',
+              valueUsd,
+              '| running sum:',
+              sum + valueUsd,
+            );
+
             return sum + valueUsd;
           }, 0);
+
+          console.log('Final networkTotal:', networkTotal);
 
           // Get native asset for this blockchain
           const nativeAssetCaip = networkIdToCaip(blockchain);
