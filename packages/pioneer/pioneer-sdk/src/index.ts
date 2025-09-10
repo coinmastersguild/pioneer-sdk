@@ -171,6 +171,7 @@ export class SDK {
     address?: string;
     master?: string;
   }[] = [];
+  private pubkeySet: Set<string> = new Set(); // Track unique pubkey identifiers
   public wallets: any[];
   public balances: any[];
   public nodes: any[];
@@ -255,6 +256,10 @@ export class SDK {
   // public networkPercentages: { networkId: string; percentage: string | number }[] = [];
   // public assetQuery: { caip: string; pubkey: string }[] = [];
   public setPubkeyContext: (pubkey?: any) => Promise<boolean>;
+  private getPubkeyKey: (pubkey: any) => string;
+  private deduplicatePubkeys: (pubkeys: any[]) => any[];
+  private addPubkey: (pubkey: any) => boolean;
+  private setPubkeys: (newPubkeys: any[]) => void;
   constructor(spec: string, config: PioneerSDKConfig) {
     this.status = 'preInit';
     this.appName = config.appName || 'unknown app';
@@ -269,8 +274,26 @@ export class SDK {
     this.keepkeyEndpoint = null;
     this.forceLocalhost = config.forceLocalhost || false;
     this.paths = config.paths || [];
-    this.blockchains = config.blockchains || [];
-    this.pubkeys = config.pubkeys || [];
+
+    // Deduplicate blockchains to prevent duplicate dashboard calculations
+    this.blockchains = config.blockchains ? [...new Set(config.blockchains)] : [];
+    if (config.blockchains && config.blockchains.length !== this.blockchains.length) {
+      console.log(
+        `${TAG} | constructor | Deduplicated blockchains: ${config.blockchains.length} -> ${this.blockchains.length}`,
+      );
+    }
+
+    // Initialize pubkeys with deduplication if provided in config
+    if (config.pubkeys && config.pubkeys.length > 0) {
+      console.log(
+        `${TAG} | constructor | Initializing with ${config.pubkeys.length} config pubkeys`,
+      );
+      this.setPubkeys(config.pubkeys);
+    } else {
+      this.pubkeys = [];
+      this.pubkeySet.clear();
+    }
+
     this.balances = config.balances || [];
     this.nodes = config.nodes || [];
     this.charts = ['covalent', 'zapper'];
@@ -305,6 +328,68 @@ export class SDK {
     this.pairWallet = async (options: any) => {
       // Implementation will be added later
       return Promise.resolve({});
+    };
+
+    // Helper method to generate unique key for a pubkey
+    this.getPubkeyKey = (pubkey: any): string => {
+      return `${pubkey.pubkey}_${pubkey.pathMaster}`;
+    };
+
+    // Helper method to deduplicate pubkeys array
+    this.deduplicatePubkeys = (pubkeys: any[]): any[] => {
+      const seen = new Set<string>();
+      const deduped = pubkeys.filter((pubkey) => {
+        const key = this.getPubkeyKey(pubkey);
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+      return deduped;
+    };
+
+    // Helper method to validate and add a single pubkey
+    this.addPubkey = (pubkey: any): boolean => {
+      // Validate pubkey has required fields
+      if (!pubkey.pubkey || !pubkey.pathMaster) {
+        return false;
+      }
+
+      const key = this.getPubkeyKey(pubkey);
+
+      // Check if already exists
+      if (this.pubkeySet.has(key)) {
+        return false;
+      }
+
+      // Add to both array and set
+      this.pubkeys.push(pubkey);
+      this.pubkeySet.add(key);
+      return true;
+    };
+
+    // Helper method to set pubkeys array with deduplication
+    this.setPubkeys = (newPubkeys: any[]): void => {
+      const tag = `${TAG} | setPubkeys | `;
+      console.log(tag, `Setting ${newPubkeys.length} pubkeys with deduplication`);
+
+      // Clear existing
+      this.pubkeys = [];
+      this.pubkeySet.clear();
+
+      // Add each pubkey with validation
+      let added = 0;
+      for (const pubkey of newPubkeys) {
+        if (this.addPubkey(pubkey)) {
+          added++;
+        }
+      }
+
+      console.log(
+        tag,
+        `Set ${added} unique pubkeys (filtered ${newPubkeys.length - added} duplicates)`,
+      );
     };
 
     // Fast portfolio loading from kkapi:// cache
@@ -365,10 +450,12 @@ export class SDK {
           // Update pubkeys from cache
           if (portfolioData.pubkeys && portfolioData.pubkeys.length > 0) {
             // Convert vault pubkey format to pioneer-sdk format
-            this.pubkeys = this.convertVaultPubkeysToPioneerFormat(portfolioData.pubkeys);
+            const convertedPubkeys = this.convertVaultPubkeysToPioneerFormat(portfolioData.pubkeys);
+            // Use setPubkeys to ensure deduplication
+            this.setPubkeys(convertedPubkeys);
             this.events.emit('SET_PUBKEYS', this.pubkeys);
             console.log(
-              `🔑 [UNIFIED PORTFOLIO] Loaded ${portfolioData.pubkeys.length} pubkeys from cache`,
+              `🔑 [UNIFIED PORTFOLIO] Loaded ${this.pubkeys.length} unique pubkeys from cache (original: ${portfolioData.pubkeys.length})`,
             );
           }
 
@@ -617,7 +704,7 @@ export class SDK {
     // Build dashboard from cached balances (no Pioneer API calls)
     this.buildDashboardFromBalances = function () {
       const tag = `${TAG} | buildDashboardFromBalances | `;
-      console.log('[FAST DASHBOARD] Building dashboard from cached balances...');
+      console.log(tag, '[DASHBOARD] Building dashboard from cached balances...');
 
       const dashboardData: {
         networks: {
@@ -648,7 +735,9 @@ export class SDK {
         totalNativeBalance: string;
       }[] = [];
 
-      // Calculate totals for each blockchain (SAME logic as sync())
+      console.log(tag, 'this.balances: ', this.balances);
+
+      // Calculate totals for each blockchain
       for (const blockchain of this.blockchains) {
         const networkBalances = this.balances.filter((b) => {
           const networkId = caipToNetworkId(b.caip);
@@ -822,10 +911,15 @@ export class SDK {
               } catch (e) {
                 //no logs
               }
-              //if doesnt exist, add
-              let exists = this.pubkeys.filter((e: any) => matchesNetwork(e, networkId));
-              if (!exists || exists.length === 0) {
-                this.pubkeys.push(pubkey);
+              // Use addPubkey method for proper duplicate checking
+              const added = this.addPubkey(pubkey);
+              if (added) {
+                console.log(
+                  tag,
+                  `Added new pubkey for ${networkId}: ${pubkey.pubkey?.substring(0, 20)}...`,
+                );
+              } else {
+                console.debug(tag, `Pubkey already exists for ${networkId}, skipping`);
               }
             } else {
               //console.log(tag, ' **** CACHE **** Cache valid for pubkey: ', pubkey);
@@ -865,8 +959,11 @@ export class SDK {
           totalNativeBalance: string;
         }[] = [];
 
+        // Deduplicate blockchains before calculation to prevent double-counting
+        const uniqueBlockchains = [...new Set(this.blockchains)];
+
         // Calculate totals for each blockchain
-        for (const blockchain of this.blockchains) {
+        for (const blockchain of uniqueBlockchains) {
           const networkBalances = this.balances.filter((b) => {
             const networkId = caipToNetworkId(b.caip);
             return (
@@ -1363,10 +1460,23 @@ export class SDK {
       }
     };
     this.setBlockchains = async function (blockchains: any) {
+      const tag = `${TAG} | setBlockchains | `;
       try {
         if (!blockchains) throw Error('blockchains required!');
         //log.debug('setBlockchains called! blockchains: ', blockchains);
-        this.blockchains = blockchains;
+
+        // Deduplicate blockchains array to prevent duplicate calculations
+        const uniqueBlockchains = [...new Set(blockchains)];
+        if (blockchains.length !== uniqueBlockchains.length) {
+          console.warn(
+            tag,
+            `Removed ${blockchains.length - uniqueBlockchains.length} duplicate blockchains`,
+          );
+          console.log(tag, 'Original blockchains:', blockchains);
+          console.log(tag, 'Deduplicated blockchains:', uniqueBlockchains);
+        }
+
+        this.blockchains = uniqueBlockchains;
         this.events.emit('SET_BLOCKCHAINS', this.blockchains);
       } catch (e) {
         console.error('Failed to load balances! e: ', e);
@@ -1433,6 +1543,8 @@ export class SDK {
         this.paths = [];
         this.blockchains = [];
         this.pubkeys = [];
+        this.pubkeySet.clear(); // Clear the tracking set as well
+        console.log(tag, 'Cleared wallet state including pubkeys and tracking set');
         return true;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -1522,12 +1634,27 @@ export class SDK {
 
         console.log('🚀 [DEBUG SDK] Total pubkeys collected:', pubkeys.length);
 
-        // Merge newly fetched pubkeys with existing ones
-        this.pubkeys = [...this.pubkeys, ...pubkeys];
+        // Merge newly fetched pubkeys with existing ones using deduplication
+        const beforeCount = this.pubkeys.length;
+        const allPubkeys = [...this.pubkeys, ...pubkeys];
+        const dedupedPubkeys = this.deduplicatePubkeys(allPubkeys);
+
+        // Use setPubkeys to properly update both array and set
+        this.setPubkeys(dedupedPubkeys);
+
+        const duplicatesRemoved = allPubkeys.length - this.pubkeys.length;
         console.log('🚀 [DEBUG SDK] Final pubkeys array length:', this.pubkeys.length);
+        console.log('🚀 [DEBUG SDK] Added', this.pubkeys.length - beforeCount, 'new pubkeys');
+        if (duplicatesRemoved > 0) {
+          console.log(
+            '🚀 [DEBUG SDK] Removed',
+            duplicatesRemoved,
+            'duplicate pubkeys during merge',
+          );
+        }
 
         // Emit event to notify that pubkeys have been set
-        this.events.emit('SET_PUBKEYS', pubkeys);
+        this.events.emit('SET_PUBKEYS', this.pubkeys);
 
         return pubkeys;
       } catch (error) {
@@ -1547,20 +1674,6 @@ export class SDK {
             this.pioneer,
           );
           throw new Error('Pioneer client not initialized. Call init() first.');
-        }
-
-        if (typeof this.pioneer.GetPortfolioBalances !== 'function') {
-          console.error(tag, 'ERROR: GetPortfolioBalances is not a function!');
-          console.error(tag, 'Pioneer client type:', typeof this.pioneer);
-          console.error(tag, 'Pioneer client keys:', Object.keys(this.pioneer).slice(0, 10));
-          console.error(
-            tag,
-            'Looking for methods containing "Portfolio":',
-            Object.keys(this.pioneer).filter((key) => key.toLowerCase().includes('portfolio')),
-          );
-          throw new Error(
-            'GetPortfolioBalances method not available on Pioneer client. Check API spec and client initialization.',
-          );
         }
 
         const assetQuery: { caip: string; pubkey: string }[] = [];
@@ -1610,6 +1723,7 @@ export class SDK {
               identifier: `${balance.caip}:${balance.pubkey}`,
             });
           }
+          console.log(tag, 'balances: ', balances);
 
           this.balances = balances;
           this.events.emit('SET_BALANCES', this.balances);
@@ -1672,6 +1786,7 @@ export class SDK {
           this.pubkeys,
           this.context,
         );
+        console.log(tag, 'newBalances: ', newBalances);
 
         // Deduplicate balances using a Map with `identifier` as the key
         const uniqueBalances = new Map(
@@ -1680,21 +1795,10 @@ export class SDK {
             {
               ...balance,
               type: balance.type || 'balance',
-              icon: balance.icon || 'https://pioneers.dev/coins/ethereum.png',
             },
           ]),
         );
-
-        // Filter out invalid balances (missing identifier or chain)
-        this.balances = Array.from(uniqueBalances.values()).filter((balance) => {
-          if (!balance.identifier) {
-            console.error(tag, 'Invalid balance:', balance);
-            return false; // Exclude invalid balances
-          }
-          return true; // Include valid balances
-        });
-
-        //console.log(tag, `Total unique balances after charts update: ${this.balances.length}`);
+        console.log(tag, 'uniqueBalances: ', uniqueBalances);
         return this.balances;
       } catch (e) {
         console.error(tag, 'Error in getCharts:', e);
@@ -1946,7 +2050,11 @@ export class SDK {
           if (this.keepKeySdk) {
             this.keepKeySdk.pubkeyContext = assetPubkeys[0];
           }
-          console.log(tag, 'Auto-set pubkey context for network:', this.pubkeyContext.address || this.pubkeyContext.pubkey);
+          console.log(
+            tag,
+            'Auto-set pubkey context for network:',
+            this.pubkeyContext.address || this.pubkeyContext.pubkey,
+          );
         }
 
         this.events.emit('SET_ASSET_CONTEXT', this.assetContext);
@@ -1960,19 +2068,21 @@ export class SDK {
       let tag = `${TAG} | setPubkeyContext | `;
       try {
         if (!pubkey) throw Error('pubkey is required');
-        if (!pubkey.pubkey && !pubkey.address) throw Error('invalid pubkey: missing pubkey or address');
-        
+        if (!pubkey.pubkey && !pubkey.address)
+          throw Error('invalid pubkey: missing pubkey or address');
+
         // Validate pubkey exists in our pubkeys array
-        const exists = this.pubkeys.some((pk: any) => 
-          (pk.pubkey === pubkey.pubkey) || 
-          (pk.address === pubkey.address) ||
-          (pk.pubkey === pubkey.address)
+        const exists = this.pubkeys.some(
+          (pk: any) =>
+            pk.pubkey === pubkey.pubkey ||
+            pk.address === pubkey.address ||
+            pk.pubkey === pubkey.address,
         );
-        
+
         if (!exists) {
           console.warn(tag, 'Pubkey not found in current pubkeys array');
         }
-        
+
         /*
             Pubkey context is what FROM address we use in a tx
             Example
@@ -1983,7 +2093,13 @@ export class SDK {
         if (this.keepKeySdk) {
           this.keepKeySdk.pubkeyContext = pubkey;
         }
-        console.log(tag, 'Pubkey context set to:', pubkey.address || pubkey.pubkey, 'note:', pubkey.note);
+        console.log(
+          tag,
+          'Pubkey context set to:',
+          pubkey.address || pubkey.pubkey,
+          'note:',
+          pubkey.note,
+        );
 
         return true;
       } catch (e) {
