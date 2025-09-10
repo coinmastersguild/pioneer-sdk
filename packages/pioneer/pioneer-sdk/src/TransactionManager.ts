@@ -447,7 +447,7 @@ export class TransactionManager {
       if (!serialized) throw Error('Failed to broadcast! missing serialized2');
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
-      //console.log(tag, 'result:', result);
+      console.log(tag, 'result:', result);
       if (result.error) {
         return result;
       } else {

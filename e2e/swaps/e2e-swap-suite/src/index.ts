@@ -165,7 +165,6 @@ const test_service = async function () {
             console.log(`Input balance for ${caipIn}:`, inputBalance);
 
             /*
-
                   outboundAssetContext:  {
                   assetId: 'eip155:1/slip44:60',
                   chainId: 'eip155:1',
@@ -230,6 +229,7 @@ const test_service = async function () {
             coin:COIN_MAP_KEEPKEY_LONG[NetworkIdToChain[app.outboundAssetContext.networkId]],
             show_display: true
           }
+
           console.log('addressInfo: ',addressInfo)
           let address
           switch (networkType) {

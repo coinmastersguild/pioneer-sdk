@@ -1012,7 +1012,7 @@ export class SDK {
           serialized: signedTx,
         };
         let txid = await txManager.broadcast(payload);
-        //console.log(tag, 'txid: ', txid);
+        console.log(tag, 'txid: ', txid);
         return txid;
       } catch (e) {
         console.error(e);
