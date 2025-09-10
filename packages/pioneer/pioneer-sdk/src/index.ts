@@ -739,7 +739,7 @@ export class SDK {
 
       // Calculate totals for each blockchain
       for (const blockchain of this.blockchains) {
-        const networkBalances = this.balances.filter((b) => {
+        const filteredBalances = this.balances.filter((b) => {
           const networkId = caipToNetworkId(b.caip);
           return (
             networkId === blockchain ||
@@ -747,12 +747,79 @@ export class SDK {
           );
         });
 
+        // Deduplicate balances based on caip + pubkey combination
+        const balanceMap = new Map();
+        
+        // Special handling for Bitcoin to work around API bug
+        const isBitcoin = blockchain.includes('bip122:000000000019d6689c085ae165831e93');
+        if (isBitcoin) {
+          console.log(tag, 'Bitcoin network detected - checking for duplicate balances');
+          // Group Bitcoin balances by value to detect duplicates
+          const bitcoinByValue = new Map();
+          filteredBalances.forEach((balance) => {
+            const valueKey = `${balance.balance}_${balance.valueUsd}`;
+            if (!bitcoinByValue.has(valueKey)) {
+              bitcoinByValue.set(valueKey, []);
+            }
+            bitcoinByValue.get(valueKey).push(balance);
+          });
+          
+          // Check if all three address types have the same non-zero balance (API bug)
+          for (const [valueKey, balances] of bitcoinByValue.entries()) {
+            if (balances.length === 3 && parseFloat(balances[0].valueUsd || '0') > 0) {
+              console.log(tag, 'BITCOIN API BUG DETECTED: All 3 address types have same balance, keeping only xpub');
+              // Keep only the xpub (or first one if no xpub)
+              const xpubBalance = balances.find(b => b.pubkey?.startsWith('xpub')) || balances[0];
+              const key = `${xpubBalance.caip}_${xpubBalance.pubkey || 'default'}`;
+              balanceMap.set(key, xpubBalance);
+            } else {
+              // Add all balances normally
+              balances.forEach((balance) => {
+                const key = `${balance.caip}_${balance.pubkey || 'default'}`;
+                balanceMap.set(key, balance);
+              });
+            }
+          }
+        } else {
+          // Standard deduplication for non-Bitcoin networks
+          filteredBalances.forEach((balance) => {
+            const key = `${balance.caip}_${balance.pubkey || 'default'}`;
+            // Only keep the first occurrence or the one with higher value
+            if (
+              !balanceMap.has(key) ||
+              parseFloat(balance.valueUsd || '0') > parseFloat(balanceMap.get(key).valueUsd || '0')
+            ) {
+              balanceMap.set(key, balance);
+            }
+          });
+        }
+        
+        const networkBalances = Array.from(balanceMap.values());
+
         // Ensure we're working with numbers for calculations
-        const networkTotal = networkBalances.reduce((sum, balance) => {
+        const networkTotal = networkBalances.reduce((sum, balance, idx) => {
           const valueUsd =
             typeof balance.valueUsd === 'string'
               ? parseFloat(balance.valueUsd)
               : balance.valueUsd || 0;
+          
+          // Debug logging for Bitcoin balances
+          if (blockchain.includes('bip122:000000000019d6689c085ae165831e93')) {
+            console.log(
+              tag,
+              `[BITCOIN DEBUG ${idx}] pubkey:`,
+              balance.pubkey?.substring(0, 10) + '...',
+              '| balance:',
+              balance.balance,
+              '| valueUsd:',
+              balance.valueUsd,
+              '→ parsed:',
+              valueUsd,
+              '| running sum:',
+              sum + valueUsd,
+            );
+          }
+          
           return sum + valueUsd;
         }, 0);
 
@@ -938,15 +1005,79 @@ export class SDK {
 
         // Calculate totals for each blockchain
         for (const blockchain of uniqueBlockchains) {
-          const networkBalances = this.balances.filter((b) => {
+          const filteredBalances = this.balances.filter((b) => {
             const networkId = caipToNetworkId(b.caip);
             return (
               networkId === blockchain ||
               (blockchain === 'eip155:*' && networkId.startsWith('eip155:'))
             );
           });
-          console.log(tag, 'networkBalances: ', networkBalances);
-          console.log(tag, 'networkBalances: ', networkBalances.length);
+
+          // Debug: Log what we're deduplicating
+          console.log(tag, `Filtering for blockchain: ${blockchain}`);
+          console.log(tag, `Found ${filteredBalances.length} balances before deduplication`);
+          
+          // Log each balance to see what's different
+          filteredBalances.forEach((balance, idx) => {
+            console.log(tag, `Balance[${idx}]:`, {
+              caip: balance.caip,
+              pubkey: balance.pubkey,
+              balance: balance.balance,
+              valueUsd: balance.valueUsd,
+            });
+          });
+
+          // Deduplicate balances based on caip + pubkey combination
+          const balanceMap = new Map();
+          
+          // Special handling for Bitcoin to work around API bug
+          const isBitcoin = blockchain.includes('bip122:000000000019d6689c085ae165831e93');
+          if (isBitcoin) {
+            console.log(tag, 'Bitcoin network detected - checking for duplicate balances');
+            // Group Bitcoin balances by value to detect duplicates
+            const bitcoinByValue = new Map();
+            filteredBalances.forEach((balance) => {
+              const valueKey = `${balance.balance}_${balance.valueUsd}`;
+              if (!bitcoinByValue.has(valueKey)) {
+                bitcoinByValue.set(valueKey, []);
+              }
+              bitcoinByValue.get(valueKey).push(balance);
+            });
+            
+            // Check if all three address types have the same non-zero balance (API bug)
+            for (const [valueKey, balances] of bitcoinByValue.entries()) {
+              if (balances.length === 3 && parseFloat(balances[0].valueUsd || '0') > 0) {
+                console.log(tag, 'BITCOIN API BUG DETECTED: All 3 address types have same balance, keeping only xpub');
+                // Keep only the xpub (or first one if no xpub)
+                const xpubBalance = balances.find(b => b.pubkey?.startsWith('xpub')) || balances[0];
+                const key = `${xpubBalance.caip}_${xpubBalance.pubkey || 'default'}`;
+                balanceMap.set(key, xpubBalance);
+              } else {
+                // Add all balances normally
+                balances.forEach((balance) => {
+                  const key = `${balance.caip}_${balance.pubkey || 'default'}`;
+                  balanceMap.set(key, balance);
+                });
+              }
+            }
+          } else {
+            // Standard deduplication for non-Bitcoin networks
+            filteredBalances.forEach((balance) => {
+              const key = `${balance.caip}_${balance.pubkey || 'default'}`;
+              // Only keep the first occurrence or the one with higher value
+              if (
+                !balanceMap.has(key) ||
+                parseFloat(balance.valueUsd || '0') > parseFloat(balanceMap.get(key).valueUsd || '0')
+              ) {
+                balanceMap.set(key, balance);
+              }
+            });
+          }
+          
+          const networkBalances = Array.from(balanceMap.values());
+
+          console.log(tag, 'networkBalances (deduplicated): ', networkBalances);
+          console.log(tag, 'networkBalances count: ', networkBalances.length);
 
           // Ensure we're working with numbers for calculations
           const networkTotal = networkBalances.reduce((sum, balance, idx) => {
@@ -957,13 +1088,28 @@ export class SDK {
 
             console.log(
               tag,
-              `{$tag} [${idx}] valueUsd:`,
+              `[${idx}] valueUsd:`,
               balance.valueUsd,
               '→ parsed:',
               valueUsd,
               '| running sum:',
               sum + valueUsd,
             );
+            
+            // Debug logging for Bitcoin balances
+            if (blockchain.includes('bip122:000000000019d6689c085ae165831e93')) {
+              console.log(
+                tag,
+                `[BITCOIN DEBUG ${idx}] pubkey:`,
+                balance.pubkey?.substring(0, 10) + '...',
+                '| balance:',
+                balance.balance,
+                '| valueUsd:',
+                balance.valueUsd,
+                '→ parsed:',
+                valueUsd,
+              );
+            }
 
             return sum + valueUsd;
           }, 0);
@@ -1700,6 +1846,20 @@ export class SDK {
 
           //console.log(tag, 'returned balances: ', marketInfo.data);
           let balances = marketInfo.data;
+          
+          // DEBUG: Check Bitcoin balances from API
+          const bitcoinBalances = balances.filter((b: any) => 
+            b.caip === 'bip122:000000000019d6689c085ae165831e93/slip44:0'
+          );
+          if (bitcoinBalances.length > 0) {
+            console.log('🚨 [BITCOIN API DEBUG] Raw API response for Bitcoin:');
+            bitcoinBalances.forEach((b: any, idx: number) => {
+              const pubkeyType = b.pubkey?.startsWith('xpub') ? 'xpub' : 
+                               b.pubkey?.startsWith('ypub') ? 'ypub' : 
+                               b.pubkey?.startsWith('zpub') ? 'zpub' : 'unknown';
+              console.log(`  [${idx}] ${pubkeyType}: balance=${b.balance}, valueUsd=${b.valueUsd}`);
+            });
+          }
 
           // Enrich balances with asset info
           for (let balance of balances) {
