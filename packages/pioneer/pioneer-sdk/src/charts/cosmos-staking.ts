@@ -142,6 +142,7 @@ function processStakingPosition(
   // Hydrate staking position with assetData
   const stakingAssetInfo = hydrateAssetData(position.caip);
 
+  // Staking positions are not tokens, they represent staked native assets
   const stakingBalance: ChartBalance = {
     context,
     chart: 'staking',
@@ -156,6 +157,7 @@ function processStakingPosition(
     networkId,
     symbol: stakingAssetInfo?.symbol || position.symbol || position.ticker || 'UNK',
     type: stakingAssetInfo?.type || position.type || 'staking',
+    token: false,  // Staking positions are not tokens
     decimal: stakingAssetInfo?.decimal,
     balance: position.balance.toString(),
     priceUsd: position.priceUsd || 0,

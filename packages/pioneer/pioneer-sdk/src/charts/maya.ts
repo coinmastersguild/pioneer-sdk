@@ -74,6 +74,9 @@ export async function getMayaCharts(
       // Hydrate MAYA token with assetData
       const mayaAssetInfo = hydrateAssetData(mayaBalance.caip);
 
+      // CACAO is the native asset, MAYA is a token on the Maya chain
+      const isToken = mayaBalance.caip.includes('/denom:') && !mayaBalance.caip.endsWith('/denom:cacao');
+      
       const mayaTokenBalance: ChartBalance = {
         context,
         chart: 'pioneer',
@@ -88,6 +91,7 @@ export async function getMayaCharts(
         networkId: 'cosmos:mayachain-mainnet-v1',
         symbol: mayaAssetInfo?.symbol || 'MAYA',
         type: mayaAssetInfo?.type || 'token',
+        token: isToken,  // MAYA is a token, CACAO is the native asset
         decimal: mayaAssetInfo?.decimal,
         balance: mayaBalance.balance?.toString() || '0',
         priceUsd: parseFloat(mayaBalance.priceUsd) || 0,

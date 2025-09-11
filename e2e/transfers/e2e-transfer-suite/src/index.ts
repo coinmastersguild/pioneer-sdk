@@ -118,11 +118,11 @@ const test_service = async function (this: any) {
             // 'AVAX',
             // 'BSC',
             // 'XRP', //Testing after fixing ledger_index_current
-            'ETH',
+            // 'ETH',
             // 'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
-            // 'BTC',
+            'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -206,16 +206,16 @@ const test_service = async function (this: any) {
         let paths = getPaths(blockchains)
         log.info(tag,"paths: ",paths.length)
 
-        paths.push({
-          note: ' ETH account 1',
-          networks: [ 'eip155:1', 'eip155:*' ],
-          type: 'address',
-          addressNList: [ 2147483692, 2147483708, 2147483648 ],
-          addressNListMaster: [ 2147483692, 2147483708, 2147483648, 1, 0 ],
-          curve: 'secp256k1',
-          showDisplay: false
-        })
-        log.info(tag,'paths:',paths)
+        // paths.push({
+        //   note: ' ETH account 1',
+        //   networks: [ 'eip155:1', 'eip155:*' ],
+        //   type: 'address',
+        //   addressNList: [ 2147483692, 2147483708, 2147483648 ],
+        //   addressNListMaster: [ 2147483692, 2147483708, 2147483648, 1, 0 ],
+        //   curve: 'secp256k1',
+        //   showDisplay: false
+        // })
+        // log.info(tag,'paths:',paths)
 
         // paths.push({
         //     note:"Bitcoin account 0 segwit (p2sh)",

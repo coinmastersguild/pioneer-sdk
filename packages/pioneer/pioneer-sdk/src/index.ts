@@ -1,18 +1,7 @@
-/*
-
-     Pioneer SDK
-        A typescript sdk for integrating cryptocurrency wallets info apps
-
- */
-
 import { KeepKeySdk } from '@keepkey/keepkey-sdk';
 import { caipToNetworkId, networkIdToCaip } from '@pioneer-platform/pioneer-caip';
 import Pioneer from '@pioneer-platform/pioneer-client';
-import {
-  addressNListToBIP32,
-  getPaths,
-  // @ts-ignore
-} from '@pioneer-platform/pioneer-coins';
+import { addressNListToBIP32, getPaths } from '@pioneer-platform/pioneer-coins';
 import { assetData } from '@pioneer-platform/pioneer-discovery';
 import { Events } from '@pioneer-platform/pioneer-events';
 import EventEmitter from 'events';
@@ -36,25 +25,14 @@ async function detectKkApiAvailability(forceLocalhost?: boolean): Promise<{
   const tag = `${TAG} | detectKkApiAvailability | `;
 
   try {
-    console.log('🔍 [KKAPI DETECTION] Starting smart environment detection...');
-
     // Smart detection: Check environment (Tauri, browser, or Node.js)
     const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
     const isBrowser = typeof window !== 'undefined';
     const isNodeJS = typeof process !== 'undefined' && process.versions && process.versions.node;
     const isLocalhost = isBrowser && window.location.hostname === 'localhost';
 
-    console.log('🔍 [KKAPI DETECTION] Environment:', {
-      isTauri,
-      isBrowser,
-      isNodeJS,
-      isLocalhost,
-      userAgent: isBrowser ? window.navigator.userAgent : isNodeJS ? 'Node.js' : 'SSR',
-    });
-
     // If in Tauri, use kkapi:// (will be proxied by Tauri)
     if (isTauri) {
-      console.log('✅ [KKAPI DETECTION] Running in Tauri app, using kkapi:// protocol');
       return {
         isAvailable: true,
         baseUrl: 'kkapi://',
@@ -65,11 +43,9 @@ async function detectKkApiAvailability(forceLocalhost?: boolean): Promise<{
     // In Node.js test environment or localhost browser, test if localhost:1646 is available
     // Force localhost if flag is set
     const shouldTestLocalhost = forceLocalhost || isLocalhost || isNodeJS;
-    console.log(tag, 'shouldTestLocalhost', shouldTestLocalhost, 'forceLocalhost:', forceLocalhost);
 
     if (shouldTestLocalhost) {
       const testEnv = isNodeJS ? 'Node.js test environment' : 'development browser';
-      console.log(`🔄 [KKAPI DETECTION] Running in ${testEnv}, testing http://localhost:1646...`);
       try {
         const httpResponse = await fetch('http://localhost:1646/api/v1/health', {
           method: 'GET',
@@ -77,7 +53,6 @@ async function detectKkApiAvailability(forceLocalhost?: boolean): Promise<{
         });
 
         if (httpResponse.ok) {
-          console.log('✅ [KKAPI DETECTION] HTTP localhost:1646 is available!');
           return {
             isAvailable: true,
             baseUrl: 'http://localhost:1646',
@@ -278,16 +253,10 @@ export class SDK {
     // Deduplicate blockchains to prevent duplicate dashboard calculations
     this.blockchains = config.blockchains ? [...new Set(config.blockchains)] : [];
     if (config.blockchains && config.blockchains.length !== this.blockchains.length) {
-      console.log(
-        `${TAG} | constructor | Deduplicated blockchains: ${config.blockchains.length} -> ${this.blockchains.length}`,
-      );
     }
 
     // Initialize pubkeys with deduplication if provided in config
     if (config.pubkeys && config.pubkeys.length > 0) {
-      console.log(
-        `${TAG} | constructor | Initializing with ${config.pubkeys.length} config pubkeys`,
-      );
       this.setPubkeys(config.pubkeys);
     } else {
       this.pubkeys = [];
@@ -372,7 +341,6 @@ export class SDK {
     // Helper method to set pubkeys array with deduplication
     this.setPubkeys = (newPubkeys: any[]): void => {
       const tag = `${TAG} | setPubkeys | `;
-      console.log(tag, `Setting ${newPubkeys.length} pubkeys with deduplication`);
 
       // Clear existing
       this.pubkeys = [];
@@ -385,18 +353,12 @@ export class SDK {
           added++;
         }
       }
-
-      console.log(
-        tag,
-        `Set ${added} unique pubkeys (filtered ${newPubkeys.length - added} duplicates)`,
-      );
     };
 
     // Fast portfolio loading from kkapi:// cache
     this.getUnifiedPortfolio = async function () {
       const tag = `${TAG} | getUnifiedPortfolio | `;
       try {
-        console.log('🚀 [UNIFIED PORTFOLIO] Attempting fast portfolio load...');
         const startTime = performance.now();
 
         // Check if kkapi is available and use the detected endpoint
@@ -404,7 +366,6 @@ export class SDK {
           // Use the detected endpoint instead of hardcoded kkapi://
           const baseUrl = this.keepkeyEndpoint?.baseUrl || 'kkapi://';
           const portfolioUrl = `${baseUrl}/api/portfolio`;
-          console.log(`🔧 [UNIFIED PORTFOLIO] Using endpoint: ${portfolioUrl}`);
 
           const portfolioResponse = await fetch(portfolioUrl, {
             method: 'GET',
@@ -424,13 +385,6 @@ export class SDK {
             return null;
           }
 
-          console.log(`✅ [UNIFIED PORTFOLIO] Loaded portfolio in ${loadTime.toFixed(0)}ms`);
-          console.log(
-            `📊 [UNIFIED PORTFOLIO] Total USD: $${(portfolioData.totalValueUsd || 0).toFixed(2)}`,
-          );
-          console.log(`📊 [UNIFIED PORTFOLIO] Devices: ${portfolioData.pairedDevices || 0}`);
-          console.log(`📊 [UNIFIED PORTFOLIO] Cached: ${portfolioData.cached ? 'YES' : 'NO'}`);
-
           if (portfolioData.totalValueUsd === 0 || !portfolioData.totalValueUsd) {
             console.warn(tag, 'Portfolio value is $0.00 - may need device connection or sync');
             return null;
@@ -444,7 +398,6 @@ export class SDK {
           if (allBalances.length > 0) {
             this.balances = allBalances;
             this.events.emit('SET_BALANCES', this.balances);
-            console.log(`📦 [UNIFIED PORTFOLIO] Loaded ${allBalances.length} balances from cache`);
           }
 
           // Update pubkeys from cache
@@ -454,9 +407,6 @@ export class SDK {
             // Use setPubkeys to ensure deduplication
             this.setPubkeys(convertedPubkeys);
             this.events.emit('SET_PUBKEYS', this.pubkeys);
-            console.log(
-              `🔑 [UNIFIED PORTFOLIO] Loaded ${this.pubkeys.length} unique pubkeys from cache (original: ${portfolioData.pubkeys.length})`,
-            );
           }
 
           // Update wallets from devices
@@ -469,7 +419,6 @@ export class SDK {
               totalValueUsd: device.totalValueUsd || 0,
             }));
             this.events.emit('SET_WALLETS', this.wallets);
-            console.log(`👛 [UNIFIED PORTFOLIO] Loaded ${this.wallets.length} wallets from cache`);
           }
 
           // Validate cache data before using it
@@ -505,7 +454,6 @@ export class SDK {
 
           // Only use cache data if it's valid
           if (isCacheDataValid(portfolioData)) {
-            console.log('[CACHE VALIDATION] ✅ Cache data is valid, using fast path');
             const dashboardData = {
               totalValueUsd: portfolioData.totalValueUsd,
               pairedDevices: portfolioData.pairedDevices,
@@ -569,15 +517,12 @@ export class SDK {
         if (!this.wss) throw Error('wss required!');
         if (!this.wallets) throw Error('wallets required!');
         if (!this.paths) throw Error('wallets required!');
-        console.log('walletsVerbose: ', walletsVerbose);
-        console.log('🚀 [INIT OPTIMIZATION] Starting SDK initialization...');
         const initStartTime = performance.now();
 
         // Option to skip sync (for apps that will manually call getPubkeys/getBalances)
         const skipSync = setup?.skipSync || false;
 
         // Initialize Pioneer Client
-        console.log('🚀 [INIT] Creating Pioneer client...');
 
         // CRITICAL FIX: Ensure Pioneer client has proper HTTP headers for browser requests
         const pioneerConfig = {
@@ -587,18 +532,14 @@ export class SDK {
         const PioneerClient = new Pioneer(this.spec, pioneerConfig);
         this.pioneer = await PioneerClient.init();
         if (!this.pioneer) throw Error('Failed to init pioneer server!');
-        console.log('🚀 [INIT] ✅ Pioneer client ready');
 
         // Add paths for blockchains
         this.paths.concat(getPaths(this.blockchains));
 
         // Get gas assets (needed for asset map)
-        console.log('🚀 [INIT] Loading gas assets...');
         await this.getGasAssets();
-        console.log('🚀 [INIT] ✅ Gas assets loaded');
 
         // Detect KeepKey endpoint
-        console.log('🚀 [INIT] Detecting KeepKey endpoint...');
         this.keepkeyEndpoint = await detectKkApiAvailability(this.forceLocalhost);
         const keepkeyEndpoint = this.keepkeyEndpoint;
 
@@ -615,21 +556,17 @@ export class SDK {
           };
 
           console.log('🔑 [INIT] Initializing KeepKey SDK...');
-          //@ts-ignore
           const keepKeySdk = await KeepKeySdk.create(configKeepKey);
           const features = await keepKeySdk.system.info.getFeatures();
 
           this.keepkeyApiKey = configKeepKey.apiKey;
           this.keepKeySdk = keepKeySdk;
           this.context = 'keepkey:' + features.label + '.json';
-
-          console.log('✅ [INIT] KeepKey SDK ready');
         } catch (e) {
           console.error('⚠️ [INIT] KeepKey SDK initialization failed:', e);
         }
 
         // Initialize WebSocket events
-        console.log('🌐 [INIT] Initializing WebSocket events...');
         let configWss = {
           username: this.username,
           queryKey: this.queryKey,
@@ -643,7 +580,6 @@ export class SDK {
         clientEvents.events.on('message', (request) => {
           this.events.emit('message', request);
         });
-        console.log('✅ [INIT] WebSocket events ready');
 
         this.events.emit('SET_STATUS', 'init');
 
@@ -694,7 +630,6 @@ export class SDK {
           console.log('⏭️ [INIT] Skipping sync (skipSync=true)');
         }
 
-        console.log('🎯 [INIT] Total time:', (performance.now() - initStartTime).toFixed(0), 'ms');
         return this.pioneer;
       } catch (e) {
         console.error(tag, 'e: ', e);
@@ -749,7 +684,7 @@ export class SDK {
 
         // Deduplicate balances based on caip + pubkey combination
         const balanceMap = new Map();
-        
+
         // Special handling for Bitcoin to work around API bug
         const isBitcoin = blockchain.includes('bip122:000000000019d6689c085ae165831e93');
         if (isBitcoin) {
@@ -763,13 +698,16 @@ export class SDK {
             }
             bitcoinByValue.get(valueKey).push(balance);
           });
-          
+
           // Check if all three address types have the same non-zero balance (API bug)
           for (const [valueKey, balances] of bitcoinByValue.entries()) {
             if (balances.length === 3 && parseFloat(balances[0].valueUsd || '0') > 0) {
-              console.log(tag, 'BITCOIN API BUG DETECTED: All 3 address types have same balance, keeping only xpub');
+              console.log(
+                tag,
+                'BITCOIN API BUG DETECTED: All 3 address types have same balance, keeping only xpub',
+              );
               // Keep only the xpub (or first one if no xpub)
-              const xpubBalance = balances.find(b => b.pubkey?.startsWith('xpub')) || balances[0];
+              const xpubBalance = balances.find((b) => b.pubkey?.startsWith('xpub')) || balances[0];
               const key = `${xpubBalance.caip}_${xpubBalance.pubkey || 'default'}`;
               balanceMap.set(key, xpubBalance);
             } else {
@@ -793,7 +731,7 @@ export class SDK {
             }
           });
         }
-        
+
         const networkBalances = Array.from(balanceMap.values());
 
         // Ensure we're working with numbers for calculations
@@ -802,8 +740,7 @@ export class SDK {
             typeof balance.valueUsd === 'string'
               ? parseFloat(balance.valueUsd)
               : balance.valueUsd || 0;
-          
-          // Debug logging for Bitcoin balances
+
           if (blockchain.includes('bip122:000000000019d6689c085ae165831e93')) {
             console.log(
               tag,
@@ -819,7 +756,7 @@ export class SDK {
               sum + valueUsd,
             );
           }
-          
+
           return sum + valueUsd;
         }, 0);
 
@@ -887,17 +824,16 @@ export class SDK {
         // Fetch market prices for all CAIPs
         console.log('GetMarketInfo: payload: ', allCaips);
         console.log('GetMarketInfo: payload type: ', typeof allCaips);
-        let allPrices = await this.pioneer.GetMarketInfo(allCaips);
+        if (allCaips && allCaips.length > 0) {
+          let allPrices = await this.pioneer.GetMarketInfo(allCaips);
 
-        // Update each balance with the corresponding price and value
-        for (let i = 0; i < allPrices.length; i++) {
-          let balance = this.balances[i];
-          balance.price = allPrices[i];
-          balance.valueUsd = balance.price * balance.balance;
+          // Update each balance with the corresponding price and value
+          for (let i = 0; i < allPrices.length; i++) {
+            let balance = this.balances[i];
+            balance.price = allPrices[i];
+            balance.valueUsd = balance.price * balance.balance;
+          }
         }
-
-        // Additional TODO items can be handled here
-
         return true;
       } catch (e) {
         console.error(tag, 'e:', e);
@@ -907,11 +843,6 @@ export class SDK {
     this.sync = async function () {
       const tag = `${TAG} | sync | `;
       try {
-        console.log('🚀 [DEBUG SYNC] Starting sync() function...');
-        console.log('🚀 [DEBUG SYNC] Current blockchains:', this.blockchains);
-        console.log('🚀 [DEBUG SYNC] Current paths length:', this.paths.length);
-        console.log('🚀 [DEBUG SYNC] Current pubkeys length:', this.pubkeys.length);
-
         // Helper to check network match with EVM wildcard support (works for both paths and pubkeys)
         const matchesNetwork = (item: any, networkId: string) => {
           if (!item.networks || !Array.isArray(item.networks)) return false;
@@ -920,10 +851,8 @@ export class SDK {
           return false;
         };
 
-        console.log('🚀 [DEBUG SYNC] About to call getPubkeys() - this might hang...');
         //at least 1 path per chain
         await this.getPubkeys();
-        console.log('🚀 [DEBUG SYNC] ✅ getPubkeys() completed successfully!');
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
           if (networkId.indexOf('eip155:') >= 0) networkId = 'eip155:*';
@@ -931,15 +860,12 @@ export class SDK {
           let paths = this.paths.filter((path) => matchesNetwork(path, networkId));
           if (paths.length === 0) {
             //get paths for chain
-            //console.log(tag, 'Adding paths for chain ' + networkId);
             let paths = getPaths([networkId]);
             if (!paths || paths.length === 0) throw Error('Unable to find paths for: ' + networkId);
             //add to paths
             this.paths = this.paths.concat(paths);
           }
         }
-
-        console.log(tag, 'Paths (Checkpoint2)');
 
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
@@ -966,7 +892,6 @@ export class SDK {
           }
         }
         await this.getBalances();
-        console.log(tag, 'balances (Checkpoint4)');
 
         //we should be fully synced so lets make the dashboard
         const dashboardData: {
@@ -998,7 +923,6 @@ export class SDK {
           totalNativeBalance: string;
         }[] = [];
 
-        console.log(tag, 'this.blockchains: ', this.blockchains);
         // Deduplicate blockchains before calculation to prevent double-counting
         const uniqueBlockchains = [...new Set(this.blockchains)];
         console.log(tag, 'uniqueBlockchains: ', uniqueBlockchains);
@@ -1013,10 +937,9 @@ export class SDK {
             );
           });
 
-          // Debug: Log what we're deduplicating
           console.log(tag, `Filtering for blockchain: ${blockchain}`);
           console.log(tag, `Found ${filteredBalances.length} balances before deduplication`);
-          
+
           // Log each balance to see what's different
           filteredBalances.forEach((balance, idx) => {
             console.log(tag, `Balance[${idx}]:`, {
@@ -1029,7 +952,7 @@ export class SDK {
 
           // Deduplicate balances based on caip + pubkey combination
           const balanceMap = new Map();
-          
+
           // Special handling for Bitcoin to work around API bug
           const isBitcoin = blockchain.includes('bip122:000000000019d6689c085ae165831e93');
           if (isBitcoin) {
@@ -1043,13 +966,17 @@ export class SDK {
               }
               bitcoinByValue.get(valueKey).push(balance);
             });
-            
+
             // Check if all three address types have the same non-zero balance (API bug)
             for (const [valueKey, balances] of bitcoinByValue.entries()) {
               if (balances.length === 3 && parseFloat(balances[0].valueUsd || '0') > 0) {
-                console.log(tag, 'BITCOIN API BUG DETECTED: All 3 address types have same balance, keeping only xpub');
+                console.log(
+                  tag,
+                  'BITCOIN API BUG DETECTED: All 3 address types have same balance, keeping only xpub',
+                );
                 // Keep only the xpub (or first one if no xpub)
-                const xpubBalance = balances.find(b => b.pubkey?.startsWith('xpub')) || balances[0];
+                const xpubBalance =
+                  balances.find((b) => b.pubkey?.startsWith('xpub')) || balances[0];
                 const key = `${xpubBalance.caip}_${xpubBalance.pubkey || 'default'}`;
                 balanceMap.set(key, xpubBalance);
               } else {
@@ -1067,13 +994,14 @@ export class SDK {
               // Only keep the first occurrence or the one with higher value
               if (
                 !balanceMap.has(key) ||
-                parseFloat(balance.valueUsd || '0') > parseFloat(balanceMap.get(key).valueUsd || '0')
+                parseFloat(balance.valueUsd || '0') >
+                  parseFloat(balanceMap.get(key).valueUsd || '0')
               ) {
                 balanceMap.set(key, balance);
               }
             });
           }
-          
+
           const networkBalances = Array.from(balanceMap.values());
 
           console.log(tag, 'networkBalances (deduplicated): ', networkBalances);
@@ -1095,8 +1023,7 @@ export class SDK {
               '| running sum:',
               sum + valueUsd,
             );
-            
-            // Debug logging for Bitcoin balances
+
             if (blockchain.includes('bip122:000000000019d6689c085ae165831e93')) {
               console.log(
                 tag,
@@ -1178,7 +1105,6 @@ export class SDK {
       try {
         sendPayload.isMax = true;
         let unsignedTx = await this.buildTx(sendPayload);
-        //console.log('unsignedTx: ', unsignedTx);
       } catch (e) {
         console.error(e);
         throw e;
@@ -1198,7 +1124,6 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let unsignedTx = await txManager.transfer(sendPayload);
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
       } catch (e) {
         console.error(e);
@@ -1219,7 +1144,6 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let signedTx = await txManager.sign(unsignedTx);
-        //console.log(tag, 'signedTx: ', signedTx);
         return signedTx;
       } catch (e) {
         console.error(e);
@@ -1244,7 +1168,6 @@ export class SDK {
           serialized: signedTx,
         };
         let txid = await txManager.broadcast(payload);
-        console.log(tag, 'txid: ', txid);
         return txid;
       } catch (e) {
         console.error(e);
@@ -1261,17 +1184,9 @@ export class SDK {
           throw Error('amount required! Set either amount or isMax: true');
 
         //Set contexts
-        console.log(tag, 'Setting contexts for swap...');
-        console.log(tag, 'caipIn:', swapPayload.caipIn);
-        console.log(tag, 'caipOut:', swapPayload.caipOut);
 
         await this.setAssetContext({ caip: swapPayload.caipIn });
         await this.setOutboundAssetContext({ caip: swapPayload.caipOut });
-
-        console.log(tag, 'assetContext:', this.assetContext);
-        console.log(tag, 'outboundAssetContext:', this.outboundAssetContext);
-        //console.log(tag, 'assetContext: ', this.assetContext);
-        //console.log(tag, 'outboundAssetContext: ', this.outboundAssetContext);
 
         if (!this.assetContext || !this.assetContext.networkId)
           throw Error('Invalid networkId for assetContext');
@@ -1279,8 +1194,6 @@ export class SDK {
           throw Error('Invalid networkId for outboundAssetContext');
         if (!this.outboundAssetContext || !this.outboundAssetContext.address)
           throw Error('Invalid outboundAssetContext missing address');
-        //console.log(tag, 'assetContext networkId: ', this.assetContext.networkId);
-        //console.log(tag, 'outboundAssetContext  networkId: ', this.outboundAssetContext.networkId);
 
         //get quote
         // Quote fetching logic
@@ -1306,8 +1219,6 @@ export class SDK {
         const pubkeysOut = this.pubkeys.filter((e: any) =>
           matchesNetwork(e, this.outboundAssetContext.networkId),
         );
-        console.log(tag, 'pubkeysOut count:', pubkeysOut.length);
-        console.log(tag, 'pubkeysOut:', pubkeysOut);
 
         // Handle both regular addresses and xpubs for recipient
         let recipientAddress;
@@ -1393,15 +1304,11 @@ export class SDK {
           senderAddress, // Fill this based on your logic
           slippage: '3',
         };
-        console.log(tag, 'quote: ', quote);
-        console.log(tag, 'inputAmount:', inputAmount);
-        console.log(tag, 'sellAmount (after toPrecision):', inputAmount.toPrecision(8));
 
         let result: any;
         try {
           result = await this.pioneer.Quote(quote);
           result = result.data;
-          console.log(tag, 'result: ', result);
         } catch (e) {
           console.error(tag, 'Failed to get quote: ', e);
         }
@@ -1411,14 +1318,10 @@ export class SDK {
           );
         //TODO let user handle selecting quote?
         let selected = result[0];
-        //console.log('invocationId: ', invocationId);
-
-        //console.log('txs: ', selected.quote.txs);
         let txs = selected.quote.txs;
         if (!txs) throw Error('invalid quote!');
         for (let i = 0; i < txs.length; i++) {
           let tx = txs[i];
-          //console.log(tag, 'tx: ', tx);
           const transactionDependencies = {
             context: this.context,
             assetContext: this.assetContext,
@@ -1461,9 +1364,7 @@ export class SDK {
             //if isMax
             if (swapPayload.isMax) sendPayload.isMax = true;
 
-            console.log(tag, 'sendPayload: ', sendPayload);
             unsignedTx = await txManager.transfer(sendPayload);
-            console.log(tag, 'unsignedTx: ', unsignedTx);
           }
 
           return unsignedTx;
@@ -1493,13 +1394,10 @@ export class SDK {
           isMax: sendPayload.isMax,
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
-        //console.log(tag, 'sendPayload: ', sendPayload);
         let unsignedTx = await txManager.transfer(sendPayload);
-        //console.log(tag, 'unsignedTx: ', unsignedTx);
 
         // Sign the transaction
         let signedTx = await txManager.sign({ caip, unsignedTx });
-        //console.log(tag, 'signedTx: ', signedTx);
         if (!signedTx) throw Error('Failed to sign transaction!');
         // Broadcast the transaction
         let payload = {
@@ -1507,7 +1405,6 @@ export class SDK {
           serialized: signedTx,
         };
         let txid = await txManager.broadcast(payload);
-        //console.log(tag, 'txid: ', txid);
         return { txid, events: this.events };
       } catch (error: unknown) {
         if (error instanceof Error) {
@@ -1598,7 +1495,6 @@ export class SDK {
       const tag = `${TAG} | setBlockchains | `;
       try {
         if (!blockchains) throw Error('blockchains required!');
-        //log.debug('setBlockchains called! blockchains: ', blockchains);
 
         // Deduplicate blockchains array to prevent duplicate calculations
         const uniqueBlockchains = [...new Set(blockchains)];
@@ -1607,8 +1503,6 @@ export class SDK {
             tag,
             `Removed ${blockchains.length - uniqueBlockchains.length} duplicate blockchains`,
           );
-          console.log(tag, 'Original blockchains:', blockchains);
-          console.log(tag, 'Deduplicated blockchains:', uniqueBlockchains);
         }
 
         this.blockchains = uniqueBlockchains;
@@ -1625,11 +1519,8 @@ export class SDK {
         if (!caip) throw new Error('caip required!');
 
         let dataLocal = assetData[caip];
-        //console.log(tag, 'dataLocal: ', dataLocal);
         //get assetData from discover
         if (!dataLocal) {
-          //console.log(tag, 'dataLocal not found! caip: ', caip);
-          //console.log(tag, 'dataLocal not found! data: ', data);
           if (!data.networkId) throw new Error('networkId required! can not build asset');
           // if (!data.chart) throw new Error('chart required! can not build asset');
           // console.error(tag, '*** DISCOVERY *** ', data);
@@ -1653,7 +1544,6 @@ export class SDK {
 
           //post to pioneer-discovery
           // let resultSubmit = await this.pioneer.Discovery({asset})
-          // //console.log(tag, 'resultSubmit: ', resultSubmit);
 
           //set locally into assetMap
           // this.assetsMap.set(caip, asset);
@@ -1672,7 +1562,6 @@ export class SDK {
     this.clearWalletState = async function () {
       const tag = `${TAG} | clearWalletState | `;
       try {
-        // @ts-ignore
         this.context = null;
         // this.contextType = WalletOption.KEEPKEY;
         this.paths = [];
@@ -1701,14 +1590,12 @@ export class SDK {
         //get configured blockchains
         for (let i = 0; i < this.blockchains.length; i++) {
           let networkId = this.blockchains[i];
-          //console.log(tag, 'networkId: ', networkId);
           let caip = networkIdToCaip(networkId);
           //lookup in pioneerBlob
           let asset = await assetData[caip.toLowerCase()];
           if (asset) {
             asset.caip = caip.toLowerCase();
             asset.networkId = networkId;
-            //console.log(tag, 'asset: ', asset);
             this.assetsMap.set(caip, asset);
           } else {
             //Discovery
@@ -1752,10 +1639,6 @@ export class SDK {
     this.getPubkeys = async function () {
       const tag = `${TAG} | getPubkeys | `;
       try {
-        console.log('🚀 [DEBUG SDK] getPubkeys() starting with BATCH OPTIMIZATION...');
-        console.log('🚀 [DEBUG SDK] Paths length:', this.paths.length);
-        console.log('🚀 [DEBUG SDK] Blockchains length:', this.blockchains.length);
-
         if (this.paths.length === 0) throw new Error('No paths found!');
 
         // Use optimized batch fetching with individual fallback
@@ -1767,8 +1650,6 @@ export class SDK {
           getPubkey, // Pass the original getPubkey function for fallback
         );
 
-        console.log('🚀 [DEBUG SDK] Total pubkeys collected:', pubkeys.length);
-
         // Merge newly fetched pubkeys with existing ones using deduplication
         const beforeCount = this.pubkeys.length;
         const allPubkeys = [...this.pubkeys, ...pubkeys];
@@ -1778,14 +1659,7 @@ export class SDK {
         this.setPubkeys(dedupedPubkeys);
 
         const duplicatesRemoved = allPubkeys.length - this.pubkeys.length;
-        console.log('🚀 [DEBUG SDK] Final pubkeys array length:', this.pubkeys.length);
-        console.log('🚀 [DEBUG SDK] Added', this.pubkeys.length - beforeCount, 'new pubkeys');
         if (duplicatesRemoved > 0) {
-          console.log(
-            '🚀 [DEBUG SDK] Removed',
-            duplicatesRemoved,
-            'duplicate pubkeys during merge',
-          );
         }
 
         // Emit event to notify that pubkeys have been set
@@ -1793,7 +1667,7 @@ export class SDK {
 
         return pubkeys;
       } catch (error) {
-        console.error('🚀 [DEBUG SDK] ❌ Error in getPubkeys:', error);
+        console.error('Error in getPubkeys:', error);
         console.error(tag, 'Error in getPubkeys:', error);
         throw error;
       }
@@ -1837,28 +1711,18 @@ export class SDK {
           }
         }
 
-        //console.log(tag, 'assetQuery length: ', assetQuery.length);
         console.time('GetPortfolioBalances Response Time');
 
         try {
           let marketInfo = await this.pioneer.GetPortfolioBalances(assetQuery);
           console.timeEnd('GetPortfolioBalances Response Time');
 
-          //console.log(tag, 'returned balances: ', marketInfo.data);
           let balances = marketInfo.data;
-          
-          // DEBUG: Check Bitcoin balances from API
-          const bitcoinBalances = balances.filter((b: any) => 
-            b.caip === 'bip122:000000000019d6689c085ae165831e93/slip44:0'
+
+          const bitcoinBalances = balances.filter(
+            (b: any) => b.caip === 'bip122:000000000019d6689c085ae165831e93/slip44:0',
           );
           if (bitcoinBalances.length > 0) {
-            console.log('🚨 [BITCOIN API DEBUG] Raw API response for Bitcoin:');
-            bitcoinBalances.forEach((b: any, idx: number) => {
-              const pubkeyType = b.pubkey?.startsWith('xpub') ? 'xpub' : 
-                               b.pubkey?.startsWith('ypub') ? 'ypub' : 
-                               b.pubkey?.startsWith('zpub') ? 'zpub' : 'unknown';
-              console.log(`  [${idx}] ${pubkeyType}: balance=${b.balance}, valueUsd=${b.valueUsd}`);
-            });
           }
 
           // Enrich balances with asset info
@@ -1901,7 +1765,6 @@ export class SDK {
     this.getBalance = async function (networkId: string) {
       const tag = `${TAG} | getBalance | `;
       try {
-        //console.log(tag, 'networkId:', networkId);
         // If we need to handle special logic like eip155: inside getBalance,
         // we can do it here or just rely on getBalancesForNetworks to handle it.
         // For example:
@@ -1948,6 +1811,11 @@ export class SDK {
           ]),
         );
         console.log(tag, 'uniqueBalances: ', uniqueBalances);
+
+        // Convert Map back to array and set this.balances
+        this.balances = Array.from(uniqueBalances.values());
+        console.log(tag, 'Updated this.balances: ', this.balances);
+
         return this.balances;
       } catch (e) {
         console.error(tag, 'Error in getCharts:', e);

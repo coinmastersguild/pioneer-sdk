@@ -63,7 +63,6 @@ export class TransactionManager {
       let unsignedTx;
       switch (type) {
         case 'UTXO': {
-          //console.log(tag, 'UTXO transaction');
           unsignedTx = await createUnsignedUxtoTx(
             caip,
             to,
@@ -77,7 +76,6 @@ export class TransactionManager {
           break;
         }
         case 'TENDERMINT': {
-          //console.log(tag, 'Tendermint transaction');
           const txType = 'transfer';
           unsignedTx = await createUnsignedTendermintTx(
             caip,
@@ -93,7 +91,6 @@ export class TransactionManager {
           break;
         }
         case 'EIP155': {
-          //console.log(tag, 'EIP-155 transaction');
           unsignedTx = await createUnsignedEvmTx(
             caip,
             to,
@@ -107,7 +104,6 @@ export class TransactionManager {
           break;
         }
         case 'OTHER': {
-          //console.log(tag, 'Other transaction type');
           unsignedTx = await createUnsignedRippleTx(
             caip,
             to,
@@ -137,16 +133,12 @@ export class TransactionManager {
     try {
       if (!this.pioneer) throw Error('Failed to init! pioneer');
 
-      console.log(tag, '🔍 Debug - Starting signing process for CAIP:', caip);
-      console.log(tag, '🔍 Debug - UnsignedTx keys:', Object.keys(unsignedTx));
 
       const type = await this.classifyCaip(caip);
-      console.log(tag, '🔍 Debug - Classified type:', type);
       let signedTx: any;
 
       switch (type) {
         case 'UTXO': {
-          console.log(tag, '🔍 Debug - Processing UTXO transaction');
           const coin = CAIP_TO_COIN_MAP[caip];
           if (!coin) throw Error(`Unsupported UTXO coin type for CAIP: ${caip}`);
 
@@ -162,38 +154,8 @@ export class TransactionManager {
             signPayload.opReturnData = unsignedTx.memo;
           }
 
-          console.log(tag, '🔍 Debug - UTXO signPayload coin:', coin);
-          console.log(
-            tag,
-            '🔍 Debug - UTXO signPayload inputs length:',
-            signPayload.inputs?.length,
-          );
-          console.log(
-            tag,
-            '🔍 Debug - UTXO signPayload outputs length:',
-            signPayload.outputs?.length,
-          );
-
           const responseSign = await this.keepKeySdk.utxo.utxoSignTransaction(signPayload);
-          console.log(tag, '🔍 Debug - UTXO responseSign responseSign:', responseSign);
-          console.log(
-            tag,
-            '🔍 Debug - UTXO responseSign full object:',
-            JSON.stringify(responseSign, null, 2),
-          );
-          console.log(
-            tag,
-            '🔍 Debug - UTXO responseSign.serializedTx raw value:',
-            responseSign?.serializedTx,
-          );
-          console.log(
-            tag,
-            '🔍 Debug - UTXO responseSign.serializedTx type:',
-            typeof responseSign?.serializedTx,
-          );
-
           signedTx = responseSign.serializedTx;
-          console.log(tag, '🔍 Debug - UTXO signedTx assigned:', signedTx);
           break;
         }
         case 'TENDERMINT': {
@@ -201,40 +163,25 @@ export class TransactionManager {
             case 'cosmos:cosmoshub-4/slip44:118': {
               const msgType = unsignedTx.signDoc.msgs[0].type;
               if (msgType === 'cosmos-sdk/MsgSend') {
-                //console.log(tag, 'transfer:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.cosmos.cosmosSignAmino(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgDelegate') {
-                //console.log(tag, 'delegate:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.cosmos.cosmosSignAminoDelegate(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgUndelegate') {
-                //console.log(tag, 'undelegate:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.cosmos.cosmosSignAminoUndelegate(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgBeginRedelegate') {
-                //console.log(tag, 'redelegate:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.cosmos.cosmosSignAminoRedelegate(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgWithdrawDelegationReward') {
-                //console.log(tag, 'claim rewards:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.cosmos.cosmosSignAminoWithdrawDelegatorRewardsAll(
                     unsignedTx,
                   );
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(`Unsupported CosmosHub message type: ${msgType}`);
@@ -242,43 +189,27 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:osmosis-1/slip44:118': {
-              //console.log(tag, 'Osmosis transaction');
               const msgType = unsignedTx.signDoc.msgs[0].type;
               if (msgType === 'cosmos-sdk/MsgSend') {
-                //console.log(tag, 'osmosis transfer:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign = await this.keepKeySdk.osmosis.osmosisSignAmino(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgDelegate') {
-                //console.log(tag, 'osmosis delegate:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.osmosis.osmoSignAminoDelegate(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgUndelegate') {
-                //console.log(tag, 'osmosis undelegate:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.osmosis.osmoSignAminoUndelegate(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgBeginRedelegate') {
-                //console.log(tag, 'osmosis redelegate:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.osmosis.osmoSignAminoRedelegate(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (msgType === 'cosmos-sdk/MsgWithdrawDelegationReward') {
-                //console.log(tag, 'osmosis claim rewards:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.osmosis.osmoSignAminoWithdrawDelegatorRewardsAll(
                     unsignedTx,
                   );
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(`Unsupported Osmosis message type: ${msgType}`);
@@ -286,47 +217,30 @@ export class TransactionManager {
               break;
             }
             case 'cosmos:thorchain-mainnet-v1/slip44:931': {
-              //console.log(tag, 'Thorchain transaction');
-              //transfer
               if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgSend') {
-                //console.log(tag, 'MsgSend:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoTransfer(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (unsignedTx.signDoc.msgs[0].type === 'thorchain/MsgDeposit') {
-                //console.log(tag, 'MsgDeposit:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.thorchain.thorchainSignAminoDeposit(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
                   `Unsupported Thorchain message type: ${unsignedTx.signDoc.msgs[0].type}`,
                 );
               }
-              //deposit
               break;
             }
-            case 'cosmos:mayachain-mainnet-v1/slip44:931': // CACAO (native)
+            case 'cosmos:mayachain-mainnet-v1/slip44:931':
             case 'cosmos:mayachain-mainnet-v1/denom:maya': {
-              // MAYA token
-              //console.log(tag, ' mayachain tx detected! ');
               if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgSend') {
-                //console.log(tag, 'transfer:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.mayachain.mayachainSignAminoTransfer(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgDeposit') {
-                //console.log(tag, 'transfer:');
-                //console.log(tag, 'unsignedTx:', JSON.stringify(unsignedTx));
                 const responseSign =
                   await this.keepKeySdk.mayachain.mayachainSignAminoDeposit(unsignedTx);
-                //console.log(tag, 'responseSign:', responseSign);
                 signedTx = responseSign.serialized;
               } else {
                 throw new Error(
@@ -342,35 +256,16 @@ export class TransactionManager {
           break;
         }
         case 'EIP155': {
-          console.log(tag, '🔍 Debug - Processing EIP155 transaction');
-          console.log(tag, '🔍 Debug - EIP155 unsignedTx structure:', {
-            chainId: unsignedTx.chainId,
-            nonce: unsignedTx.nonce,
-            gas: unsignedTx.gas,
-            gasPrice: unsignedTx.gasPrice,
-            to: unsignedTx.to,
-            value: unsignedTx.value,
-            data: unsignedTx.data,
-          });
 
           const responseSign = await this.keepKeySdk.eth.ethSignTransaction(unsignedTx);
-          console.log(tag, '🔍 Debug - EIP155 responseSign keys:', Object.keys(responseSign || {}));
-          console.log(tag, '🔍 Debug - EIP155 responseSign structure:', responseSign);
-
-          // Check if we have the signature components
           if (responseSign?.serialized) {
-            // Fallback to using serialized if it exists and looks like a full transaction
             const serialized = responseSign.serialized;
-            // Check if it's a full transaction (should start with 0x and be much longer than just signature)
             if (serialized.length > 140) {
-              // A signature alone is ~130 chars, full tx is much longer
-              console.log(tag, '🔍 Debug - Using responseSign.serialized as full transaction');
               signedTx = serialized;
             } else {
-              // It's likely just the signature, need to reconstruct
               console.error(
                 tag,
-                '🚨 EIP155 signing returned incomplete transaction - only signature components',
+                'EIP155 signing returned incomplete transaction - only signature components',
               );
               throw new Error(
                 'KeepKey returned incomplete transaction - cannot reconstruct without r,s,v components',
@@ -379,35 +274,17 @@ export class TransactionManager {
           } else {
             console.error(
               tag,
-              '🚨 EIP155 signing failed - no valid signature in response:',
+              'EIP155 signing failed - no valid signature in response:',
               responseSign,
             );
             throw new Error('Failed to sign transaction - no valid signature in response');
           }
-
-          console.log(tag, '🔍 Debug - EIP155 signedTx assigned:', !!signedTx);
-          console.log(tag, '🔍 Debug - EIP155 signedTx length:', signedTx?.length);
           break;
         }
         case 'OTHER': {
-          //console.log(tag, 'OTHER: ', caip);
           if (caip === 'ripple:4109c6f2045fc7eff4cde8f9905d19c2/slip44:144') {
-            //console.log(tag, 'unsignedTx: ', JSON.stringify(unsignedTx));
             let responseSign = await this.keepKeySdk.xrp.xrpSignTransaction(unsignedTx);
-            //console.log(tag, 'responseSign: ', responseSign);
             if (typeof responseSign === 'string') responseSign = JSON.parse(responseSign);
-            //console.log(tag, 'responseSign.value: ', responseSign.value);
-            //console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures);
-            //console.log(tag, 'responseSign.value.signatures: ', responseSign.value.signatures[0]);
-            /* Old debug code commented out
-            //console.log(
-              tag,
-              'responseSign.value.signatures: ',
-              responseSign.value.signatures[0].serializedTx,
-            );
-            */
-
-            // Access serializedTx from signatures array
             signedTx = responseSign.value.signatures[0].serializedTx;
           } else {
             throw new Error(`Unsupported OTHER CAIP: ${caip}`);
@@ -419,18 +296,10 @@ export class TransactionManager {
         }
       }
 
-      console.log(tag, '🔍 Debug - Final signedTx check - exists:', !!signedTx);
-      console.log(tag, '🔍 Debug - Final signedTx type:', typeof signedTx);
-      console.log(
-        tag,
-        '🔍 Debug - Final signedTx length/keys:',
-        signedTx?.length || Object.keys(signedTx || {}).length,
-      );
-
       if (!signedTx) {
-        console.error(tag, '🚨 CRITICAL ERROR: signedTx is missing after signing process');
-        console.error(tag, '🚨 CAIP:', caip);
-        console.error(tag, '🚨 Type:', type);
+        console.error(tag, 'CRITICAL ERROR: signedTx is missing after signing process');
+        console.error(tag, 'CAIP:', caip);
+        console.error(tag, 'Type:', type);
         throw Error('Failed to sign! missing signedTx');
       }
       return signedTx;
@@ -447,7 +316,6 @@ export class TransactionManager {
       if (!serialized) throw Error('Failed to broadcast! missing serialized2');
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
-      console.log(tag, 'result:', result);
       if (result.error) {
         return result;
       } else {

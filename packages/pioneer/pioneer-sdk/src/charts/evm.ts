@@ -90,6 +90,10 @@ function processPortfolioBalance(
   // with regular balance fetching which uses the API's balance.pubkey value.
   const balancePubkey = balance.pubkey || primaryAddress;
   
+  // Determine if this is a token balance
+  const balanceType = assetInfo?.type || balance.type || 'native';
+  const isToken = balanceType !== 'native' && balance.caip.includes('/erc20:');
+  
   const chartBalance: ChartBalance = {
     context,
     chart: 'pioneer',
@@ -104,7 +108,8 @@ function processPortfolioBalance(
     networkId,
     chain: networkId,
     symbol: assetInfo?.symbol || balance.symbol || 'UNK',
-    type: assetInfo?.type || balance.type || 'native',
+    type: balanceType,
+    token: isToken,
     decimal: assetInfo?.decimal || balance.decimal,
     balance: balance.balance.toString(),
     priceUsd: 0,
@@ -170,6 +175,7 @@ function processPortfolioToken(
     networkId: extractedNetworkId,
     symbol: tokenAssetInfo?.symbol || token.token?.symbol || 'UNK',
     type: tokenAssetInfo?.type || 'token',
+    token: true,  // Tokens from portfolio.tokens are always tokens
     decimal: tokenAssetInfo?.decimal || token.token?.decimal,
     balance: token.token?.balance?.toString() || '0',
     priceUsd: token.token?.price || 0,

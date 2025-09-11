@@ -13,6 +13,7 @@ export interface ChartBalance {
   chain?: string;
   symbol: string;
   type: string;
+  token?: boolean;  // Indicates if this is a token balance
   decimal?: number;
   balance: string;
   priceUsd: number;

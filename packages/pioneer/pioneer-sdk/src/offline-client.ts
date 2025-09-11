@@ -1,5 +1,4 @@
 // Offline-first client for KeepKey Vault integration
-// This client prioritizes cached data and enables sub-200ms startup times
 
 const TAG = ' | offline-client | ';
 
@@ -62,12 +61,11 @@ export class OfflineClient {
   }
 
   /**
-   * Fast health check with caching to avoid repeated calls
+   * Fast health check with caching
    */
   async checkVaultHealth(forceRefresh = false): Promise<boolean> {
     const now = Date.now();
     
-    // Use cached result if recent
     if (!forceRefresh && (now - this.lastHealthCheck) < this.healthCheckCacheMs) {
       return this.isVaultAvailable;
     }
@@ -76,7 +74,6 @@ export class OfflineClient {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
-      console.log('🔍 [OFFLINE CLIENT] Checking vault health...');
       const response = await fetch(`${this.config.vaultUrl}/api/v1/health/fast`, {
         method: 'GET',
         signal: controller.signal,
@@ -92,21 +89,13 @@ export class OfflineClient {
         this.isVaultAvailable = health.status === 'healthy';
         this.lastHealthCheck = now;
         
-        console.log('✅ [OFFLINE CLIENT] Vault health check successful:', {
-          status: health.status,
-          device_connected: health.device_connected,
-          response_time: health.response_time_ms + 'ms'
-        });
-        
         return this.isVaultAvailable;
       } else {
-        console.log('❌ [OFFLINE CLIENT] Vault health check failed:', response.status);
         this.isVaultAvailable = false;
         return false;
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      console.log('⚠️ [OFFLINE CLIENT] Vault not available:', error);
       this.isVaultAvailable = false;
       this.lastHealthCheck = now;
       return false;
@@ -114,7 +103,7 @@ export class OfflineClient {
   }
 
   /**
-   * Get complete wallet bootstrap data in a single call
+   * Get complete wallet bootstrap data
    */
   async getWalletBootstrap(paths: string[], includeOptions = {
     pubkeys: true,
@@ -122,14 +111,8 @@ export class OfflineClient {
     balances: true,
     transactions: false
   }): Promise<BootstrapResponse | null> {
-    
-    const tag = TAG + 'getWalletBootstrap';
-    console.log(`🚀 [OFFLINE CLIENT] Requesting bootstrap for ${paths.length} paths`);
-
-    // Check if vault is available
     const isAvailable = await this.checkVaultHealth();
     if (!isAvailable) {
-      console.log('⚠️ [OFFLINE CLIENT] Vault unavailable, cannot get bootstrap data');
       return null;
     }
 
@@ -140,7 +123,7 @@ export class OfflineClient {
     };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout * 2); // Double timeout for bootstrap
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout * 2);
 
     try {
       const startTime = performance.now();
@@ -161,21 +144,10 @@ export class OfflineClient {
       }
 
       const bootstrap: BootstrapResponse = await response.json();
-      const totalTime = performance.now() - startTime;
-
-      console.log('✅ [OFFLINE CLIENT] Bootstrap successful:', {
-        total_paths: bootstrap.cache_status.total_requested,
-        cache_hits: bootstrap.cache_status.cache_hits,
-        cache_misses: bootstrap.cache_status.cache_misses,
-        cache_hit_rate: Math.round((bootstrap.cache_status.cache_hits / bootstrap.cache_status.total_requested) * 100) + '%',
-        vault_response_time: bootstrap.response_time_ms + 'ms',
-        total_time: Math.round(totalTime) + 'ms'
-      });
 
       return bootstrap;
     } catch (error) {
       clearTimeout(timeoutId);
-      console.error('❌ [OFFLINE CLIENT] Bootstrap failed:', error);
       return null;
     }
   }
@@ -190,7 +162,6 @@ export class OfflineClient {
       const addressData = bootstrap.data.addresses[path];
       const balanceData = bootstrap.data.balances[path];
       
-      // Convert to pioneer-sdk pubkey format
       const pubkey = {
         pubkey: pubkeyData.pubkey,
         address: addressData?.address || '',
@@ -206,7 +177,6 @@ export class OfflineClient {
       pubkeys.push(pubkey);
     }
     
-    console.log(`🔄 [OFFLINE CLIENT] Converted ${pubkeys.length} pubkeys from bootstrap`);
     return pubkeys;
   }
 
@@ -214,13 +184,10 @@ export class OfflineClient {
    * Get network identifiers for a BIP32 path
    */
   private getNetworksForPath(path: string): string[] {
-    // Parse BIP44 path to determine network
     const parts = path.split('/');
     if (parts.length < 3) return ['bitcoin'];
     
     const coinType = parts[2].replace("'", "");
-    
-    // Map coin types to network IDs
     const coinTypeMap: Record<string, string[]> = {
       '0': ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin
       '1': ['bip122:000000000019d6689c085ae165831e93'], // Bitcoin testnet
@@ -237,21 +204,15 @@ export class OfflineClient {
   }
 
   /**
-   * Initialize offline mode - get cached data immediately
+   * Initialize offline mode
    */
   async initOffline(paths: string[]): Promise<{ pubkeys: any[], balances: any[], cached: boolean }> {
-    console.log('🚀 [OFFLINE CLIENT] Starting offline initialization...');
     const startTime = performance.now();
-    
-    // First, try to get bootstrap data from vault
     const bootstrap = await this.getWalletBootstrap(paths);
     
     if (bootstrap) {
       const pubkeys = this.convertBootstrapToPubkeys(bootstrap);
       const balances = this.extractBalancesFromBootstrap(bootstrap);
-      
-      const totalTime = performance.now() - startTime;
-      console.log(`✅ [OFFLINE CLIENT] Offline init complete in ${Math.round(totalTime)}ms`);
       
       return {
         pubkeys,
@@ -260,8 +221,6 @@ export class OfflineClient {
       };
     }
     
-    // Fallback to empty data if vault unavailable
-    console.log('⚠️ [OFFLINE CLIENT] No cached data available, returning empty state');
     return {
       pubkeys: [],
       balances: [],
@@ -307,13 +266,10 @@ export class OfflineClient {
   }
 
   /**
-   * Background sync - update cache without blocking
+   * Background sync
    */
   async backgroundSync(paths: string[]): Promise<void> {
-    console.log('🔄 [OFFLINE CLIENT] Starting background sync...');
-    
     try {
-      // Force refresh to get latest data
       const bootstrap = await this.getWalletBootstrap(paths, {
         pubkeys: true,
         addresses: true,
@@ -322,11 +278,10 @@ export class OfflineClient {
       });
       
       if (bootstrap) {
-        console.log('✅ [OFFLINE CLIENT] Background sync completed');
         // TODO: Emit events for updated data
       }
     } catch (error) {
-      console.error('❌ [OFFLINE CLIENT] Background sync failed:', error);
+      // Silent error handling
     }
   }
 } 
