@@ -524,12 +524,34 @@ const test_service = async function (this: any) {
 
             // For ETH, use sendMax to avoid balance/fee calculation issues
             const isEth = testCaip.includes('slip44:60');
-            const sendPayload = {
+            const isBitcoin = testCaip.includes('bip122:000000000019d6689c085ae165831e93');
+
+            // Test different change script type scenarios for Bitcoin
+            let changeScriptPreference: string | undefined = undefined; // Default behavior
+
+            // Test all script types - if backend doesn't respect preference, we FAIL FAST
+            if (isBitcoin) {
+                // Test rotation through all script types to verify backend respects preferences
+                const testScenarios = ['default', 'p2pkh', 'p2sh-p2wpkh', 'p2wpkh'];
+                const scenarioIndex = Math.floor(Date.now() / 10000) % testScenarios.length;
+                const scenario = testScenarios[scenarioIndex];
+
+                if (scenario !== 'default') {
+                    changeScriptPreference = scenario;
+                    log.info(tag, `🔧 Testing override: changeScriptType = ${changeScriptPreference}`);
+                    log.info(tag, `⚠️ Backend MUST respect this preference or transaction will be aborted`);
+                } else {
+                    log.info(tag, `🔧 Testing default behavior (no changeScriptType specified)`);
+                }
+            }
+
+            const sendPayload: any = {
                 caip: testCaip,
                 isMax: isEth, // Use sendMax for ETH to simplify fee calculation
                 to: FAUCET_ADDRESS,
                 amount: isEth ? balance : TEST_AMOUNT, // For sendMax, amount is ignored but we provide balance
-                feeLevel: 5 // Options
+                feeLevel: 5, // Options
+                ...(changeScriptPreference && { changeScriptType: changeScriptPreference }) // Only add if defined
             };
             log.info('sendPayload: ',sendPayload);
 
@@ -575,42 +597,132 @@ const test_service = async function (this: any) {
 
               let changeInfo = unsignedTx.outputs[1]
 
-              // Convert addressNlist to BIP32 path format using the imported function
-              // addressNlist is an array like [84, 0x80000000, 0x80000000, 1, index]
+              // Convert addressNList to BIP32 path format using the imported function
+              // addressNList is an array like [84, 0x80000000, 0x80000000, 1, index]
               // Converts to string like "m/84'/0'/0'/1/index"
-              let changePath = addressNListToBIP32(changeInfo.addressNlist);
+              let changePath = addressNListToBIP32(changeInfo.addressNList);
               log.info(tag, 'changePath: ', changePath);
-              log.info(tag, 'scriptType: ', unsignedTx.scriptType);
 
-              // Get index from path (last element of addressNlist)
-              let changeIndex = changeInfo.addressNlist[changeInfo.addressNlist.length - 1] & 0x7fffffff; // Remove hardened flag if present
+              // CRITICAL: Get scriptType from the change output itself, NOT from unsignedTx
+              let changeScriptType = changeInfo.scriptType;
+              log.info(tag, 'changeScriptType from output: ', changeScriptType);
+              log.info(tag, 'unsignedTx.scriptType (undefined?): ', unsignedTx.scriptType);
+
+              // Check if preference was respected - FAIL FAST on mismatch
+              if (sendPayload.changeScriptType) {
+                if (changeScriptType === sendPayload.changeScriptType) {
+                  log.info(tag, `✅ Change script type preference respected: ${sendPayload.changeScriptType}`);
+                } else {
+                  log.error(tag, `❌ CRITICAL: Change script type mismatch!`);
+                  log.error(tag, `   Requested: ${sendPayload.changeScriptType}`);
+                  log.error(tag, `   Got: ${changeScriptType}`);
+                  log.error(tag, `   This could result in funds going to unexpected address type!`);
+
+                  // FAIL FAST - Stop the transaction immediately
+                  throw new Error(`CRITICAL: Change script type mismatch! Requested ${sendPayload.changeScriptType} but got ${changeScriptType}. Transaction aborted for safety.`);
+                }
+              } else {
+                log.info(tag, `📝 No change script type preference specified, using: ${changeScriptType}`);
+                // Check if default (p2wpkh) was used
+                if (changeScriptType === 'p2wpkh') {
+                  log.info(tag, `✅ Default to native segwit (p2wpkh) for lower fees`);
+                } else {
+                  log.info(tag, `⚠️ Not using default p2wpkh, using ${changeScriptType} instead`);
+                }
+              }
+
+              // Get index from path (last element of addressNList)
+              let changeIndex = changeInfo.addressNList[changeInfo.addressNList.length - 1] & 0x7fffffff; // Remove hardened flag if present
               log.info(tag, 'changeIndex: ', changeIndex);
 
               // Lookup xpub for the specific script type
-              // Filter pubkeys for Bitcoin and the specific script type
+              // MUST use the scriptType from the change output, not unsignedTx!
               let xpubsForScriptType = app.pubkeys.filter((pubkey: any) => {
                 return pubkey.networks?.includes('bip122:000000000019d6689c085ae165831e93') && // Bitcoin network
-                       pubkey.script_type === unsignedTx.scriptType; // Match script type (p2pkh, p2wpkh, p2sh-p2wpkh)
+                       pubkey.scriptType === changeScriptType; // Match script type from change output
               });
 
               if (xpubsForScriptType.length === 0) {
-                log.error(tag, `No xpub found for script type: ${unsignedTx.scriptType}`);
+                log.error(tag, `❌ CRITICAL: No xpub found for script type: ${changeScriptType}`);
+                log.error(tag, '⚠️ This is the exact bug we were worried about!');
+                log.error(tag, `Change output wants ${changeScriptType} but no matching xpub found`);
+
+                // FAIL FAST - This is a critical error that would result in lost funds
+                throw new Error(`CRITICAL: No xpub found for script type ${changeScriptType}. Cannot derive change address safely. Transaction aborted.`);
               } else {
-                log.info(tag, `Found ${xpubsForScriptType.length} xpub(s) for script type ${unsignedTx.scriptType}`);
+                log.info(tag, `✅ Found ${xpubsForScriptType.length} xpub(s) for script type ${changeScriptType}`);
 
                 // Get the first matching xpub (usually there's only one per script type)
                 let xpubChange = xpubsForScriptType[0];
-                log.info(tag, 'xpubChange: ', xpubChange);
+                log.info(tag, 'Correct xpubChange: ', xpubChange);
 
-                // Verify the address index from the xpub
-                if (xpubChange.addressIndex) {
-                  log.info(tag, `Current addressIndex for ${unsignedTx.scriptType}: ${xpubChange.addressIndex}`);
+                // Dynamically look up the current change address index from Pioneer API
+                try {
+                  log.info(tag, `🔍 Looking up current change address index for ${changeScriptType}...`);
+
+                  // Get the current change address index from the backend
+                  let changeAddressResponse = await app.pioneer.GetChangeAddress({
+                    network: 'BTC',
+                    xpub: xpubChange.pubkey || xpubChange.xpub
+                  });
+
+                  // log.info(tag, 'GetChangeAddress response: ', changeAddressResponse);
+
+                  // Extract the change index from the response (following the reference pattern)
+                  let currentChangeIndex = changeAddressResponse?.data?.changeIndex;
+
+                  if (currentChangeIndex === undefined || currentChangeIndex === null) {
+                    log.error(tag, `❌ CRITICAL: Could not get change address index from Pioneer API!`);
+                    log.error(tag, `   Response: ${JSON.stringify(changeAddressResponse)}`);
+                    throw new Error(`CRITICAL: Failed to get change address index for ${changeScriptType}. Cannot verify gap limit safety.`);
+                  }
+
+                  log.info(tag, `Current change address index for ${changeScriptType}: ${currentChangeIndex}`);
 
                   // Check if changeIndex is within reasonable bounds
-                  if (changeIndex > xpubChange.addressIndex + 20) {
-                    log.warn(tag, `⚠️ WARNING: Change index ${changeIndex} is beyond gap limit for ${unsignedTx.scriptType}!`);
-                    log.warn(tag, `Current addressIndex: ${xpubChange.addressIndex}, Gap limit typically 20`);
-                    log.warn(tag, 'This could result in "lost" funds that require manual recovery!');
+                  const GAP_LIMIT = 20; // Bitcoin standard gap limit
+
+                  // The change index from the transaction should be close to the current index
+                  if (changeIndex > currentChangeIndex + GAP_LIMIT) {
+                    log.error(tag, `❌ CRITICAL: Change index beyond gap limit!`);
+                    log.error(tag, `   Transaction change index: ${changeIndex}`);
+                    log.error(tag, `   Current change index: ${currentChangeIndex}`);
+                    log.error(tag, `   Gap limit: ${GAP_LIMIT}`);
+                    log.error(tag, `   This would result in "lost" funds that require manual recovery!`);
+
+                    // FAIL FAST - Prevent funds from going to addresses beyond gap limit
+                    throw new Error(`CRITICAL: Change index ${changeIndex} exceeds gap limit (current: ${currentChangeIndex} + gap: ${GAP_LIMIT}). Transaction aborted to prevent fund loss.`);
+                  } else if (changeIndex < currentChangeIndex) {
+                    log.warn(tag, `⚠️ WARNING: Change index ${changeIndex} is less than current index ${currentChangeIndex}`);
+                    log.warn(tag, `   This might be reusing an old change address`);
+                  } else {
+                    log.info(tag, `✅ Change index ${changeIndex} is within safe bounds (current: ${currentChangeIndex}, gap: ${GAP_LIMIT})`);
+                  }
+
+                } catch (error) {
+                  log.error(tag, `❌ CRITICAL: Failed to verify change address index!`);
+                  log.error(tag, `   Error: ${error}`);
+
+                  // FAIL FAST - Cannot proceed without ability to verify gap limit
+                  throw new Error(`CRITICAL: Cannot verify change address index for ${changeScriptType}. ${error}. Transaction aborted.`);
+                }
+
+                // Try to derive the actual change address
+                if (app.pioneer && app.pioneer.GetAddress) {
+                  try {
+                    log.info(tag, '🔍 Attempting to derive the actual change address...');
+                    let changeAddress = await app.pioneer.GetAddress({
+                      addressNList: changeInfo.addressNList,
+                      coin: 'Bitcoin',
+                      scriptType: changeScriptType,
+                      showDisplay: false
+                    });
+                    log.info(tag, `💰 ACTUAL CHANGE ADDRESS: ${changeAddress}`);
+                    log.info(tag, `📍 Change path: ${changePath}`);
+                    log.info(tag, `📝 Script type: ${changeScriptType}`);
+                    log.info(tag, `💵 Amount returning to wallet: ${changeInfo.amount} satoshis`);
+                  } catch (error) {
+                    log.error(tag, 'Could not derive change address: ', error);
                   }
                 }
 
@@ -619,8 +731,8 @@ const test_service = async function (this: any) {
                   try {
                     let addressInfo = await app.pioneer.GetPubkeyInfo({
                       pubkey: xpubChange.pubkey || xpubChange.xpub,
-                      script_type: unsignedTx.scriptType,
-                      address_n: changeInfo.addressNlist
+                      script_type: changeScriptType,
+                      address_n: changeInfo.addressNList
                     });
                     log.info(tag, 'addressInfo from GetPubkeyInfo: ', addressInfo);
                   } catch (error) {

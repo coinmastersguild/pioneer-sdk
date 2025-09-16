@@ -14,6 +14,7 @@ export async function createUnsignedUxtoTx(
   keepKeySdk: any,
   isMax: boolean, // Added isMax parameter
   feeLevel: number = 5, // Added feeLevel parameter with default of 5 (average)
+  changeScriptType?: string, // Added changeScriptType parameter for user preference
 ): Promise<any> {
   let tag = ' | createUnsignedUxtoTx | ';
 
@@ -21,16 +22,16 @@ export async function createUnsignedUxtoTx(
     if (!pioneer) throw Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    
+
     // Auto-correct context if wrong network
     if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
-      keepKeySdk.pubkeyContext = pubkeys.find(pk => 
-        pk.networks?.includes(networkId)
-      );
+      keepKeySdk.pubkeyContext = pubkeys.find((pk) => pk.networks?.includes(networkId));
     }
-    
+
     // For UTXO, we still need all relevant pubkeys to aggregate UTXOs
-    const relevantPubkeys = pubkeys.filter((e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId));
+    const relevantPubkeys = pubkeys.filter(
+      (e) => e.networks && Array.isArray(e.networks) && e.networks.includes(networkId),
+    );
 
     const segwitNetworks = [
       'bip122:000000000019d6689c085ae165831e93', // Bitcoin Mainnet
@@ -42,36 +43,78 @@ export async function createUnsignedUxtoTx(
 
     let chain = NetworkIdToChain[networkId];
 
+    // Determine the change script type - use preference or default to first available
+    const actualChangeScriptType = changeScriptType || relevantPubkeys[0].scriptType || 'p2wpkh';
+    console.log(`${tag}: Using change script type: ${actualChangeScriptType}`);
+
+    // Find the xpub that matches the desired script type
+    const changeXpub = relevantPubkeys.find(pk => pk.scriptType === actualChangeScriptType)?.pubkey
+      || relevantPubkeys.find(pk => pk.scriptType === 'p2wpkh')?.pubkey // Fall back to native segwit
+      || relevantPubkeys[0].pubkey; // Last resort: use first available
+
+    console.log(`${tag}: Change xpub selected for ${actualChangeScriptType}:`, changeXpub?.substring(0, 10) + '...');
+
     let changeAddressIndex = await pioneer.GetChangeAddress({
       network: chain,
-      xpub: relevantPubkeys[0].pubkey || relevantPubkeys[0].xpub,
+      xpub: changeXpub,
     });
     changeAddressIndex = changeAddressIndex.data.changeIndex;
 
-    const path = DerivationPath[chain].replace('/0/0', `/1/${changeAddressIndex}`);
+    // Determine BIP path based on script type
+    let bipPath: string;
+    switch (actualChangeScriptType) {
+      case 'p2pkh':
+        bipPath = `m/44'/0'/0'/1/${changeAddressIndex}`; // BIP44 for legacy
+        break;
+      case 'p2sh-p2wpkh':
+        bipPath = `m/49'/0'/0'/1/${changeAddressIndex}`; // BIP49 for wrapped segwit
+        break;
+      case 'p2wpkh':
+      default:
+        bipPath = `m/84'/0'/0'/1/${changeAddressIndex}`; // BIP84 for native segwit
+        break;
+    }
+
+    const path = bipPath;
+    console.log(`${tag}: Change address path: ${path} (index: ${changeAddressIndex})`);
 
     const changeAddress = {
       path: path,
       isChange: true,
       index: changeAddressIndex,
       addressNList: bip32ToAddressNList(path),
+      scriptType: actualChangeScriptType, // Store the script type with the change address
     };
 
     const utxos: any[] = [];
     for (const pubkey of relevantPubkeys) {
       //console.log('pubkey: ',pubkey)
-      let utxosResp = await pioneer.ListUnspent({ network: chain, xpub: pubkey.pubkey });
-      utxosResp = utxosResp.data;
-      //console.log('utxosResp: ',utxosResp)
-      //classify scriptType
-      let scriptType = pubkey.scriptType
-      // Assign the scriptType to each UTXO in the array
-      for (const u of utxosResp) {
-        u.scriptType = scriptType;
+      try {
+        let utxosResp = await pioneer.ListUnspent({ network: chain, xpub: pubkey.pubkey });
+        utxosResp = utxosResp.data;
+        console.log(`${tag}: ListUnspent response for ${pubkey.scriptType}:`, utxosResp?.length || 0, 'UTXOs');
+
+        // Validate the response
+        if (!utxosResp || !Array.isArray(utxosResp)) {
+          console.warn(`${tag}: Invalid or empty UTXO response for ${pubkey.pubkey}`);
+          continue;
+        }
+
+        //classify scriptType
+        let scriptType = pubkey.scriptType;
+        // Assign the scriptType to each UTXO in the array
+        for (const u of utxosResp) {
+          u.scriptType = scriptType;
+        }
+        utxos.push(...utxosResp);
+      } catch (error) {
+        console.error(`${tag}: Failed to fetch UTXOs for ${pubkey.pubkey}:`, error);
+        // Continue to next pubkey instead of failing entirely
       }
-      utxos.push(...utxosResp);
     }
-    if (!utxos || utxos.length === 0) throw Error('No UTXOs found');
+
+    console.log(`${tag}: Total UTXOs collected:`, utxos.length);
+    if (!utxos || utxos.length === 0) throw Error('No UTXOs found across all addresses');
 
     for (const utxo of utxos) {
       utxo.value = Number(utxo.value);
@@ -102,16 +145,23 @@ export async function createUnsignedUxtoTx(
         slow: feeRateFromNode.slow,
         average: feeRateFromNode.average,
         fast: feeRateFromNode.fast,
-        fastest: feeRateFromNode.fastest
+        fastest: feeRateFromNode.fastest,
       });
 
       // Check that we have at least one fee rate
-      if (!feeRateFromNode.slow && !feeRateFromNode.average && !feeRateFromNode.fast && !feeRateFromNode.fastest) {
+      if (
+        !feeRateFromNode.slow &&
+        !feeRateFromNode.average &&
+        !feeRateFromNode.fast &&
+        !feeRateFromNode.fastest
+      ) {
         throw new Error(`No valid fee rates in API response: ${JSON.stringify(feeRateFromNode)}`);
       }
     } catch (error: any) {
       console.error(`${tag}: Failed to get fee rates from Pioneer API:`, error.message || error);
-      throw new Error(`Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`);
+      throw new Error(
+        `Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`,
+      );
     }
 
     // Map fee level to fee rate (1,2,3 = slow, 4 = average, 5 = fastest)
@@ -143,7 +193,7 @@ export async function createUnsignedUxtoTx(
     console.log(`${tag}: Using fee rate from API:`, {
       feeLevel,
       selectedRate: effectiveFeeRate,
-      description: feeLevel <= 3 ? 'slow' : feeLevel === 4 ? 'average' : 'fast'
+      description: feeLevel <= 3 ? 'slow' : feeLevel === 4 ? 'average' : 'fast',
     });
 
     // Only enforce minimum for safety if fee is 0 or negative
@@ -155,6 +205,16 @@ export async function createUnsignedUxtoTx(
     amount = parseInt(String(amount * 1e8));
     if (amount <= 0 && !isMax) throw Error('Invalid amount! 0');
 
+    // Log UTXOs before coin selection for debugging
+    const totalBalance = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
+    console.log(`${tag}: Coin selection inputs:`, {
+      utxoCount: utxos.length,
+      totalBalance: totalBalance / 1e8,
+      requestedAmount: amount / 1e8,
+      isMax,
+      feeRate: effectiveFeeRate
+    });
+
     let result;
     if (isMax) {
       //console.log(tag, 'isMax:', isMax);
@@ -165,7 +225,29 @@ export async function createUnsignedUxtoTx(
       // Regular send
       result = coinSelect(utxos, [{ address: to, value: amount }], effectiveFeeRate);
     }
-    //console.log(tag, 'result:', result);
+
+    console.log(tag, 'coinSelect result:', result ? 'Success' : 'Failed');
+
+    if (!result || !result.inputs) {
+      // Provide detailed error information
+      const errorDetails = {
+        utxoCount: utxos.length,
+        totalBalance: totalBalance / 1e8,
+        requestedAmount: amount / 1e8,
+        feeRate: effectiveFeeRate,
+        insufficientFunds: totalBalance < amount
+      };
+      console.error(`${tag}: Coin selection failed:`, errorDetails);
+
+      if (utxos.length === 0) {
+        throw Error('No UTXOs available for coin selection');
+      } else if (totalBalance < amount) {
+        throw Error(`Insufficient funds: Have ${totalBalance / 1e8} BTC, need ${amount / 1e8} BTC`);
+      } else {
+        throw Error('Failed to create transaction: Coin selection failed (possibly due to high fees)');
+      }
+    }
+
     let { inputs, outputs, fee } = result;
     if (!inputs) throw Error('Failed to create transaction: Missing inputs');
     if (!outputs) throw Error('Failed to create transaction: Missing outputs');
@@ -176,12 +258,12 @@ export async function createUnsignedUxtoTx(
       effectiveFeeRate: `${effectiveFeeRate} sat/vB`,
       calculatedFee: `${fee} satoshis`,
       inputCount: inputs.length,
-      outputCount: outputs.length
+      outputCount: outputs.length,
     });
 
     const uniqueInputSet = new Set();
-    //console.log(tag,'inputs:', inputs);
-    //console.log(tag,'inputs:', inputs[0]);
+    console.log(tag, 'inputs:', inputs);
+    console.log(tag, 'inputs:', inputs[0]);
     const preparedInputs = inputs
       .map(transformInput)
       .filter(({ hash, index }) =>
@@ -197,7 +279,7 @@ export async function createUnsignedUxtoTx(
         hex: txHex || '',
       }));
 
-    const scriptType = isSegwit ? 'p2wpkh' : 'p2sh';
+    // Remove hardcoded script type - use the one from changeAddress
 
     const preparedOutputs = outputs
       .map(({ value, address }) => {
@@ -206,7 +288,7 @@ export async function createUnsignedUxtoTx(
         } else if (!isMax) {
           return {
             addressNList: changeAddress.addressNList,
-            scriptType,
+            scriptType: changeAddress.scriptType, // Use the correct script type from change address
             isChange: true,
             amount: value.toString(),
             addressType: 'change',
@@ -227,7 +309,7 @@ export async function createUnsignedUxtoTx(
       inputs: preparedInputs,
       outputs: preparedOutputs,
       memo,
-      fee: fee.toString() // Add the calculated fee to the returned object
+      fee: fee.toString(), // Add the calculated fee to the returned object
     };
     //console.log(tag, 'unsignedTx:', unsignedTx);
 
@@ -276,9 +358,9 @@ function transformInput(input) {
 
 function getScriptTypeFromXpub(xpub: string): string {
   if (xpub.startsWith('xpub')) {
-    return 'p2pkh';  // Legacy
+    return 'p2pkh'; // Legacy
   } else if (xpub.startsWith('ypub')) {
-    return 'p2sh';   // P2WPKH nested in P2SH
+    return 'p2sh'; // P2WPKH nested in P2SH
   } else if (xpub.startsWith('zpub')) {
     return 'p2wpkh'; // Native SegWit
   } else {
