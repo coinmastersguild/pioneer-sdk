@@ -39,6 +39,7 @@ let sleep = wait.sleep;
 
 import {
     getPaths,
+    addressNListToBIP32,
     // @ts-ignore
 } from '@pioneer-platform/pioneer-coins';
 
@@ -554,6 +555,82 @@ const test_service = async function (this: any) {
             log.info(tag, '🔧 Building transaction...');
             let unsignedTx = await app.buildTx(sendPayload);
             log.info(tag, 'unsignedTx: ', unsignedTx);
+
+            //if utxo audit the change address/addressIndex/script type
+              /*
+                  Every xpub has its own address index
+
+                  if we use an addressInex from a wrong xpub/script type we cause issues
+
+                  for instance this account has an address index oif 65 on p2pkh legacy
+
+                  but 2 on p2wpkh legacy segit, if we use a 65 index on legacy segwit that is outside the gap limit and causes
+                  lost funds, not lost, recoverable, but only a dev can retrieve it
+
+               */
+
+              //get change address from unsigned
+              log.info(tag, 'unsignedTx outputs: ', unsignedTx.outputs);
+              log.info(tag, 'unsignedTx outputs: ', unsignedTx.outputs[1]);
+
+              let changeInfo = unsignedTx.outputs[1]
+
+              // Convert addressNlist to BIP32 path format using the imported function
+              // addressNlist is an array like [84, 0x80000000, 0x80000000, 1, index]
+              // Converts to string like "m/84'/0'/0'/1/index"
+              let changePath = addressNListToBIP32(changeInfo.addressNlist);
+              log.info(tag, 'changePath: ', changePath);
+              log.info(tag, 'scriptType: ', unsignedTx.scriptType);
+
+              // Get index from path (last element of addressNlist)
+              let changeIndex = changeInfo.addressNlist[changeInfo.addressNlist.length - 1] & 0x7fffffff; // Remove hardened flag if present
+              log.info(tag, 'changeIndex: ', changeIndex);
+
+              // Lookup xpub for the specific script type
+              // Filter pubkeys for Bitcoin and the specific script type
+              let xpubsForScriptType = app.pubkeys.filter((pubkey: any) => {
+                return pubkey.networks?.includes('bip122:000000000019d6689c085ae165831e93') && // Bitcoin network
+                       pubkey.script_type === unsignedTx.scriptType; // Match script type (p2pkh, p2wpkh, p2sh-p2wpkh)
+              });
+
+              if (xpubsForScriptType.length === 0) {
+                log.error(tag, `No xpub found for script type: ${unsignedTx.scriptType}`);
+              } else {
+                log.info(tag, `Found ${xpubsForScriptType.length} xpub(s) for script type ${unsignedTx.scriptType}`);
+
+                // Get the first matching xpub (usually there's only one per script type)
+                let xpubChange = xpubsForScriptType[0];
+                log.info(tag, 'xpubChange: ', xpubChange);
+
+                // Verify the address index from the xpub
+                if (xpubChange.addressIndex) {
+                  log.info(tag, `Current addressIndex for ${unsignedTx.scriptType}: ${xpubChange.addressIndex}`);
+
+                  // Check if changeIndex is within reasonable bounds
+                  if (changeIndex > xpubChange.addressIndex + 20) {
+                    log.warn(tag, `⚠️ WARNING: Change index ${changeIndex} is beyond gap limit for ${unsignedTx.scriptType}!`);
+                    log.warn(tag, `Current addressIndex: ${xpubChange.addressIndex}, Gap limit typically 20`);
+                    log.warn(tag, 'This could result in "lost" funds that require manual recovery!');
+                  }
+                }
+
+                // Get detailed pubkey info if available
+                if (app.pioneer && app.pioneer.GetPubkeyInfo) {
+                  try {
+                    let addressInfo = await app.pioneer.GetPubkeyInfo({
+                      pubkey: xpubChange.pubkey || xpubChange.xpub,
+                      script_type: unsignedTx.scriptType,
+                      address_n: changeInfo.addressNlist
+                    });
+                    log.info(tag, 'addressInfo from GetPubkeyInfo: ', addressInfo);
+                  } catch (error) {
+                    log.error(tag, 'Error getting pubkey info: ', error);
+                  }
+                }
+              }
+
+              log.info(tag, '✅ Change address audit complete');
+
 
             // PRODUCTION VALIDATION: Ensure this is an ERC20 transaction
             if (testCaip.includes('/erc20:')) {
