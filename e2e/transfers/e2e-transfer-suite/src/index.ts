@@ -654,91 +654,40 @@ const test_service = async function (this: any) {
 
                 // Get the first matching xpub (usually there's only one per script type)
                 let xpubChange = xpubsForScriptType[0];
-                log.info(tag, 'Correct xpubChange: ', xpubChange);
+                log.info(tag, 'Correct xpubChange: ', xpubChange.pubkey);
 
-                // Dynamically look up the current change address index from Pioneer API
-                try {
-                  log.info(tag, `🔍 Looking up current change address index for ${changeScriptType}...`);
+                log.info(tag, `🔍 Looking up current change address index for ${changeScriptType}...`);
 
-                  // Get the current change address index from the backend
-                  let changeAddressResponse = await app.pioneer.GetChangeAddress({
-                    network: 'BTC',
-                    xpub: xpubChange.pubkey || xpubChange.xpub
-                  });
+                // Get the current change address index from the backend
+                let changeAddressResponse = await app.pioneer.GetChangeAddress({
+                  network: 'BTC',
+                  xpub: xpubChange.pubkey || xpubChange.xpub
+                });
 
-                  // log.info(tag, 'GetChangeAddress response: ', changeAddressResponse);
+                log.info(tag,'changeAddressResponse: ',changeAddressResponse)
+                log.info(tag,'changeAddressResponse: ',changeAddressResponse.data)
+                log.info(tag,'changeAddressResponse: ',changeAddressResponse.data.changeIndex)
 
-                  // Extract the change index from the response (following the reference pattern)
-                  let currentChangeIndex = changeAddressResponse?.data?.changeIndex;
+                //used index
+                log.info(tag,'used changeIndex: ',changeIndex)
+                //expected index
+                log.info(tag,'changeAddressResponse: ',changeAddressResponse.data.changeIndex)
 
-                  if (currentChangeIndex === undefined || currentChangeIndex === null) {
-                    log.error(tag, `❌ CRITICAL: Could not get change address index from Pioneer API!`);
-                    log.error(tag, `   Response: ${JSON.stringify(changeAddressResponse)}`);
-                    throw new Error(`CRITICAL: Failed to get change address index for ${changeScriptType}. Cannot verify gap limit safety.`);
+                if(changeIndex > Number(parseInt(changeAddressResponse.data.changeIndex))) {
+                  log.info(tag, 'changeIndex: mismatch!');
+
+                  if(changeIndex - changeAddressResponse.data.changeIndex > 20) {
+
+
+
+
+                    log.error('CRITIAL LOSSS OF FUND OUTSIDE OF Change Index!')
                   }
 
-                  log.info(tag, `Current change address index for ${changeScriptType}: ${currentChangeIndex}`);
 
-                  // Check if changeIndex is within reasonable bounds
-                  const GAP_LIMIT = 20; // Bitcoin standard gap limit
-
-                  // The change index from the transaction should be close to the current index
-                  if (changeIndex > currentChangeIndex + GAP_LIMIT) {
-                    log.error(tag, `❌ CRITICAL: Change index beyond gap limit!`);
-                    log.error(tag, `   Transaction change index: ${changeIndex}`);
-                    log.error(tag, `   Current change index: ${currentChangeIndex}`);
-                    log.error(tag, `   Gap limit: ${GAP_LIMIT}`);
-                    log.error(tag, `   This would result in "lost" funds that require manual recovery!`);
-
-                    // FAIL FAST - Prevent funds from going to addresses beyond gap limit
-                    throw new Error(`CRITICAL: Change index ${changeIndex} exceeds gap limit (current: ${currentChangeIndex} + gap: ${GAP_LIMIT}). Transaction aborted to prevent fund loss.`);
-                  } else if (changeIndex < currentChangeIndex) {
-                    log.warn(tag, `⚠️ WARNING: Change index ${changeIndex} is less than current index ${currentChangeIndex}`);
-                    log.warn(tag, `   This might be reusing an old change address`);
-                  } else {
-                    log.info(tag, `✅ Change index ${changeIndex} is within safe bounds (current: ${currentChangeIndex}, gap: ${GAP_LIMIT})`);
-                  }
-
-                } catch (error) {
-                  log.error(tag, `❌ CRITICAL: Failed to verify change address index!`);
-                  log.error(tag, `   Error: ${error}`);
-
-                  // FAIL FAST - Cannot proceed without ability to verify gap limit
-                  throw new Error(`CRITICAL: Cannot verify change address index for ${changeScriptType}. ${error}. Transaction aborted.`);
+                  throw Error('Invalid change address selected!!')
                 }
 
-                // Try to derive the actual change address
-                if (app.pioneer && app.pioneer.GetAddress) {
-                  try {
-                    log.info(tag, '🔍 Attempting to derive the actual change address...');
-                    let changeAddress = await app.pioneer.GetAddress({
-                      addressNList: changeInfo.addressNList,
-                      coin: 'Bitcoin',
-                      scriptType: changeScriptType,
-                      showDisplay: false
-                    });
-                    log.info(tag, `💰 ACTUAL CHANGE ADDRESS: ${changeAddress}`);
-                    log.info(tag, `📍 Change path: ${changePath}`);
-                    log.info(tag, `📝 Script type: ${changeScriptType}`);
-                    log.info(tag, `💵 Amount returning to wallet: ${changeInfo.amount} satoshis`);
-                  } catch (error) {
-                    log.error(tag, 'Could not derive change address: ', error);
-                  }
-                }
-
-                // Get detailed pubkey info if available
-                if (app.pioneer && app.pioneer.GetPubkeyInfo) {
-                  try {
-                    let addressInfo = await app.pioneer.GetPubkeyInfo({
-                      pubkey: xpubChange.pubkey || xpubChange.xpub,
-                      script_type: changeScriptType,
-                      address_n: changeInfo.addressNList
-                    });
-                    log.info(tag, 'addressInfo from GetPubkeyInfo: ', addressInfo);
-                  } catch (error) {
-                    log.error(tag, 'Error getting pubkey info: ', error);
-                  }
-                }
               }
 
               log.info(tag, '✅ Change address audit complete');

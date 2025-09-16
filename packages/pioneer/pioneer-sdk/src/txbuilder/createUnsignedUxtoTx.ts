@@ -1,4 +1,3 @@
-import { DerivationPath } from '@coinmasters/types';
 import { caipToNetworkId, NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
 import { bip32ToAddressNList } from '@pioneer-platform/pioneer-coins';
 import coinSelect from 'coinselect';
@@ -43,16 +42,24 @@ export async function createUnsignedUxtoTx(
 
     let chain = NetworkIdToChain[networkId];
 
-    // Determine the change script type - use preference or default to first available
-    const actualChangeScriptType = changeScriptType || relevantPubkeys[0].scriptType || 'p2wpkh';
+    // Determine the change script type - use preference or default to p2wpkh for lower fees
+    const actualChangeScriptType =
+      changeScriptType ||
+      relevantPubkeys.find((pk) => pk.scriptType === 'p2wpkh')?.scriptType || // Prefer native segwit if available
+      relevantPubkeys[0].scriptType || // Fall back to first available
+      'p2wpkh'; // Ultimate default
     console.log(`${tag}: Using change script type: ${actualChangeScriptType}`);
 
     // Find the xpub that matches the desired script type
-    const changeXpub = relevantPubkeys.find(pk => pk.scriptType === actualChangeScriptType)?.pubkey
-      || relevantPubkeys.find(pk => pk.scriptType === 'p2wpkh')?.pubkey // Fall back to native segwit
-      || relevantPubkeys[0].pubkey; // Last resort: use first available
+    const changeXpub =
+      relevantPubkeys.find((pk) => pk.scriptType === actualChangeScriptType)?.pubkey ||
+      relevantPubkeys.find((pk) => pk.scriptType === 'p2wpkh')?.pubkey || // Fall back to native segwit
+      relevantPubkeys[0].pubkey; // Last resort: use first available
 
-    console.log(`${tag}: Change xpub selected for ${actualChangeScriptType}:`, changeXpub?.substring(0, 10) + '...');
+    console.log(
+      `${tag}: Change xpub selected for ${actualChangeScriptType}:`,
+      changeXpub?.substring(0, 10) + '...',
+    );
 
     let changeAddressIndex = await pioneer.GetChangeAddress({
       network: chain,
@@ -92,7 +99,11 @@ export async function createUnsignedUxtoTx(
       try {
         let utxosResp = await pioneer.ListUnspent({ network: chain, xpub: pubkey.pubkey });
         utxosResp = utxosResp.data;
-        console.log(`${tag}: ListUnspent response for ${pubkey.scriptType}:`, utxosResp?.length || 0, 'UTXOs');
+        console.log(
+          `${tag}: ListUnspent response for ${pubkey.scriptType}:`,
+          utxosResp?.length || 0,
+          'UTXOs',
+        );
 
         // Validate the response
         if (!utxosResp || !Array.isArray(utxosResp)) {
@@ -212,7 +223,7 @@ export async function createUnsignedUxtoTx(
       totalBalance: totalBalance / 1e8,
       requestedAmount: amount / 1e8,
       isMax,
-      feeRate: effectiveFeeRate
+      feeRate: effectiveFeeRate,
     });
 
     let result;
@@ -235,7 +246,7 @@ export async function createUnsignedUxtoTx(
         totalBalance: totalBalance / 1e8,
         requestedAmount: amount / 1e8,
         feeRate: effectiveFeeRate,
-        insufficientFunds: totalBalance < amount
+        insufficientFunds: totalBalance < amount,
       };
       console.error(`${tag}: Coin selection failed:`, errorDetails);
 
@@ -244,7 +255,9 @@ export async function createUnsignedUxtoTx(
       } else if (totalBalance < amount) {
         throw Error(`Insufficient funds: Have ${totalBalance / 1e8} BTC, need ${amount / 1e8} BTC`);
       } else {
-        throw Error('Failed to create transaction: Coin selection failed (possibly due to high fees)');
+        throw Error(
+          'Failed to create transaction: Coin selection failed (possibly due to high fees)',
+        );
       }
     }
 
