@@ -100,6 +100,7 @@ export async function createUnsignedEvmTx(
   pioneer,
   keepKeySdk,
   isMax,
+  feeLevel = 5, // Added feeLevel parameter with default of 5 (average)
 ) {
   const tag = TAG + ' | createUnsignedEvmTx | ';
 
@@ -144,21 +145,40 @@ export async function createUnsignedEvmTx(
     if (!address) throw new Error('No address found for the specified network');
 
     // Fetch gas price in gwei and convert to wei
+    // Note: In the future, we should fetch different gas prices for different fee levels
+    // For now, we'll use a multiplier on the base gas price
     const gasPriceData = await pioneer.GetGasPriceByNetwork({ networkId });
-    let gasPrice: bigint;
-    
+    let baseGasPrice: bigint;
+
     // Check if the returned value is reasonable (in wei or gwei)
     // If it's less than 1 gwei (1e9 wei), it's probably already in wei but too low
     // For mainnet, we need at least 10-30 gwei typically
     const MIN_GAS_PRICE_WEI = BigInt(10e9); // 10 gwei minimum for mainnet
-    
+
     if (BigInt(gasPriceData.data) < MIN_GAS_PRICE_WEI) {
       // The API is returning a value that's way too low (like 0.296 gwei)
       // Use a reasonable default for mainnet
       console.log(tag, 'Gas price from API too low:', gasPriceData.data, 'wei - using minimum:', MIN_GAS_PRICE_WEI.toString());
-      gasPrice = MIN_GAS_PRICE_WEI;
+      baseGasPrice = MIN_GAS_PRICE_WEI;
     } else {
-      gasPrice = BigInt(gasPriceData.data);
+      baseGasPrice = BigInt(gasPriceData.data);
+    }
+
+    // Apply fee level multiplier
+    // feeLevel: 1 = slow (80% of base), 5 = average (100%), 9 = fast (150%)
+    let gasPrice: bigint;
+    if (feeLevel <= 2) {
+      // Slow - 80% of base price
+      gasPrice = (baseGasPrice * BigInt(80)) / BigInt(100);
+      console.log(tag, 'Using SLOW gas price (80% of base)');
+    } else if (feeLevel >= 8) {
+      // Fast - 150% of base price
+      gasPrice = (baseGasPrice * BigInt(150)) / BigInt(100);
+      console.log(tag, 'Using FAST gas price (150% of base)');
+    } else {
+      // Average - use base price
+      gasPrice = baseGasPrice;
+      console.log(tag, 'Using AVERAGE gas price (100% of base)');
     }
     
     console.log(tag, 'Using gasPrice:', gasPrice.toString(), 'wei (', Number(gasPrice) / 1e9, 'gwei)');

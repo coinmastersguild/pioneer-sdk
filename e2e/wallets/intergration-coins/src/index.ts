@@ -175,23 +175,19 @@ const test_service = async function (this: any) {
 
         let AllChainsSupported = [
             'ETH',
-            // 'ARB',  //BROKE
-            // 'DOGE',
-            // 'OP',    //Fast
-            // 'MATIC', //SLOW charting
-            // 'AVAX',  //fast
-            // 'BASE',  //fast
-            // 'BSC',   //fast
-            'BTC',
-            // 'BCH',
-            // 'GAIA',
-            // 'OSMO',
-            // 'XRP',
-            // 'DOGE',
-            // 'DASH',
-            // 'MAYA',
-            // 'LTC',
-            // 'THOR'
+            'MATIC', // Polygon - EVM
+            'BASE',  // Base - EVM
+            'BSC',   // BNB Smart Chain - EVM
+            'BTC',   // Bitcoin - UTXO
+            'LTC',   // Litecoin - UTXO
+            'DOGE',  // Dogecoin - UTXO
+            'BCH',   // Bitcoin Cash - UTXO
+            'DASH',  // Dash - UTXO
+            'GAIA',  // Cosmos - Tendermint
+            'OSMO',  // Osmosis - Tendermint
+            'XRP',   // Ripple
+            // 'MAYA',  // Maya - Tendermint (might not have fees implemented)
+            // 'THOR'   // THORChain - Tendermint (might not have fees implemented)
         ]
 
         let blockchains = AllChainsSupported.map(
@@ -347,7 +343,92 @@ const test_service = async function (this: any) {
             let blockchain = blockchains[i]
             log.debug(tag,`🔗 Validating blockchain ${i+1}/${blockchains.length}: ${blockchain}`)
 
-            //get fees
+            // ========================================
+            // FEE TESTING FOR THIS CHAIN
+            // ========================================
+            console.log(`💸 [FEES] Testing fees for ${blockchain}`);
+
+            try {
+                // Use the new normalized getFees method from SDK
+                const normalizedFees = await app.getFees(blockchain);
+
+                if (!normalizedFees) {
+                    throw new Error(`No fee data returned for ${blockchain}`);
+                }
+
+                console.log(`✅ [FEES] Got normalized fee data for ${blockchain}:`, {
+                    networkType: normalizedFees.networkType,
+                    slow: normalizedFees.slow.value + ' ' + normalizedFees.slow.unit,
+                    average: normalizedFees.average.value + ' ' + normalizedFees.average.unit,
+                    fastest: normalizedFees.fastest.value + ' ' + normalizedFees.fastest.unit
+                });
+
+                // Validate the normalized structure
+                if (!normalizedFees.slow || !normalizedFees.average || !normalizedFees.fastest) {
+                    throw new Error(`Invalid normalized fee structure for ${blockchain}`);
+                }
+
+                // Validate each fee level has required properties
+                const feeLevels = ['slow', 'average', 'fastest'] as const;
+                for (const level of feeLevels) {
+                    const feeLevel = normalizedFees[level];
+                    if (!feeLevel.label) {
+                        throw new Error(`Missing label for ${level} fee on ${blockchain}`);
+                    }
+                    if (!feeLevel.value) {
+                        throw new Error(`Missing value for ${level} fee on ${blockchain}`);
+                    }
+                    if (!feeLevel.unit) {
+                        throw new Error(`Missing unit for ${level} fee on ${blockchain}`);
+                    }
+                    if (!feeLevel.description) {
+                        throw new Error(`Missing description for ${level} fee on ${blockchain}`);
+                    }
+                    if (!feeLevel.priority) {
+                        throw new Error(`Missing priority for ${level} fee on ${blockchain}`);
+                    }
+
+                    // Validate value is a positive number
+                    const value = parseFloat(feeLevel.value);
+                    if (isNaN(value) || value <= 0) {
+                        throw new Error(`Invalid fee value for ${level} on ${blockchain}: ${feeLevel.value}`);
+                    }
+                }
+
+                // Validate fee progression (slow <= average <= fastest)
+                const slowVal = parseFloat(normalizedFees.slow.value);
+                const avgVal = parseFloat(normalizedFees.average.value);
+                const fastestVal = parseFloat(normalizedFees.fastest.value);
+
+                if (slowVal > avgVal || avgVal > fastestVal) {
+                    console.warn(`⚠️ [FEES] Fee progression not optimal for ${blockchain}: slow=${slowVal}, average=${avgVal}, fastest=${fastestVal}`);
+                }
+
+                // Log the normalized fees with rich metadata
+                console.log(`📊 [FEES] Normalized fees for ${blockchain} (${normalizedFees.networkType}):`);
+                console.log(`   💰 ${normalizedFees.slow.label}: ${normalizedFees.slow.value} ${normalizedFees.slow.unit}`);
+                console.log(`      Priority: ${normalizedFees.slow.priority}, Est. time: ${normalizedFees.slow.estimatedTime}`);
+                console.log(`   💵 ${normalizedFees.average.label}: ${normalizedFees.average.value} ${normalizedFees.average.unit}`);
+                console.log(`      Priority: ${normalizedFees.average.priority}, Est. time: ${normalizedFees.average.estimatedTime}`);
+                console.log(`   🚀 ${normalizedFees.fastest.label}: ${normalizedFees.fastest.value} ${normalizedFees.fastest.unit}`);
+                console.log(`      Priority: ${normalizedFees.fastest.priority}, Est. time: ${normalizedFees.fastest.estimatedTime}`);
+
+                // Test fee estimation
+                const estimatedFee = app.estimateTransactionFee(
+                    normalizedFees.average.value,
+                    normalizedFees.average.unit,
+                    normalizedFees.networkType,
+                    250 // example tx size
+                );
+                console.log(`   📐 Estimated transaction fee: ${estimatedFee.amount} ${estimatedFee.unit}`);
+
+                console.log(`✅ [FEES] Successfully validated normalized fees for ${blockchain}`);
+
+            } catch (error: any) {
+                console.error(`❌ [FEES] Failed to get/validate fees for ${blockchain}:`, error.message);
+                // Continue with other validations, but note the fee failure
+                console.error(`⚠️ [FEES] Continuing test despite fee failure for ${blockchain}`);
+            }
 
         }
         log.info(tag,' ****** Validated Assets for each chain exist bro ******')

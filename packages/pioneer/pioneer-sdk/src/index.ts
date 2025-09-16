@@ -14,6 +14,7 @@ import { OfflineClient } from './offline-client.js';
 import { TransactionManager } from './TransactionManager.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
 import { createUnsignedStakingTx, type StakingTxParams } from './txbuilder/createUnsignedStakingTx.js';
+import { getFees, estimateTransactionFee, type NormalizedFeeRates, type FeeEstimate } from './fees/index.js';
 
 const TAG = ' | Pioneer-sdk | ';
 
@@ -197,6 +198,8 @@ export class SDK {
   public addAsset: (caip: string, data?: any) => Promise<any>;
   public getAssets: (filter?: string) => Promise<any>;
   public getBalance: (networkId: string) => Promise<any>;
+  public getFees: (networkId: string) => Promise<NormalizedFeeRates>;
+  public estimateTransactionFee: (feeRate: string, unit: string, networkType: string, txSize?: number) => FeeEstimate;
   public getCharts: () => Promise<any>;
   public keepKeySdk: any;
   private getGasAssets: () => Promise<any>;
@@ -1896,6 +1899,38 @@ export class SDK {
         throw e;
       }
     };
+
+    /**
+     * Get normalized fee rates for a specific network
+     * This method handles all fee complexity and returns a clean, consistent format
+     */
+    this.getFees = async function (networkId: string): Promise<NormalizedFeeRates> {
+      const tag = `${TAG} | getFees | `;
+      try {
+        if (!this.pioneer) {
+          throw new Error('Pioneer client not initialized. Call init() first.');
+        }
+
+        // Use the fee management module to get normalized fees
+        return await getFees(this.pioneer, networkId);
+      } catch (e) {
+        console.error(tag, 'Error getting fees: ', e);
+        throw e;
+      }
+    };
+
+    /**
+     * Estimate transaction fee based on fee rate and transaction parameters
+     * This is a utility method that doesn't require network access
+     */
+    this.estimateTransactionFee = function (
+      feeRate: string,
+      unit: string,
+      networkType: string,
+      txSize?: number
+    ): FeeEstimate {
+      return estimateTransactionFee(feeRate, unit, networkType, txSize);
+    };
     this.getCharts = async function () {
       const tag = `${TAG} | getCharts | `;
       try {
@@ -2409,5 +2444,8 @@ export class SDK {
     };
   }
 }
+
+// Export fee-related types for consumers
+export type { NormalizedFeeRates, FeeLevel, FeeEstimate } from './fees/index.js';
 
 export default SDK;

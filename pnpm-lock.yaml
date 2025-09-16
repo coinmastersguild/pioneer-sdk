@@ -459,6 +459,43 @@ importers:
         specifier: workspace:*
         version: link:../../../internal/config
 
+  e2e/wallets/intergration-fees:
+    dependencies:
+      '@coinmasters/pioneer-sdk':
+        specifier: workspace:*
+        version: link:../../../packages/pioneer/pioneer-sdk
+      '@pioneer-platform/helpers':
+        specifier: ^4.0.13
+        version: 4.0.13
+      '@pioneer-platform/loggerdog':
+        specifier: ^8.3.1
+        version: 8.3.1(@types/node@20.19.12)
+      '@pioneer-platform/pioneer-caip':
+        specifier: ^9.2.31
+        version: 9.2.38
+      '@pioneer-platform/pioneer-coins':
+        specifier: ^9.2.26
+        version: 9.3.2(@types/node@20.19.12)
+      '@types/node':
+        specifier: ^20.13.0
+        version: 20.19.12
+      assert:
+        specifier: ^2.1.0
+        version: 2.1.0
+      dotenv:
+        specifier: ^6.2.0
+        version: 6.2.0
+      typescript:
+        specifier: 5.2.2
+        version: 5.2.2
+      wait-promise:
+        specifier: ^0.4.1
+        version: 0.4.1
+    devDependencies:
+      '@internal/config':
+        specifier: workspace:*
+        version: link:../../../internal/config
+
   e2e/wallets/intergration-kkapi:
     devDependencies:
       '@types/node':

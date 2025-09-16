@@ -13,6 +13,7 @@ export async function createUnsignedUxtoTx(
   pioneer: any,
   keepKeySdk: any,
   isMax: boolean, // Added isMax parameter
+  feeLevel: number = 5, // Added feeLevel parameter with default of 5 (average)
 ): Promise<any> {
   let tag = ' | createUnsignedUxtoTx | ';
 
@@ -78,47 +79,78 @@ export async function createUnsignedUxtoTx(
 
     let feeRateFromNode: any;
     try {
-      feeRateFromNode = (await pioneer.GetFeeRate({ networkId })).data;
-    } catch (error) {
-      console.warn(`${tag}: Pioneer API unavailable. Using fallback defaults.`);
-      feeRateFromNode = null;
+      // Try GetFeeRateByNetwork first (newer API), then fallback to GetFeeRate
+      let feeResponse;
+      if (pioneer.GetFeeRateByNetwork) {
+        console.log(`${tag}: Trying GetFeeRateByNetwork for ${networkId}`);
+        feeResponse = await pioneer.GetFeeRateByNetwork({ networkId });
+      } else {
+        console.log(`${tag}: Using GetFeeRate for ${networkId}`);
+        feeResponse = await pioneer.GetFeeRate({ networkId });
+      }
+
+      feeRateFromNode = feeResponse.data;
+      console.log(`${tag}: Got fee rates from API:`, JSON.stringify(feeRateFromNode, null, 2));
+
+      // Validate the response has the expected structure
+      if (!feeRateFromNode || typeof feeRateFromNode !== 'object') {
+        throw new Error(`Invalid fee rate response from API: ${JSON.stringify(feeRateFromNode)}`);
+      }
+
+      // Log all available fee rates for debugging
+      console.log(`${tag}: Available fee rates:`, {
+        slow: feeRateFromNode.slow,
+        average: feeRateFromNode.average,
+        fast: feeRateFromNode.fast,
+        fastest: feeRateFromNode.fastest
+      });
+
+      // Check that we have at least one fee rate
+      if (!feeRateFromNode.slow && !feeRateFromNode.average && !feeRateFromNode.fast && !feeRateFromNode.fastest) {
+        throw new Error(`No valid fee rates in API response: ${JSON.stringify(feeRateFromNode)}`);
+      }
+    } catch (error: any) {
+      console.error(`${tag}: Failed to get fee rates from Pioneer API:`, error.message || error);
+      throw new Error(`Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`);
     }
-    if (!feeRateFromNode) throw Error('Failed to get FEE RATES');
 
-    const defaultFeeRates = {
-      slow: 10,
-      average: 20,
-      fastest: 50,
-    };
-
-    if (!feeRateFromNode) {
-      console.warn(`${tag}: Using hardcoded fee rates as defaults.`);
-      feeRateFromNode = defaultFeeRates;
-    }
-
-    const feeLevel = 5;
+    // Map fee level to fee rate (1,2,3 = slow, 4 = average, 5 = fastest)
     let effectiveFeeRate;
+    console.log(`${tag}: Using fee level ${feeLevel}`);
 
     switch (feeLevel) {
       case 1:
       case 2:
-        effectiveFeeRate = feeRateFromNode.slow;
-        break;
       case 3:
+        effectiveFeeRate = feeRateFromNode.slow || feeRateFromNode.average;
+        console.log(`${tag}: Using SLOW fee rate: ${effectiveFeeRate} sat/vB`);
+        break;
       case 4:
-        effectiveFeeRate = feeRateFromNode.average;
+        effectiveFeeRate = feeRateFromNode.average || feeRateFromNode.fast;
+        console.log(`${tag}: Using AVERAGE fee rate: ${effectiveFeeRate} sat/vB`);
         break;
       case 5:
-        effectiveFeeRate = feeRateFromNode.fastest;
+        effectiveFeeRate = feeRateFromNode.fastest || feeRateFromNode.fast;
+        console.log(`${tag}: Using FAST fee rate: ${effectiveFeeRate} sat/vB`);
         break;
       default:
-        throw new Error('Invalid fee level');
+        throw new Error(`Invalid fee level: ${feeLevel}. Must be 1-5`);
     }
 
     if (!effectiveFeeRate) throw new Error('Unable to get fee rate for network');
-    effectiveFeeRate = Math.round(effectiveFeeRate * 1.2);
-    if (effectiveFeeRate === 0) throw Error('Failed to build valid fee! 0');
-    if (effectiveFeeRate <= 5) effectiveFeeRate = 8;
+
+    // Log what we're using
+    console.log(`${tag}: Using fee rate from API:`, {
+      feeLevel,
+      selectedRate: effectiveFeeRate,
+      description: feeLevel <= 3 ? 'slow' : feeLevel === 4 ? 'average' : 'fast'
+    });
+
+    // Only enforce minimum for safety if fee is 0 or negative
+    if (effectiveFeeRate <= 0) throw Error('Failed to build valid fee! Must be > 0');
+
+    // The effectiveFeeRate is now the actual sat/vB from the API
+    console.log(`${tag}: Final fee rate to use: ${effectiveFeeRate} sat/vB`);
 
     amount = parseInt(String(amount * 1e8));
     if (amount <= 0 && !isMax) throw Error('Invalid amount! 0');
@@ -138,6 +170,14 @@ export async function createUnsignedUxtoTx(
     if (!inputs) throw Error('Failed to create transaction: Missing inputs');
     if (!outputs) throw Error('Failed to create transaction: Missing outputs');
     if (fee === undefined) throw Error('Failed to calculate transaction fee');
+
+    console.log(`${tag}: Transaction built with:`, {
+      feeLevel,
+      effectiveFeeRate: `${effectiveFeeRate} sat/vB`,
+      calculatedFee: `${fee} satoshis`,
+      inputCount: inputs.length,
+      outputCount: outputs.length
+    });
 
     const uniqueInputSet = new Set();
     //console.log(tag,'inputs:', inputs);
@@ -182,7 +222,13 @@ export async function createUnsignedUxtoTx(
         outputs.reduce((acc, output) => acc + parseInt(output.amount), 0);
     }
 
-    let unsignedTx = { inputs: preparedInputs, outputs: preparedOutputs, memo };
+    // Include the fee in the transaction object for the vault to use
+    let unsignedTx = {
+      inputs: preparedInputs,
+      outputs: preparedOutputs,
+      memo,
+      fee: fee.toString() // Add the calculated fee to the returned object
+    };
     //console.log(tag, 'unsignedTx:', unsignedTx);
 
     return unsignedTx;

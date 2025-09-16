@@ -50,7 +50,7 @@ export class TransactionManager {
     throw new Error(`Unsupported CAIP: ${caip}`);
   }
 
-  async transfer({ caip, to, amount, memo, isMax = false }: any): Promise<any> {
+  async transfer({ caip, to, amount, memo, isMax = false, feeLevel = 5 }: any): Promise<any> {
     let tag = TAG + ' | transfer | ';
     try {
       if (!this.pioneer) throw Error('Failed to init! pioneer');
@@ -72,6 +72,7 @@ export class TransactionManager {
             this.pioneer,
             this.keepKeySdk,
             isMax,
+            feeLevel,
           );
           break;
         }
@@ -100,6 +101,7 @@ export class TransactionManager {
             this.pioneer,
             this.keepKeySdk,
             isMax,
+            feeLevel,
           );
           break;
         }
