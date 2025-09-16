@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/integration-bex",
-  "version": "1.13.20",
+  "version": "1.13.23",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

@@ -118,11 +118,11 @@ const test_service = async function (this: any) {
             // 'AVAX',
             // 'BSC',
             // 'XRP', //Testing after fixing ledger_index_current
-            // 'ETH',
+            'ETH',
             // 'MAYA',   //Amount is wrong
             // // 'GNO',
             // 'BCH',
-            'BTC',
+            // 'BTC',
         ]
 
         const allByCaip = chains.map(chainStr => {
@@ -216,6 +216,17 @@ const test_service = async function (this: any) {
         //   showDisplay: false
         // })
         // log.info(tag,'paths:',paths)
+
+        paths.push({
+          note: ' ETH account 2',
+          networks: [ 'eip155:1', 'eip155:*' ],
+          type: 'address',
+          addressNList: [ 2147483692, 2147483708, 2147483648 ],
+          addressNListMaster: [ 2147483692, 2147483708, 2147483648, 2, 0 ],
+          curve: 'secp256k1',
+          showDisplay: false
+        })
+        log.info(tag,'paths:',paths)
 
         // paths.push({
         //     note:"Bitcoin account 0 segwit (p2sh)",
@@ -502,7 +513,10 @@ const test_service = async function (this: any) {
             assert(pubkeysForContext.length > 0, 'No pubkeys found in asset context')
             
             // Use account 1 if available, otherwise use account 0
-            let pubkey = pubkeysForContext[1] || pubkeysForContext[0];
+            let pubkey = pubkeysForContext[1]
+
+
+            if(!pubkeysForContext[1]) throw Error('Missing context')
             log.info(tag, `Using pubkey for transfer: ${pubkey.address || pubkey.pubkey} (${pubkey.note || 'default'})`);
 
             await app.setPubkeyContext(pubkey)

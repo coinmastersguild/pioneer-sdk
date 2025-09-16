@@ -13,6 +13,7 @@ import { optimizedGetPubkeys } from './kkapi-batch-client.js';
 import { OfflineClient } from './offline-client.js';
 import { TransactionManager } from './TransactionManager.js';
 import { createUnsignedTendermintTx } from './txbuilder/createUnsignedTendermintTx.js';
+import { createUnsignedStakingTx, type StakingTxParams } from './txbuilder/createUnsignedStakingTx.js';
 
 const TAG = ' | Pioneer-sdk | ';
 
@@ -220,10 +221,10 @@ export class SDK {
   public broadcastTx: (caip: string, signedTx: any) => Promise<any>;
   public signTx: (unsignedTx: any) => Promise<any>;
   public buildTx: (sendPayload: any) => Promise<any>;
-  // public buildDelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  // public buildUndelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  // public buildClaimRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
-  // public buildClaimAllRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildDelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildUndelegateTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildClaimRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
+  public buildClaimAllRewardsTx: (caip: string, params: StakingTxParams) => Promise<any>;
   public estimateMax: (sendPayload: any) => Promise<void>;
   public syncMarket: () => Promise<boolean>;
   public getBalancesForNetworks: (networkIds: string[]) => Promise<any[]>;
@@ -818,20 +819,44 @@ export class SDK {
     this.syncMarket = async function () {
       const tag = `${TAG} | syncMarket | `;
       try {
-        // Extract all CAIP identifiers from balances
-        let allCaips = this.balances.map((b) => b.caip);
+        // Extract all CAIP identifiers from balances, filtering out invalid entries
+        let allCaips = this.balances
+          .filter(b => b && b.caip && typeof b.caip === 'string')
+          .map((b) => b.caip);
+
+        // Remove duplicates
+        allCaips = [...new Set(allCaips)];
 
         // Fetch market prices for all CAIPs
         console.log('GetMarketInfo: payload: ', allCaips);
         console.log('GetMarketInfo: payload type: ', typeof allCaips);
+        console.log('GetMarketInfo: payload length: ', allCaips.length);
+        
         if (allCaips && allCaips.length > 0) {
-          let allPrices = await this.pioneer.GetMarketInfo(allCaips);
+          try {
+            let allPrices = await this.pioneer.GetMarketInfo(allCaips);
+            console.log('GetMarketInfo: response: ', allPrices);
 
-          // Update each balance with the corresponding price and value
-          for (let i = 0; i < allPrices.length; i++) {
-            let balance = this.balances[i];
-            balance.price = allPrices[i];
-            balance.valueUsd = balance.price * balance.balance;
+            // Create a map of CAIP to price for easier lookup
+            const priceMap = {};
+            if (allPrices && allPrices.data) {
+              for (let i = 0; i < allCaips.length && i < allPrices.data.length; i++) {
+                priceMap[allCaips[i]] = allPrices.data[i];
+              }
+            }
+
+            // Update each balance with the corresponding price and value
+            for (let balance of this.balances) {
+              if (balance && balance.caip && priceMap[balance.caip] !== undefined) {
+                balance.price = priceMap[balance.caip];
+                balance.priceUsd = priceMap[balance.caip]; // Also set priceUsd for compatibility
+                balance.valueUsd = balance.price * (balance.balance || 0);
+              }
+            }
+          } catch (apiError) {
+            console.error(tag, 'API error fetching market info:', apiError);
+            // Don't throw - just log and continue without prices
+            console.warn(tag, 'Continuing without market prices');
           }
         }
         return true;
@@ -1124,6 +1149,91 @@ export class SDK {
         };
         let txManager = new TransactionManager(transactionDependencies, this.events);
         let unsignedTx = await txManager.transfer(sendPayload);
+        console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildDelegateTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildDelegateTx | ';
+      try {
+        const delegateParams = {
+          ...params,
+          type: 'delegate' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          delegateParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildUndelegateTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildUndelegateTx | ';
+      try {
+        const undelegateParams = {
+          ...params,
+          type: 'undelegate' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          undelegateParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildClaimRewardsTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildClaimRewardsTx | ';
+      try {
+        const claimParams = {
+          ...params,
+          type: 'claim_rewards' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          claimParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        console.log(tag, 'unsignedTx: ', unsignedTx);
+        return unsignedTx;
+      } catch (e) {
+        console.error(e);
+        throw e;
+      }
+    };
+    this.buildClaimAllRewardsTx = async function (caip: string, params: StakingTxParams) {
+      let tag = TAG + ' | buildClaimAllRewardsTx | ';
+      try {
+        const claimAllParams = {
+          ...params,
+          type: 'claim_all_rewards' as const,
+        };
+        let unsignedTx = await createUnsignedStakingTx(
+          caip,
+          claimAllParams,
+          this.pubkeys,
+          this.pioneer,
+          this.keepKeySdk,
+        );
+        //console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
       } catch (e) {
         console.error(e);
@@ -1925,6 +2035,24 @@ export class SDK {
           `✅ Validated: Found ${pubkeysForNetwork.length} addresses for ${asset.networkId}`,
         );
 
+        // ALWAYS fetch fresh market price for the asset
+        let freshPriceUsd = 0;
+        try {
+          console.log(tag, 'Fetching fresh market price for:', asset.caip);
+          const marketData = await this.pioneer.GetMarketInfo([asset.caip]);
+          console.log(tag, 'Market data response:', marketData);
+
+          if (marketData && marketData.data && marketData.data.length > 0) {
+            freshPriceUsd = marketData.data[0];
+            console.log(tag, '✅ Fresh market price:', freshPriceUsd);
+          } else {
+            console.warn(tag, 'No market data returned for:', asset.caip);
+          }
+        } catch (marketError) {
+          console.error(tag, 'Error fetching market price:', marketError);
+          // Continue without fresh price, will try to use cached data
+        }
+
         // Try to find the asset in the local assetsMap
         let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());
         console.log(tag, 'assetInfo: ', assetInfo);
@@ -1953,10 +2081,29 @@ export class SDK {
 
         if (matchingBalances.length > 0) {
           // Use price from first balance entry (all should have same price)
-          if (matchingBalances[0].priceUsd) {
-            console.log(tag, 'detected priceUsd from balance:', matchingBalances[0].priceUsd);
-            assetInfo.priceUsd = matchingBalances[0].priceUsd;
+          // Check for both priceUsd and price properties (different sources may use different names)
+          let priceValue = matchingBalances[0].priceUsd || matchingBalances[0].price;
+
+          // If no price but we have valueUsd and balance, calculate the price
+          if ((!priceValue || priceValue === 0) && matchingBalances[0].valueUsd && matchingBalances[0].balance) {
+            const balance = parseFloat(matchingBalances[0].balance);
+            const valueUsd = parseFloat(matchingBalances[0].valueUsd);
+            if (balance > 0 && valueUsd > 0) {
+              priceValue = valueUsd / balance;
+              console.log(tag, 'calculated priceUsd from valueUsd/balance:', priceValue);
+            }
           }
+
+          if (priceValue && priceValue > 0) {
+            console.log(tag, 'detected priceUsd from balance:', priceValue);
+            assetInfo.priceUsd = priceValue;
+          }
+        }
+
+        // Override with fresh price if we got one from the API
+        if (freshPriceUsd && freshPriceUsd > 0) {
+          assetInfo.priceUsd = freshPriceUsd;
+          console.log(tag, '✅ Using fresh market price:', freshPriceUsd);
 
           // Aggregate all balances for this asset (critical for UTXO chains with multiple xpubs)
           let totalBalance = 0;
@@ -1990,12 +2137,32 @@ export class SDK {
         );
 
         // Combine the user-provided asset with any additional info we have
-        this.assetContext = {
+        // IMPORTANT: Don't let a 0 priceUsd from input override a valid price from balance
+        const finalAssetContext = {
           ...assetInfo,
           ...asset,
           pubkeys: assetPubkeys,
           balances: assetBalances,
         };
+
+        // If input has priceUsd of 0 but we found a valid price from balance, use the balance price
+        if ((!asset.priceUsd || asset.priceUsd === 0) && assetInfo.priceUsd && assetInfo.priceUsd > 0) {
+          finalAssetContext.priceUsd = assetInfo.priceUsd;
+        }
+
+        // Update all matching balances with the fresh price
+        if (freshPriceUsd && freshPriceUsd > 0) {
+          for (const balance of assetBalances) {
+            balance.price = freshPriceUsd;
+            balance.priceUsd = freshPriceUsd;
+            // Recalculate valueUsd with fresh price
+            const balanceAmount = parseFloat(balance.balance || 0);
+            balance.valueUsd = (balanceAmount * freshPriceUsd).toString();
+          }
+          console.log(tag, 'Updated all balances with fresh price data');
+        }
+
+        this.assetContext = finalAssetContext;
 
         // For tokens, we need to also set the native gas balance and symbol
         if (
@@ -2174,10 +2341,29 @@ export class SDK {
 
         if (matchingBalances.length > 0) {
           // Use price from first balance entry (all should have same price)
-          if (matchingBalances[0].priceUsd) {
-            console.log(tag, 'detected priceUsd from balance:', matchingBalances[0].priceUsd);
-            assetInfo.priceUsd = matchingBalances[0].priceUsd;
+          // Check for both priceUsd and price properties (different sources may use different names)
+          let priceValue = matchingBalances[0].priceUsd || matchingBalances[0].price;
+
+          // If no price but we have valueUsd and balance, calculate the price
+          if ((!priceValue || priceValue === 0) && matchingBalances[0].valueUsd && matchingBalances[0].balance) {
+            const balance = parseFloat(matchingBalances[0].balance);
+            const valueUsd = parseFloat(matchingBalances[0].valueUsd);
+            if (balance > 0 && valueUsd > 0) {
+              priceValue = valueUsd / balance;
+              console.log(tag, 'calculated priceUsd from valueUsd/balance:', priceValue);
+            }
           }
+
+          if (priceValue && priceValue > 0) {
+            console.log(tag, 'detected priceUsd from balance:', priceValue);
+            assetInfo.priceUsd = priceValue;
+          }
+        }
+
+        // Override with fresh price if we got one from the API
+        if (freshPriceUsd && freshPriceUsd > 0) {
+          assetInfo.priceUsd = freshPriceUsd;
+          console.log(tag, '✅ Using fresh market price:', freshPriceUsd);
 
           // Aggregate all balances for this asset (critical for UTXO chains with multiple xpubs)
           let totalBalance = 0;

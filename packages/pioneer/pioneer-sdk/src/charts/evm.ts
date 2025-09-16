@@ -94,6 +94,17 @@ function processPortfolioBalance(
   const balanceType = assetInfo?.type || balance.type || 'native';
   const isToken = balanceType !== 'native' && balance.caip.includes('/erc20:');
   
+  // Calculate price from valueUsd and balance if not provided
+  let calculatedPrice = balance.priceUsd || balance.price || 0;
+  if ((!calculatedPrice || calculatedPrice === 0) && balance.valueUsd && balance.balance) {
+    const balanceNum = parseFloat(balance.balance.toString());
+    const valueNum = parseFloat(balance.valueUsd.toString());
+    if (balanceNum > 0 && valueNum > 0) {
+      calculatedPrice = valueNum / balanceNum;
+      console.log(tag, `Calculated price from value/balance: ${calculatedPrice} for ${balance.caip}`);
+    }
+  }
+
   const chartBalance: ChartBalance = {
     context,
     chart: 'pioneer',
@@ -112,7 +123,8 @@ function processPortfolioBalance(
     token: isToken,
     decimal: assetInfo?.decimal || balance.decimal,
     balance: balance.balance.toString(),
-    priceUsd: 0,
+    price: calculatedPrice,
+    priceUsd: calculatedPrice,
     valueUsd: balance.valueUsd.toString(),
     updated: new Date().getTime(),
   };

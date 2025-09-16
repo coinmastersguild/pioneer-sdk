@@ -1,5 +1,23 @@
 # @internal/config
 
+## 2.10.13
+
+### Patch Changes
+
+- bump
+
+## 2.10.12
+
+### Patch Changes
+
+- bump
+
+## 2.10.11
+
+### Patch Changes
+
+- bump
+
 ## 2.10.10
 
 ### Patch Changes
