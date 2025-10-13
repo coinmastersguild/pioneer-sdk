@@ -37,8 +37,8 @@ import {
 } from '@pioneer-platform/pioneer-coins';
 //let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
 
-let spec = 'https://pioneers.dev/spec/swagger.json'
-// let spec = 'http://127.0.0.1:9001/spec/swagger.json'
+// let spec = 'https://pioneers.dev/spec/swagger.json'
+let spec = 'http://127.0.0.1:9001/spec/swagger.json'
 
 // Use local kkcli-v2 server for testing
 //let spec = process.env['VITE_PIONEER_URL_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
@@ -437,7 +437,180 @@ const test_service = async function (this: any) {
         //validate assetContext on tokens
 
         console.log('📊 =========================================================');
-        
+
+        // ========================================
+        // GET PUBKEYS AND BALANCES
+        // ========================================
+        console.log('🔑 [PUBKEYS] Fetching pubkeys for all configured chains...')
+        console.timeEnd('⏱️ 3_GET_PUBKEYS');
+
+        let pubkeys = app.pubkeys || [];
+        console.log(`✅ [PUBKEYS] Found ${pubkeys.length} pubkeys`)
+
+        // Display pubkeys in ASCII table format
+        if (pubkeys.length > 0) {
+            console.log('\n┌─────────────────────────────────────────────────────────────────────────────┐')
+            console.log('│                              PUBKEYS TABLE                                  │')
+            console.log('├────────┬──────────┬──────────────────────────────────────────────────────────┤')
+            console.log('│ Chain  │ Symbol   │ Address/Pubkey                                           │')
+            console.log('├────────┬──────────┬──────────────────────────────────────────────────────────┤')
+
+            for (const pubkey of pubkeys) {
+                const chain = pubkey.networkId || pubkey.networks?.[0] || 'unknown';
+                const symbol = pubkey.symbol || NetworkIdToChain[chain] || '???';
+                const address = pubkey.master || pubkey.address || 'N/A';
+                const displayAddr = address.length > 48 ? address.substring(0, 45) + '...' : address;
+
+                console.log(`│ ${chain.padEnd(6)} │ ${symbol.padEnd(8)} │ ${displayAddr.padEnd(56)} │`)
+            }
+
+            console.log('└────────┴──────────┴──────────────────────────────────────────────────────────┘\n')
+        }
+
+        // Fetch balances
+        console.log('💰 [BALANCES] Fetching balances for all pubkeys...')
+        console.time('⏱️ 4_GET_BALANCES')
+
+        // Get balances using SDK method
+        let balances = app.balances || [];
+
+        // If no balances yet, try to fetch them
+        if (balances.length === 0) {
+            console.log('⚠️ [BALANCES] No cached balances found, fetching fresh...')
+
+            try {
+                // Try to get balances from the SDK
+                await app.getBalances();
+                balances = app.balances || [];
+                console.log(`✅ [BALANCES] Fetched ${balances.length} balance entries`)
+            } catch (error: any) {
+                console.error('❌ [BALANCES] Failed to fetch balances:', error.message)
+            }
+        }
+
+        console.timeEnd('⏱️ 4_GET_BALANCES')
+
+        // ========================================
+        // ETH BALANCE DEBUGGING
+        // ========================================
+        console.log('\n🔍 [ETH DEBUG] Analyzing ETH balance situation...')
+
+        // Find all ETH-related pubkeys
+        const ethPubkeys = pubkeys.filter((p: any) => {
+            const chain = p.networkId || p.networks?.[0] || '';
+            return chain.includes('eip155:1') || p.symbol === 'ETH';
+        });
+
+        console.log(`📋 [ETH DEBUG] Found ${ethPubkeys.length} ETH pubkeys:`)
+        for (const ethPubkey of ethPubkeys) {
+            const addr = ethPubkey.master || ethPubkey.address;
+            console.log(`   Address: ${addr}`)
+            console.log(`   Network: ${ethPubkey.networkId || ethPubkey.networks?.[0]}`)
+            console.log(`   Path: ${ethPubkey.path || addressNListToBIP32(ethPubkey.addressNList)}`)
+        }
+
+        // Find all ETH balances
+        const ethBalances = balances.filter((b: any) => {
+            const symbol = b.symbol;
+            const networkName = b.networkName;
+            return symbol === 'ETH' || networkName === 'Ethereum' || (b.caip && b.caip.includes('eip155:1'));
+        });
+
+        console.log(`\n💰 [ETH DEBUG] Found ${ethBalances.length} ETH balance entries:`)
+        for (const ethBalance of ethBalances) {
+            console.log(`   Address: ${ethBalance.address || ethBalance.pubkey || 'unknown'}`)
+            console.log(`   Balance: ${ethBalance.balance || ethBalance.value || '0'}`)
+            console.log(`   Value USD: $${ethBalance.valueUsd || ethBalance.priceUsd || '0'}`)
+            console.log(`   Asset: ${ethBalance.symbol} on ${ethBalance.networkName || ethBalance.chainId}`)
+            console.log(`   CAIP: ${ethBalance.caip}`)
+            console.log('   ---')
+        }
+
+        // Check if we have ETH addresses but no balances
+        if (ethPubkeys.length > 0 && ethBalances.length === 0) {
+            console.log('\n⚠️ [ETH DEBUG] WARNING: Found ETH addresses but NO balances!')
+            console.log('   Possible causes:')
+            console.log('   1. Balance fetch failed or timed out')
+            console.log('   2. Pioneer API not returning ETH balances')
+            console.log('   3. Address format mismatch between pubkeys and balances')
+            console.log('   4. Network connectivity issues')
+
+            // Try manual balance check for first ETH address
+            if (ethPubkeys[0]) {
+                const testAddr = ethPubkeys[0].master || ethPubkeys[0].address;
+                console.log(`\n🔬 [ETH DEBUG] Attempting manual balance check for: ${testAddr}`)
+
+                try {
+                    // Try to get balance directly from Pioneer API
+                    const response = await fetch(`${spec.replace('/spec/swagger.json', '')}/api/v1/balance/eip155:1/${testAddr}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('✅ [ETH DEBUG] Manual balance check result:', JSON.stringify(data, null, 2));
+                    } else {
+                        console.log(`❌ [ETH DEBUG] Manual balance check failed: ${response.status} ${response.statusText}`);
+                    }
+                } catch (error: any) {
+                    console.log(`❌ [ETH DEBUG] Manual balance check error: ${error.message}`);
+                }
+            }
+        }
+
+        // ========================================
+        // DISPLAY BALANCES TABLE
+        // ========================================
+        let totalValueUsd = 0;
+
+        if (balances.length > 0) {
+            console.log('\n┌─────────────────────────────────────────────────────────────────────────────────────────────┐')
+            console.log('│                                    BALANCES TABLE                                           │')
+            console.log('├────────┬──────────┬──────────────────────────┬─────────────────────┬───────────────────────┤')
+            console.log('│ Chain  │ Symbol   │ Balance                  │ Value USD           │ Address                │')
+            console.log('├────────┬──────────┬──────────────────────────┬─────────────────────┬───────────────────────┤')
+
+            for (const balance of balances) {
+                // Use networkName or symbol as chain display (more readable than chainId)
+                const chain = balance.networkName || balance.symbol || balance.chainId || 'unknown';
+                const symbol = balance.symbol || '???';
+                const balanceValue = balance.balance || balance.value || '0';
+                const valueUsd = parseFloat(balance.valueUsd || balance.priceUsd || '0');
+                const address = (balance.address || balance.pubkey || 'N/A').substring(0, 18);
+
+                totalValueUsd += valueUsd;
+
+                const balanceStr = balanceValue.toString().substring(0, 22);
+                const valueUsdStr = valueUsd > 0 ? `$${valueUsd.toFixed(2)}` : '$0.00';
+
+                console.log(`│ ${chain.padEnd(6)} │ ${symbol.padEnd(8)} │ ${balanceStr.padEnd(24)} │ ${valueUsdStr.padEnd(19)} │ ${address.padEnd(21)} │`)
+            }
+
+            console.log('├────────┴──────────┴──────────────────────────┴─────────────────────┴───────────────────────┤')
+            console.log(`│ TOTAL PORTFOLIO VALUE: $${totalValueUsd.toFixed(2).padEnd(73)} │`)
+            console.log('└─────────────────────────────────────────────────────────────────────────────────────────────┘\n')
+        } else {
+            console.log('\n⚠️ [BALANCES] No balances found!')
+        }
+
+        console.log('📊 =========================================================');
+
+        // Summary
+        console.log('\n📊 [SUMMARY] Test Results:')
+        console.log(`   🔑 Pubkeys: ${pubkeys.length}`)
+        console.log(`   💰 Balances: ${balances.length}`)
+        console.log(`   💵 Total Value: $${totalValueUsd.toFixed(2)} USD`)
+        console.log(`   🔗 Chains: ${blockchains.length}`)
+
+        if (ethPubkeys.length > 0) {
+            console.log(`\n🔍 [ETH] ETH-specific results:`)
+            console.log(`   📍 ETH Addresses: ${ethPubkeys.length}`)
+            console.log(`   💰 ETH Balances: ${ethBalances.length}`)
+            if (ethBalances.length > 0) {
+                const totalEth = ethBalances.reduce((sum: number, b: any) => sum + parseFloat(b.balance || b.value || '0'), 0);
+                const totalEthUsd = ethBalances.reduce((sum: number, b: any) => sum + parseFloat(b.valueUsd || b.priceUsd || '0'), 0);
+                console.log(`   💎 Total ETH: ${totalEth.toFixed(8)} ETH`)
+                console.log(`   💵 Total ETH Value: $${totalEthUsd.toFixed(2)} USD`)
+            }
+        }
+
         // Next steps for integration-transfer test:
         // 1. Use setPubkeyContext to select which account to transfer FROM
         // 2. Build transfer/swap transactions with the selected pubkey context
@@ -445,7 +618,7 @@ const test_service = async function (this: any) {
         // 4. Test switching contexts mid-operation
         // 5. Ensure balance checks respect the current pubkey context
         log.info(tag,'📝 Ready for integration-transfer pubkey context testing!')
-        
+
         // Exit successfully
         log.info(tag, '🎉 All tests completed successfully! Exiting with code 0.');
         process.exit(0);

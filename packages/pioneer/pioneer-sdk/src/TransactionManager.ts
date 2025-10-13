@@ -320,7 +320,8 @@ export class TransactionManager {
       let result = await this.pioneer.Broadcast({ networkId, serialized });
       result = result.data;
       if (result.error) {
-        return result;
+        // Throw an error instead of returning the error object
+        throw new Error(`Broadcast failed: ${result.error}`);
       } else {
         return result.txid;
       }

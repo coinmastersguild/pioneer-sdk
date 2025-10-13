@@ -1,5 +1,25 @@
 # @coinmasters/integration-mcp
 
+## 1.0.13
+
+### Patch Changes
+
+- bump
+
+- bump
+
+## 1.0.12
+
+### Patch Changes
+
+- bump
+
+## 1.0.11
+
+### Patch Changes
+
+- bump
+
 ## 1.0.10
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # @internal/config
 
+## 2.10.17
+
+### Patch Changes
+
+- bump
+
+- bump
+
+## 2.10.16
+
+### Patch Changes
+
+- bump
+
+## 2.10.15
+
+### Patch Changes
+
+- bump
+
 ## 2.10.14
 
 ### Patch Changes

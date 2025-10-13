@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/integration-fees",
-  "version": "1.13.24",
+  "version": "1.13.27",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

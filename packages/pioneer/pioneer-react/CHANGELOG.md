@@ -1,5 +1,34 @@
 # @coinmasters/pioneer-react
 
+## 0.10.9
+
+### Patch Changes
+
+- bump
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.30
+
+## 0.10.8
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.29
+
+## 0.10.7
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.28
+
 ## 0.10.6
 
 ### Patch Changes

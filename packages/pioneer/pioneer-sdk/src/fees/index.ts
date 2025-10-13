@@ -64,6 +64,18 @@ function getNetworkName(networkId: string): string {
 }
 
 /**
+ * Timeout wrapper for async operations
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+    )
+  ]);
+}
+
+/**
  * Main fee fetching and normalization function
  * Handles all the complexity of different API formats and returns
  * a clean, normalized structure for the UI
@@ -84,10 +96,87 @@ export async function getFees(
       return getCosmosFees(networkId);
     }
 
-    // Get raw fee data from API
-    const feeResponse = await (pioneer.GetFeeRateByNetwork
-      ? pioneer.GetFeeRateByNetwork({ networkId })
-      : pioneer.GetFeeRate({ networkId }));
+    // Hardcode DOGE fees at 10 sat/byte (API and Blockbook often unreliable for DOGE)
+    if (networkId === 'bip122:00000000001a91e3dace36e2be3bf030') {
+      console.log(tag, 'Using hardcoded fees for Dogecoin: 10 sat/byte');
+      return {
+        slow: {
+          label: 'Slow',
+          value: '10',
+          unit: 'sat/byte',
+          description: 'Low priority - 30+ minutes',
+          estimatedTime: '~30 minutes',
+          priority: 'low'
+        },
+        average: {
+          label: 'Average',
+          value: '10',
+          unit: 'sat/byte',
+          description: 'Normal priority - 10-30 minutes',
+          estimatedTime: '~15 minutes',
+          priority: 'medium'
+        },
+        fastest: {
+          label: 'Fast',
+          value: '10',
+          unit: 'sat/byte',
+          description: 'High priority - next block',
+          estimatedTime: '~5 minutes',
+          priority: 'high'
+        },
+        networkId,
+        networkType: 'UTXO',
+        raw: { hardcoded: true, reason: 'DOGE fee estimation unreliable' }
+      };
+    }
+
+    // Get raw fee data from API with timeout for Dash (slow API)
+    let feeResponse;
+    if (networkId === 'bip122:000007d91d1254d60e2dd1ae58038307') {
+      // Dash with 3 second timeout and fallback
+      try {
+        const apiCall = pioneer.GetFeeRateByNetwork
+          ? pioneer.GetFeeRateByNetwork({ networkId })
+          : pioneer.GetFeeRate({ networkId });
+        feeResponse = await withTimeout(apiCall, 3000);
+      } catch (timeoutError) {
+        console.warn(tag, 'Dash fee API timeout, using fallback fees');
+        return {
+          slow: {
+            label: 'Economy',
+            value: '5',
+            unit: 'sat/byte',
+            description: 'Low priority - 30+ minutes',
+            estimatedTime: '~30 minutes',
+            priority: 'low'
+          },
+          average: {
+            label: 'Standard',
+            value: '8',
+            unit: 'sat/byte',
+            description: 'Normal priority - 10-30 minutes',
+            estimatedTime: '~15 minutes',
+            priority: 'medium'
+          },
+          fastest: {
+            label: 'Priority',
+            value: '10',
+            unit: 'sat/byte',
+            description: 'High priority - next block',
+            estimatedTime: '~5 minutes',
+            priority: 'high'
+          },
+          networkId,
+          networkType: 'UTXO',
+          raw: { hardcoded: true, reason: 'Dash API timeout, using conservative fallback fees' }
+        };
+      }
+    } else {
+      // Normal API call for other networks
+      feeResponse = await (pioneer.GetFeeRateByNetwork
+        ? pioneer.GetFeeRateByNetwork({ networkId })
+        : pioneer.GetFeeRate({ networkId }));
+    }
 
     if (!feeResponse || !feeResponse.data) {
       throw new Error(`No fee data returned for ${networkId}`);
@@ -99,8 +188,8 @@ export async function getFees(
     // Network type already detected above, just get network name
     const networkName = getNetworkName(networkId);
 
-    // Normalize the fee data based on format
-    let normalizedFees = normalizeFeeData(feeData, networkType, networkName);
+    // Normalize the fee data based on format (pass networkId for sanity checks)
+    let normalizedFees = normalizeFeeData(feeData, networkType, networkName, networkId);
 
     // Ensure fees are differentiated for better UX
     normalizedFees = ensureFeeDifferentiation(normalizedFees, networkType);
@@ -127,7 +216,8 @@ export async function getFees(
 function normalizeFeeData(
   feeData: any,
   networkType: string,
-  networkName: string
+  networkName: string,
+  networkId?: string
 ): NormalizedFeeRates {
   // Check which format the API returned
   const hasSlowAverageFastest = feeData.slow !== undefined &&
@@ -152,6 +242,68 @@ function normalizeFeeData(
     fastestValue = feeData.fastest.toString();
   } else {
     throw new Error('Unknown fee data format');
+  }
+
+  // UNIT CONVERSION: Detect if API returned sat/kB instead of sat/byte
+  // If values are unreasonably high, they're likely in sat/kB and need to be divided by 1000
+  if (networkType === 'UTXO') {
+    const slowNum = parseFloat(slowValue);
+    const avgNum = parseFloat(averageValue);
+    const fastestNum = parseFloat(fastestValue);
+
+    // Detection threshold: if ANY value > 500, likely in wrong units (sat/kB instead of sat/byte)
+    // This is safe because even BTC rarely exceeds 500 sat/byte
+    const conversionThreshold = 500;
+    
+    if (slowNum > conversionThreshold || avgNum > conversionThreshold || fastestNum > conversionThreshold) {
+      console.warn(`[FEES] Detected wrong units for ${networkName}: values appear to be in sat/kB instead of sat/byte`);
+      console.warn(`[FEES] Original values: slow=${slowNum}, avg=${avgNum}, fastest=${fastestNum}`);
+      
+      // Convert from sat/kB to sat/byte
+      slowValue = (slowNum / 1000).toFixed(3);
+      averageValue = (avgNum / 1000).toFixed(3);
+      fastestValue = (fastestNum / 1000).toFixed(3);
+      
+      console.warn(`[FEES] Converted to sat/byte: slow=${slowValue}, avg=${averageValue}, fastest=${fastestValue}`);
+    }
+  }
+
+  // Apply sanity checks for UTXO networks to prevent absurdly high fees
+  // The API sometimes returns stale or incorrect data (e.g., DOGE returning 50000 sat/byte instead of 50)
+  if (networkType === 'UTXO') {
+    const sanityLimits: Record<string, number> = {
+      'bip122:00000000001a91e3dace36e2be3bf030': 100,  // DOGE max 100 sat/byte (typical: 1-10)
+      'bip122:12a765e31ffd4059bada1e25190f6e98': 500,  // LTC max 500 sat/byte
+      'bip122:000000000000000000651ef99cb9fcbe': 50,   // BCH max 50 sat/byte (low fee chain)
+      'bip122:000007d91d1254d60e2dd1ae58038307': 50,   // DASH max 50 sat/byte (low fee chain)
+      'bip122:000000000019d6689c085ae165831e93': 5000, // BTC max 5000 sat/byte (can spike during congestion)
+    };
+
+    const matchedNetworkId = networkId && sanityLimits[networkId] ? networkId :
+                             Object.keys(sanityLimits).find(id => networkName.toLowerCase().includes(id.split(':')[1]?.substring(0, 8)));
+    
+    if (matchedNetworkId && sanityLimits[matchedNetworkId]) {
+      const limit = sanityLimits[matchedNetworkId];
+      const slowNum = parseFloat(slowValue);
+      const avgNum = parseFloat(averageValue);
+      const fastestNum = parseFloat(fastestValue);
+
+      if (slowNum > limit || avgNum > limit || fastestNum > limit) {
+        console.warn(`[FEES] Detected absurdly high fees for ${networkName}: slow=${slowNum}, avg=${avgNum}, fastest=${fastestNum}`);
+        console.warn(`[FEES] Capping fees to reasonable limits (max: ${limit} sat/byte)`);
+        
+        // Cap to reasonable values - use 10% of limit as conservative default
+        const safeFee = (limit * 0.1).toFixed(2);
+        const mediumFee = (limit * 0.15).toFixed(2);
+        const fastFee = (limit * 0.2).toFixed(2);
+        
+        slowValue = safeFee;
+        averageValue = mediumFee;
+        fastestValue = fastFee;
+        
+        console.warn(`[FEES] Adjusted to: slow=${slowValue}, avg=${averageValue}, fastest=${fastestValue}`);
+      }
+    }
   }
 
   // Get unit and descriptions based on network type

@@ -822,18 +822,49 @@ export class SDK {
     this.syncMarket = async function () {
       const tag = `${TAG} | syncMarket | `;
       try {
+        // Log balances with invalid CAIPs for debugging
+        const invalidBalances = this.balances.filter(b => 
+          !b || !b.caip || typeof b.caip !== 'string' || !b.caip.includes(':')
+        );
+        if (invalidBalances.length > 0) {
+          console.warn(tag, `Found ${invalidBalances.length} balances with invalid CAIPs:`, 
+            invalidBalances.map(b => ({ 
+              caip: b?.caip, 
+              type: typeof b?.caip, 
+              symbol: b?.symbol,
+              balance: b?.balance 
+            }))
+          );
+        }
+
         // Extract all CAIP identifiers from balances, filtering out invalid entries
         let allCaips = this.balances
-          .filter(b => b && b.caip && typeof b.caip === 'string')
+          .filter(b => b && b.caip && typeof b.caip === 'string' && b.caip.trim().length > 0)
           .map((b) => b.caip);
 
         // Remove duplicates
         allCaips = [...new Set(allCaips)];
 
+        // CRITICAL: Double-check all elements are valid strings after Set deduplication
+        // Filter out any non-string or empty values that might have slipped through
+        allCaips = allCaips.filter(caip => 
+          caip && 
+          typeof caip === 'string' && 
+          caip.trim().length > 0 &&
+          caip.includes(':') // CAIP format always has a colon
+        );
+
         // Fetch market prices for all CAIPs
         console.log('GetMarketInfo: payload: ', allCaips);
         console.log('GetMarketInfo: payload type: ', typeof allCaips);
         console.log('GetMarketInfo: payload length: ', allCaips.length);
+        
+        // Additional validation log to catch issues
+        const invalidEntries = allCaips.filter(caip => typeof caip !== 'string');
+        if (invalidEntries.length > 0) {
+          console.error(tag, 'CRITICAL: Invalid entries detected in allCaips:', invalidEntries);
+          throw new Error('Invalid CAIP entries detected - aborting market sync');
+        }
         
         if (allCaips && allCaips.length > 0) {
           try {
@@ -2073,15 +2104,20 @@ export class SDK {
         // ALWAYS fetch fresh market price for the asset
         let freshPriceUsd = 0;
         try {
-          console.log(tag, 'Fetching fresh market price for:', asset.caip);
-          const marketData = await this.pioneer.GetMarketInfo([asset.caip]);
-          console.log(tag, 'Market data response:', marketData);
-
-          if (marketData && marketData.data && marketData.data.length > 0) {
-            freshPriceUsd = marketData.data[0];
-            console.log(tag, '✅ Fresh market price:', freshPriceUsd);
+          // Validate CAIP before calling API
+          if (!asset.caip || typeof asset.caip !== 'string' || !asset.caip.includes(':')) {
+            console.warn(tag, 'Invalid or missing CAIP, skipping market price fetch:', asset.caip);
           } else {
-            console.warn(tag, 'No market data returned for:', asset.caip);
+            console.log(tag, 'Fetching fresh market price for:', asset.caip);
+            const marketData = await this.pioneer.GetMarketInfo([asset.caip]);
+            console.log(tag, 'Market data response:', marketData);
+
+            if (marketData && marketData.data && marketData.data.length > 0) {
+              freshPriceUsd = marketData.data[0];
+              console.log(tag, '✅ Fresh market price:', freshPriceUsd);
+            } else {
+              console.warn(tag, 'No market data returned for:', asset.caip);
+            }
           }
         } catch (marketError) {
           console.error(tag, 'Error fetching market price:', marketError);
@@ -2353,6 +2389,29 @@ export class SDK {
           return false;
         });
         if (!pubkey) throw Error('Invalid network! missing pubkey for network! ' + asset.networkId);
+
+        // ALWAYS fetch fresh market price for the asset
+        let freshPriceUsd = 0;
+        try {
+          // Validate CAIP before calling API
+          if (!asset.caip || typeof asset.caip !== 'string' || !asset.caip.includes(':')) {
+            console.warn(tag, 'Invalid or missing CAIP, skipping market price fetch:', asset.caip);
+          } else {
+            console.log(tag, 'Fetching fresh market price for:', asset.caip);
+            const marketData = await this.pioneer.GetMarketInfo([asset.caip]);
+            console.log(tag, 'Market data response:', marketData);
+
+            if (marketData && marketData.data && marketData.data.length > 0) {
+              freshPriceUsd = marketData.data[0];
+              console.log(tag, '✅ Fresh market price:', freshPriceUsd);
+            } else {
+              console.warn(tag, 'No market data returned for:', asset.caip);
+            }
+          }
+        } catch (marketError) {
+          console.error(tag, 'Error fetching market price:', marketError);
+          // Continue without fresh price, will try to use cached data
+        }
 
         // Try to find the asset in the local assetsMap
         let assetInfo = this.assetsMap.get(asset.caip.toLowerCase());

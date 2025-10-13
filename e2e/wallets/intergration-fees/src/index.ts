@@ -173,25 +173,33 @@ const test_service = async function (this: any) {
 
         //add a few custom blockchains
 
+        // Chains to test - Focus on fee validation across many chains
+        // This test validates fee fetching and sanity checking, NOT transaction building
         let AllChainsSupported = [
-            'ETH',
-            // 'ARB',  //BROKE
-            // 'DOGE',
-            // 'OP',    //Fast
-            // 'MATIC', //SLOW charting
-            // 'AVAX',  //fast
-            // 'BASE',  //fast
-            // 'BSC',   //fast
-            'BTC',
-            // 'BCH',
-            // 'GAIA',
-            // 'OSMO',
-            // 'XRP',
-            // 'DOGE',
-            // 'DASH',
-            // 'MAYA',
-            // 'LTC',
-            // 'THOR'
+            // EVM Chains
+            'ETH',      // Mainnet
+            'ARB',      // Arbitrum L2
+            'OP',       // Optimism L2
+            'MATIC',    // Polygon
+            'AVAX',     // Avalanche
+            'BASE',     // Base L2
+            'BSC',      // BNB Chain
+            
+            // UTXO Chains
+            'BTC',      // Bitcoin
+            'DOGE',     // Dogecoin (critical - has fee cap fix)
+            'LTC',      // Litecoin
+            'BCH',      // Bitcoin Cash
+            'DASH',     // Dash
+            
+            // Cosmos Chains
+            'GAIA',     // Cosmos Hub
+            'OSMO',     // Osmosis
+            'THOR',     // THORChain
+            'MAYA',     // Maya Protocol
+            
+            // Other
+            'XRP',   // Ripple (enable if needed)
         ]
 
         let blockchains = AllChainsSupported.map(
@@ -980,6 +988,160 @@ const test_service = async function (this: any) {
         // }
         
         log.info(tag, ' ****** Delegation Positions Test Complete ******');
+
+        // ========================================
+        // FEE RATE TESTING
+        // ========================================
+        log.info(tag, ' ****** Testing Fee Rate Fetching and Validation ******');
+        
+        // Test fees for all chains we initialized (ensures consistency)
+        const chainsToTestFees = AllChainsSupported;
+        const feeResults: any = {};
+        
+        for (const chain of chainsToTestFees) {
+            const chainEnum = getChainEnumValue(chain);
+            if (!chainEnum) {
+                log.warn(tag, `  ⚠️ Unknown chain: ${chain}, skipping`);
+                continue;
+            }
+            const networkId = ChainToNetworkId[chainEnum];
+            log.info(tag, `📊 Testing fees for ${chain} (${networkId})`);
+            
+            try {
+                const fees = await app.getFees(networkId);
+                log.info(tag, `  ✅ ${chain} fees received:`, {
+                    slow: fees.slow.value + ' ' + fees.slow.unit,
+                    average: fees.average.value + ' ' + fees.average.unit,
+                    fastest: fees.fastest.value + ' ' + fees.fastest.unit,
+                    networkType: fees.networkType
+                });
+                
+                // Validate fee structure
+                assert(fees.slow, `${chain} missing slow fee`);
+                assert(fees.average, `${chain} missing average fee`);
+                assert(fees.fastest, `${chain} missing fastest fee`);
+                assert(fees.networkType, `${chain} missing network type`);
+                assert(fees.slow.unit, `${chain} missing fee unit`);
+                
+                // Validate fee values are reasonable (not zero, not negative)
+                const slowNum = parseFloat(fees.slow.value);
+                const avgNum = parseFloat(fees.average.value);
+                const fastestNum = parseFloat(fees.fastest.value);
+                
+                assert(slowNum > 0, `${chain} slow fee must be positive, got ${slowNum}`);
+                assert(avgNum > 0, `${chain} average fee must be positive, got ${avgNum}`);
+                assert(fastestNum > 0, `${chain} fastest fee must be positive, got ${fastestNum}`);
+                
+                // Validate fee ordering (fastest >= average >= slow)
+                assert(avgNum >= slowNum, `${chain} average (${avgNum}) should be >= slow (${slowNum})`);
+                assert(fastestNum >= avgNum, `${chain} fastest (${fastestNum}) should be >= average (${avgNum})`);
+                
+                // Validate correct units by network type
+                if (fees.networkType === 'UTXO') {
+                    assert(
+                        fees.slow.unit === 'sat/vB' || fees.slow.unit === 'sat/byte',
+                        `${chain} UTXO fee unit should be sat/vB or sat/byte, got ${fees.slow.unit}`
+                    );
+                } else if (fees.networkType === 'EVM') {
+                    assert(
+                        fees.slow.unit === 'gwei' || fees.slow.unit === 'Gwei',
+                        `${chain} EVM fee unit should be gwei, got ${fees.slow.unit}`
+                    );
+                }
+                
+                feeResults[chain] = { success: true, fees };
+                log.info(tag, `  ✅ ${chain} fee validation passed`);
+                
+            } catch (error: any) {
+                log.error(tag, `  ❌ Failed to get/validate fees for ${chain}:`, error.message);
+                feeResults[chain] = { success: false, error: error.message };
+                throw error;
+            }
+        }
+        
+        log.info(tag, ' ****** Fee Rate Fetching Complete ******');
+        
+        // ========================================
+        // FEE VALIDATION SUMMARY
+        // ========================================
+        log.info(tag, '');
+        log.info(tag, '📊 [FEE VALIDATION SUMMARY] ===============================');
+        
+        const successfulChains = Object.keys(feeResults).filter(k => feeResults[k].success);
+        const failedChains = Object.keys(feeResults).filter(k => !feeResults[k].success);
+        
+        log.info(tag, `  Total chains tested: ${chainsToTestFees.length}`);
+        log.info(tag, `  ✅ Successful: ${successfulChains.length}`);
+        log.info(tag, `  ❌ Failed: ${failedChains.length}`);
+        log.info(tag, '');
+        
+        // Show detailed results by network type
+        const utxoChains = successfulChains.filter(c => feeResults[c].fees.networkType === 'UTXO');
+        const evmChains = successfulChains.filter(c => feeResults[c].fees.networkType === 'EVM');
+        const cosmosChains = successfulChains.filter(c => feeResults[c].fees.networkType === 'COSMOS');
+        
+        if (utxoChains.length > 0) {
+            log.info(tag, `  🪙 UTXO Chains (${utxoChains.length}):`);
+            utxoChains.forEach(chain => {
+                const fees = feeResults[chain].fees;
+                log.info(tag, `    ${chain.padEnd(6)} - slow: ${fees.slow.value.padStart(8)} ${fees.slow.unit}, avg: ${fees.average.value.padStart(8)} ${fees.average.unit}, fast: ${fees.fastest.value.padStart(8)} ${fees.fastest.unit}`);
+            });
+        }
+        
+        if (evmChains.length > 0) {
+            log.info(tag, `  ⛓️  EVM Chains (${evmChains.length}):`);
+            evmChains.forEach(chain => {
+                const fees = feeResults[chain].fees;
+                log.info(tag, `    ${chain.padEnd(6)} - slow: ${fees.slow.value.padStart(8)} ${fees.slow.unit}, avg: ${fees.average.value.padStart(8)} ${fees.average.unit}, fast: ${fees.fastest.value.padStart(8)} ${fees.fastest.unit}`);
+            });
+        }
+        
+        if (cosmosChains.length > 0) {
+            log.info(tag, `  🌌 Cosmos Chains (${cosmosChains.length}):`);
+            cosmosChains.forEach(chain => {
+                const fees = feeResults[chain].fees;
+                log.info(tag, `    ${chain.padEnd(6)} - slow: ${fees.slow.value.padStart(8)} ${fees.slow.unit}, avg: ${fees.average.value.padStart(8)} ${fees.average.unit}, fast: ${fees.fastest.value.padStart(8)} ${fees.fastest.unit}`);
+            });
+        }
+        
+        if (failedChains.length > 0) {
+            log.info(tag, '');
+            log.error(tag, `  ❌ Failed Chains (${failedChains.length}):`);
+            failedChains.forEach(chain => {
+                log.error(tag, `    ${chain}: ${feeResults[chain].error}`);
+            });
+        }
+        
+        log.info(tag, '');
+        
+        // Validate critical chains that had issues before
+        const criticalChains = ['DOGE', 'BTC', 'ETH'];
+        const criticalResults: any = {};
+        
+        log.info(tag, '  🎯 Critical Chain Validation:');
+        criticalChains.forEach(chain => {
+            if (feeResults[chain] && feeResults[chain].success) {
+                const fees = feeResults[chain].fees;
+                const slowNum = parseFloat(fees.slow.value);
+                const avgNum = parseFloat(fees.average.value);
+                const fastestNum = parseFloat(fees.fastest.value);
+                
+                // Check if fees are properly ordered and reasonable
+                const properlyOrdered = slowNum <= avgNum && avgNum <= fastestNum;
+                const hasDifferentiation = fastestNum > slowNum;
+                
+                criticalResults[chain] = { success: true, properlyOrdered, hasDifferentiation };
+                log.info(tag, `    ${chain.padEnd(6)} ✅ slow=${slowNum}, avg=${avgNum}, fast=${fastestNum} | Ordered: ${properlyOrdered}, Differentiated: ${hasDifferentiation}`);
+            } else {
+                criticalResults[chain] = { success: false };
+                log.error(tag, `    ${chain.padEnd(6)} ❌ Failed to fetch fees`);
+            }
+        });
+        
+        log.info(tag, '');
+        log.info(tag, '  ✅ All fee validations passed!');
+        log.info(tag, '=========================================================');
+        log.info(tag, '');
 
 
 

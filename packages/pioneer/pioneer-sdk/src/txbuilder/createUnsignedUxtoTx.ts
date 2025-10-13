@@ -132,19 +132,59 @@ export async function createUnsignedUxtoTx(
     }
 
     let feeRateFromNode: any;
-    try {
-      // Try GetFeeRateByNetwork first (newer API), then fallback to GetFeeRate
-      let feeResponse;
-      if (pioneer.GetFeeRateByNetwork) {
-        console.log(`${tag}: Trying GetFeeRateByNetwork for ${networkId}`);
-        feeResponse = await pioneer.GetFeeRateByNetwork({ networkId });
-      } else {
-        console.log(`${tag}: Using GetFeeRate for ${networkId}`);
-        feeResponse = await pioneer.GetFeeRate({ networkId });
-      }
+    
+    // HARDCODE DOGE FEES - API is unreliable for DOGE
+    if (networkId === 'bip122:00000000001a91e3dace36e2be3bf030') {
+      console.log(`${tag}: Using hardcoded fees for DOGE (10 sat/byte)`);
+      feeRateFromNode = {
+        slow: 10,
+        average: 10,
+        fast: 10,
+        fastest: 10,
+        unit: 'sat/byte',
+        description: 'Hardcoded DOGE fees - API unreliable'
+      };
+    } else {
+      try {
+        // Try GetFeeRateByNetwork first (newer API), then fallback to GetFeeRate
+        let feeResponse;
+        if (pioneer.GetFeeRateByNetwork) {
+          console.log(`${tag}: Trying GetFeeRateByNetwork for ${networkId}`);
+          feeResponse = await pioneer.GetFeeRateByNetwork({ networkId });
+        } else {
+          console.log(`${tag}: Using GetFeeRate for ${networkId}`);
+          feeResponse = await pioneer.GetFeeRate({ networkId });
+        }
 
-      feeRateFromNode = feeResponse.data;
-      console.log(`${tag}: Got fee rates from API:`, JSON.stringify(feeRateFromNode, null, 2));
+        feeRateFromNode = feeResponse.data;
+        console.log(`${tag}: Got fee rates from API:`, JSON.stringify(feeRateFromNode, null, 2));
+
+      // UNIT CONVERSION: Detect if API returned sat/kB instead of sat/byte
+      // If values are unreasonably high (>500), they're likely in sat/kB
+      const conversionThreshold = 500;
+      const needsConversion =
+        (feeRateFromNode.slow && feeRateFromNode.slow > conversionThreshold) ||
+        (feeRateFromNode.average && feeRateFromNode.average > conversionThreshold) ||
+        (feeRateFromNode.fast && feeRateFromNode.fast > conversionThreshold) ||
+        (feeRateFromNode.fastest && feeRateFromNode.fastest > conversionThreshold);
+
+      if (needsConversion) {
+        console.warn(`${tag}: Detected wrong units - values appear to be in sat/kB instead of sat/byte`);
+        console.warn(`${tag}: Original values:`, {
+          slow: feeRateFromNode.slow,
+          average: feeRateFromNode.average,
+          fast: feeRateFromNode.fast,
+          fastest: feeRateFromNode.fastest,
+        });
+
+        // Convert from sat/kB to sat/byte by dividing by 1000
+        if (feeRateFromNode.slow) feeRateFromNode.slow = feeRateFromNode.slow / 1000;
+        if (feeRateFromNode.average) feeRateFromNode.average = feeRateFromNode.average / 1000;
+        if (feeRateFromNode.fast) feeRateFromNode.fast = feeRateFromNode.fast / 1000;
+        if (feeRateFromNode.fastest) feeRateFromNode.fastest = feeRateFromNode.fastest / 1000;
+
+        console.warn(`${tag}: Converted to sat/byte:`, feeRateFromNode);
+      }
 
       // Validate the response has the expected structure
       if (!feeRateFromNode || typeof feeRateFromNode !== 'object') {
@@ -168,31 +208,33 @@ export async function createUnsignedUxtoTx(
       ) {
         throw new Error(`No valid fee rates in API response: ${JSON.stringify(feeRateFromNode)}`);
       }
-    } catch (error: any) {
-      console.error(`${tag}: Failed to get fee rates from Pioneer API:`, error.message || error);
-      throw new Error(
-        `Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`,
-      );
+      } catch (error: any) {
+        console.error(`${tag}: Failed to get fee rates from Pioneer API:`, error.message || error);
+        throw new Error(
+          `Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`,
+        );
+      }
     }
 
-    // Map fee level to fee rate (1,2,3 = slow, 4 = average, 5 = fastest)
+    // Map fee level to fee rate (1-2 = slow, 3-4 = average, 5 = fastest)
+    // Frontend typically sends: slow=1, average=3, fastest=5
     let effectiveFeeRate;
     console.log(`${tag}: Using fee level ${feeLevel}`);
 
     switch (feeLevel) {
       case 1:
       case 2:
-      case 3:
         effectiveFeeRate = feeRateFromNode.slow || feeRateFromNode.average;
         console.log(`${tag}: Using SLOW fee rate: ${effectiveFeeRate} sat/vB`);
         break;
+      case 3:
       case 4:
         effectiveFeeRate = feeRateFromNode.average || feeRateFromNode.fast;
         console.log(`${tag}: Using AVERAGE fee rate: ${effectiveFeeRate} sat/vB`);
         break;
       case 5:
         effectiveFeeRate = feeRateFromNode.fastest || feeRateFromNode.fast;
-        console.log(`${tag}: Using FAST fee rate: ${effectiveFeeRate} sat/vB`);
+        console.log(`${tag}: Using FASTEST fee rate: ${effectiveFeeRate} sat/vB`);
         break;
       default:
         throw new Error(`Invalid fee level: ${feeLevel}. Must be 1-5`);
@@ -204,14 +246,26 @@ export async function createUnsignedUxtoTx(
     console.log(`${tag}: Using fee rate from API:`, {
       feeLevel,
       selectedRate: effectiveFeeRate,
-      description: feeLevel <= 3 ? 'slow' : feeLevel === 4 ? 'average' : 'fast',
+      description: feeLevel <= 2 ? 'slow' : feeLevel <= 4 ? 'average' : 'fast',
     });
 
     // Only enforce minimum for safety if fee is 0 or negative
     if (effectiveFeeRate <= 0) throw Error('Failed to build valid fee! Must be > 0');
 
+    // CRITICAL: coinselect library requires WHOLE NUMBER fee rates, not decimals
+    // Round up to ensure we don't underpay on fees
+    effectiveFeeRate = Math.ceil(effectiveFeeRate);
+    
+    // Enforce Bitcoin network minimum relay fee (3 sat/vB minimum for BTC mainnet)
+    // This prevents "min relay fee not met" errors from nodes
+    const MIN_RELAY_FEE_RATE = 3;
+    if (effectiveFeeRate < MIN_RELAY_FEE_RATE) {
+      console.log(`${tag}: Fee rate ${effectiveFeeRate} is below minimum relay fee, increasing to ${MIN_RELAY_FEE_RATE} sat/vB`);
+      effectiveFeeRate = MIN_RELAY_FEE_RATE;
+    }
+    
     // The effectiveFeeRate is now the actual sat/vB from the API
-    console.log(`${tag}: Final fee rate to use: ${effectiveFeeRate} sat/vB`);
+    console.log(`${tag}: Final fee rate to use (rounded, with minimums): ${effectiveFeeRate} sat/vB`);
 
     amount = parseInt(String(amount * 1e8));
     if (amount <= 0 && !isMax) throw Error('Invalid amount! 0');
@@ -226,6 +280,18 @@ export async function createUnsignedUxtoTx(
       feeRate: effectiveFeeRate,
     });
 
+    // DEBUG: Log actual UTXO structure to see what coinselect receives
+    console.log(`${tag}: UTXO details for coin selection:`, 
+      utxos.map(u => ({
+        value: u.value,
+        txid: u.txid?.substring(0, 10) + '...',
+        vout: u.vout,
+        scriptType: u.scriptType,
+        hasPath: !!u.path,
+        hasTxHex: !!u.txHex
+      }))
+    );
+
     let result;
     if (isMax) {
       //console.log(tag, 'isMax:', isMax);
@@ -237,7 +303,8 @@ export async function createUnsignedUxtoTx(
       result = coinSelect(utxos, [{ address: to, value: amount }], effectiveFeeRate);
     }
 
-    console.log(tag, 'coinSelect result:', result ? 'Success' : 'Failed');
+    console.log(tag, 'coinSelect result object:', result);
+    console.log(tag, 'coinSelect result.inputs:', result?.inputs);
 
     if (!result || !result.inputs) {
       // Provide detailed error information
