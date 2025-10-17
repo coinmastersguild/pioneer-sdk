@@ -149,9 +149,6 @@ const test_service = async function (this: any) {
         const cacheStatus = await checkVaultCache();
         console.log('🔍 [CACHE STATUS]', cacheStatus);
 
-        // Test vault pubkey speed
-        await testVaultPubkeySpeed();
-
         if (cacheStatus.available) {
             console.log('🚀 [FAST MODE] Vault cache available - fast startup possible!');
         } else {
@@ -194,8 +191,8 @@ const test_service = async function (this: any) {
           // @ts-ignore
           (chainStr: any) => ChainToNetworkId[getChainEnumValue(chainStr)],
         );
-        log.debug(tag,"blockchains: ",blockchains)
-        log.debug(tag,"blockchains: ",blockchains.length)
+        log.info(tag,"blockchains: ",blockchains)
+        log.info(tag,"blockchains: ",blockchains.length)
 
         //add custom chains
         // let blockchains = []
@@ -310,34 +307,298 @@ const test_service = async function (this: any) {
         // log.info('apiKey: ',app);
         log.info('apiKey: ',app.keepkeyApiKey);
 
-        // TESTING
+        // ========================================
+        // MAYA MULTI-PATH TEST (Indices 0-7)
+        // ========================================
+        console.log('\n🔱 [MAYA MULTI-PATH TEST] Testing 8 Maya accounts (indices 0-7)...\n');
 
-        //addPath
-        console.log('\n🧪 [ADD PATH TEST] Testing dynamic path addition...');
-        const mayaPath = {
-          note:" MAYA path 2",
-          type:"address",
-          addressNList: [0x80000000 + 44, 0x80000000 + 931, 0x80000000 + 0, 0, 2],
-          addressNListMaster: [0x80000000 + 44, 0x80000000 + 931, 0x80000000 + 0, 0, 2],
-          curve: 'secp256k1',
-          script_type:"mayachain",
-          showDisplay: false, // Not supported by TrezorConnect or Ledger, but KeepKey should do it
-          networks: ['cosmos:mayachain-mainnet-v1'],
-        };
+        // Generate 8 Maya paths for indices 0-7
+        const mayaPaths: any[] = [];
+        for (let accountIndex = 0; accountIndex < 8; accountIndex++) {
+            const mayaPath = {
+                note: `MAYA Account ${accountIndex}`,
+                type: "address",
+                addressNList: [0x80000000 + 44, 0x80000000 + 931, 0x80000000 + 0, 0, accountIndex],
+                addressNListMaster: [0x80000000 + 44, 0x80000000 + 931, 0x80000000 + 0, 0, accountIndex],
+                curve: 'secp256k1',
+                script_type: "mayachain",
+                showDisplay: false,
+                networks: ['cosmos:mayachain-mainnet-v1'],
+            };
+            mayaPaths.push(mayaPath);
+        }
 
-        console.log('📋 [ADD PATH TEST] Paths before:', app.paths.length);
-        console.log('🔑 [ADD PATH TEST] Pubkeys before:', app.pubkeys.length);
-        console.log('💰 [ADD PATH TEST] Balances before:', app.balances.length);
+        console.log(`📊 [MAYA PATHS] Generated ${mayaPaths.length} Maya paths:`);
+        console.log('┌─────────┬───────────────────────────────┐');
+        console.log('│ Account │ Path                          │');
+        console.log('├─────────┼───────────────────────────────┤');
+        for (const path of mayaPaths) {
+            const accountIdx = path.addressNList[4]; // Last element is the account index
+            const pathStr = addressNListToBIP32(path.addressNList);
+            console.log(`│    ${accountIdx}    │ ${pathStr.padEnd(29)} │`);
+        }
+        console.log('└─────────┴───────────────────────────────┘\n');
 
-        const addPathResult = await app.addPath(mayaPath);
+        // Capture state before adding paths
+        const pathsBeforeMaya = app.paths.length;
+        const pubkeysBeforeMaya = app.pubkeys.length;
+        const balancesBeforeMaya = app.balances?.length || 0;
 
-        console.log('✅ [ADD PATH TEST] Result:', addPathResult);
-        console.log('📋 [ADD PATH TEST] Paths after:', app.paths.length);
-        console.log('🔑 [ADD PATH TEST] Pubkeys after:', app.pubkeys.length);
-        console.log('💰 [ADD PATH TEST] Balances after:', app.balances.length);
+        console.log('📋 [BEFORE ADD] State:');
+        console.log(`   Paths: ${pathsBeforeMaya}`);
+        console.log(`   Pubkeys: ${pubkeysBeforeMaya}`);
+        console.log(`   Balances: ${balancesBeforeMaya}\n`);
 
-        //refresh?
+        // Add all Maya paths using batch addPaths
+        console.log('🚀 [ADDING MAYA PATHS] Using batch addPaths()...');
+        try {
+            const addPathsResult = await app.addPaths(mayaPaths);
 
+            console.log('\n✅ [ADD PATHS RESULT]:', JSON.stringify(addPathsResult, null, 2));
+
+            const pathsAfterMaya = app.paths.length;
+            const pubkeysAfterMaya = app.pubkeys.length;
+            const balancesAfterMaya = app.balances?.length || 0;
+
+            console.log('\n📋 [AFTER ADD] State:');
+            console.log(`   Paths: ${pathsBeforeMaya} → ${pathsAfterMaya} (+${pathsAfterMaya - pathsBeforeMaya})`);
+            console.log(`   Pubkeys: ${pubkeysBeforeMaya} → ${pubkeysAfterMaya} (+${pubkeysAfterMaya - pubkeysBeforeMaya})`);
+            console.log(`   Balances: ${balancesBeforeMaya} → ${balancesAfterMaya} (+${balancesAfterMaya - balancesBeforeMaya})`);
+
+            // AUDIT: Check what happened to balances
+            if (balancesAfterMaya < balancesBeforeMaya) {
+                console.log('\n⚠️ [AUDIT WARNING] Balances DECREASED after adding paths!');
+                console.log(`   This suggests balances were cleared or overwritten`);
+                console.log(`   Expected: balances to increase or stay the same`);
+                console.log(`   Actual: ${balancesBeforeMaya} → ${balancesAfterMaya} (${balancesAfterMaya - balancesBeforeMaya})`);
+            }
+
+            // AUDIT: Check if we got pubkeys for all paths
+            const expectedNewPubkeys = mayaPaths.length;
+            const actualNewPubkeys = pubkeysAfterMaya - pubkeysBeforeMaya;
+            if (actualNewPubkeys < expectedNewPubkeys) {
+                console.log(`\n⚠️ [AUDIT WARNING] Did not get pubkeys for all paths!`);
+                console.log(`   Expected new pubkeys: ${expectedNewPubkeys}`);
+                console.log(`   Actual new pubkeys: ${actualNewPubkeys}`);
+                console.log(`   Missing: ${expectedNewPubkeys - actualNewPubkeys} pubkeys`);
+            }
+
+            // AUDIT: Inspect the newly added pubkeys
+            console.log('\n🔍 [AUDIT] Inspecting newly added Maya pubkeys:');
+            const mayaPubkeys = app.pubkeys.filter((p: any) =>
+                p.networks && p.networks.includes('cosmos:mayachain-mainnet-v1')
+            );
+
+            console.log(`   Found ${mayaPubkeys.length} Maya pubkeys total`);
+            console.log('\n┌─────────┬──────────────────────────────────────────────────┬─────────┐');
+            console.log('│ Account │ Address                                          │ Symbol  │');
+            console.log('├─────────┼──────────────────────────────────────────────────┼─────────┤');
+            for (const pubkey of mayaPubkeys) {
+                const accountIdx = pubkey.addressNList ? pubkey.addressNList[4] : '?';
+                const address = (pubkey.master || pubkey.address || 'N/A').padEnd(48);
+                const symbol = (pubkey.symbol || '???').padEnd(7);
+                console.log(`│    ${accountIdx}    │ ${address} │ ${symbol} │`);
+            }
+            console.log('└─────────┴──────────────────────────────────────────────────┴─────────┘\n');
+
+            // AUDIT: Check for balances on Maya addresses
+            console.log('🔍 [AUDIT] Checking for balances on Maya addresses:');
+            const mayaBalances = app.balances?.filter((b: any) =>
+                b.caip && b.caip.includes('mayachain') ||
+                b.symbol === 'MAYA' ||
+                mayaPubkeys.some((p: any) => {
+                    const addr = p.master || p.address;
+                    return b.address === addr || b.pubkey === addr || b.master === addr;
+                })
+            ) || [];
+
+            console.log(`   Found ${mayaBalances.length} Maya balance entries`);
+
+            if (mayaBalances.length > 0) {
+                console.log('\n   Maya Balances:');
+                for (const bal of mayaBalances) {
+                    console.log(`   - Address: ${bal.address || bal.pubkey}`);
+                    console.log(`     Balance: ${bal.balance || bal.value} ${bal.symbol}`);
+                    console.log(`     Value: $${bal.valueUsd || bal.priceUsd || '0'}`);
+                }
+            } else {
+                console.log('\n   ⚠️ NO MAYA BALANCES FOUND!');
+                console.log('\n   Possible reasons:');
+                console.log('   1. Balance fetch failed or timed out');
+                console.log('   2. Pioneer API not returning Maya balances');
+                console.log('   3. Addresses have zero balance (expected for new accounts)');
+                console.log('   4. Balance data structure mismatch');
+
+                // Try to manually check one address
+                if (mayaPubkeys.length > 0) {
+                    const testPubkey = mayaPubkeys[0];
+                    const testAddr = testPubkey.master || testPubkey.address;
+                    console.log(`\n   🔬 [MANUAL CHECK] Testing first address: ${testAddr}`);
+
+                    try {
+                        const balanceUrl = `${spec.replace('/spec/swagger.json', '')}/api/v1/balance/cosmos:mayachain-mainnet-v1/${testAddr}`;
+                        console.log(`   Fetching: ${balanceUrl}`);
+                        const response = await fetch(balanceUrl);
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('   ✅ Manual balance check result:', JSON.stringify(data, null, 2));
+                        } else {
+                            console.log(`   ❌ Manual balance check failed: ${response.status} ${response.statusText}`);
+                            const errorText = await response.text();
+                            console.log(`   Error response: ${errorText}`);
+                        }
+                    } catch (error: any) {
+                        console.log(`   ❌ Manual balance check error: ${error.message}`);
+                    }
+                }
+            }
+
+            // AUDIT: Check app.balances structure
+            console.log('\n🔍 [AUDIT] Inspecting app.balances array:');
+            console.log(`   Total balances: ${app.balances?.length || 0}`);
+            if (app.balances && app.balances.length > 0) {
+                console.log('   Sample balance entry (first):');
+                console.log(JSON.stringify(app.balances[0], null, 2));
+            } else {
+                console.log('   ⚠️ app.balances is empty or undefined');
+            }
+
+        } catch (error: any) {
+            console.error('\n❌ [ADD PATHS FAILED]', error.message);
+            console.error('   Stack trace:', error.stack);
+        }
+
+        console.log('\n🔱 [MAYA MULTI-PATH TEST] Complete\n');
+
+        // ========================================
+        // CHART DATA VALIDATION (Maya + All Chains)
+        // ========================================
+        console.log('\n📊 [CHART DATA] Fetching chart data for portfolio...\n');
+
+        try {
+            const startCharts = performance.now();
+            const chartData = await app.getCharts();
+            const chartTime = performance.now() - startCharts;
+
+            console.log(`✅ [CHART DATA] Fetched chart data in ${chartTime.toFixed(0)}ms`);
+            console.log(`📈 [CHART DATA] Chart entries: ${chartData?.length || 0}`);
+
+            if (chartData && chartData.length > 0) {
+                console.log('\n┌─────────────────────────────────────────────────────────────────────────────────────┐');
+                console.log('│                                CHART DATA SUMMARY                                   │');
+                console.log('├────────┬──────────┬─────────────────┬─────────────────┬──────────────────────────┤');
+                console.log('│ Chain  │ Symbol   │ Current Price   │ 24h Change      │ Market Cap               │');
+                console.log('├────────┼──────────┼─────────────────┼─────────────────┼──────────────────────────┤');
+
+                // Find Maya chart data specifically
+                let mayaChartFound = false;
+
+                for (const chart of chartData.slice(0, 20)) {
+                    const symbol = (chart.symbol || '???').padEnd(8);
+                    const chain = (chart.chain || chart.networkId || 'Unknown').substring(0, 6).padEnd(6);
+                    const price = chart.priceUsd ? `$${parseFloat(chart.priceUsd).toFixed(4)}` : 'N/A';
+                    const change24h = chart.change24h ? `${parseFloat(chart.change24h).toFixed(2)}%` : 'N/A';
+                    const marketCap = chart.marketCap ? `$${(parseFloat(chart.marketCap) / 1000000).toFixed(2)}M` : 'N/A';
+
+                    console.log(`│ ${chain} │ ${symbol} │ ${price.padEnd(15)} │ ${change24h.padEnd(15)} │ ${marketCap.padEnd(24)} │`);
+
+                    if (chart.symbol === 'CACAO' || chart.symbol === 'MAYA') {
+                        mayaChartFound = true;
+                    }
+                }
+
+                console.log('└────────┴──────────┴─────────────────┴─────────────────┴──────────────────────────┘\n');
+
+                // Validate Maya chart data
+                if (mayaChartFound) {
+                    console.log('✅ [MAYA CHART] Maya/CACAO price data found in charts');
+                } else {
+                    console.log('⚠️ [MAYA CHART] WARNING: No Maya/CACAO price data in charts');
+                    console.log('   This may affect portfolio value calculations for Maya balances');
+                }
+
+                // Cross-reference with Maya balances
+                const mayaBalancesWithChart = app.balances?.filter((b: any) =>
+                    (b.symbol === 'CACAO' || b.symbol === 'MAYA') && parseFloat(b.balance || '0') > 0
+                ) || [];
+
+                if (mayaBalancesWithChart.length > 0) {
+                    console.log(`\n💰 [MAYA BALANCES WITH CHART DATA] Found ${mayaBalancesWithChart.length} Maya balances with value:`);
+                    for (const bal of mayaBalancesWithChart) {
+                        const nativeBalance = parseFloat(bal.balance || '0');
+                        const valueUsd = parseFloat(bal.valueUsd || '0');
+                        const priceUsd = parseFloat(bal.priceUsd || '0');
+
+                        console.log(`   Address: ${bal.address || bal.pubkey}`);
+                        console.log(`   Balance: ${nativeBalance.toFixed(8)} ${bal.symbol}`);
+                        console.log(`   Price: $${priceUsd.toFixed(4)} USD`);
+                        console.log(`   Value: $${valueUsd.toFixed(2)} USD`);
+                        console.log(`   Chart data present: ${priceUsd > 0 ? '✅' : '❌'}`);
+                        console.log('');
+                    }
+                }
+            } else {
+                console.log('⚠️ [CHART DATA] No chart data returned');
+            }
+
+        } catch (error: any) {
+            console.error('❌ [CHART DATA] Failed to fetch chart data:', error.message);
+            console.error('   This may affect price calculations for portfolio balances');
+        }
+
+        // ========================================
+        // TOKEN BALANCE VALIDATION
+        // ========================================
+        console.log('\n🎯 [TOKEN VALIDATION] Checking for token balances...\n');
+
+        const tokenBalances = app.balances?.filter((b: any) =>
+            b.contract || b.isToken ||
+            (b.type && b.type.toLowerCase() === 'token') ||
+            (b.caip && !['BTC', 'ETH', 'AVAX', 'BNB', 'MATIC', 'BCH', 'LTC', 'DOGE', 'DASH', 'CACAO', 'MAYA', 'RUNE'].includes(b.symbol))
+        ) || [];
+
+        const nativeBalances = app.balances?.filter((b: any) =>
+            !b.contract && !b.isToken &&
+            ['BTC', 'ETH', 'AVAX', 'BNB', 'MATIC', 'BCH', 'LTC', 'DOGE', 'DASH', 'CACAO', 'MAYA', 'RUNE'].includes(b.symbol)
+        ) || [];
+
+        console.log(`📊 [TOKEN SUMMARY]`);
+        console.log(`   Native Assets: ${nativeBalances.length}`);
+        console.log(`   Token Assets: ${tokenBalances.length}`);
+        console.log(`   Total Assets: ${app.balances?.length || 0}`);
+
+        if (tokenBalances.length > 0) {
+            console.log('\n┌────────────────────────────────────────────────────────────────────────────────────────┐');
+            console.log('│                                    TOKEN BALANCES                                      │');
+            console.log('├──────────────┬─────────────────┬─────────────────┬────────────────┬───────────────────┤');
+            console.log('│ Symbol       │ Chain           │ Balance         │ Price USD      │ Value USD         │');
+            console.log('├──────────────┼─────────────────┼─────────────────┼────────────────┼───────────────────┤');
+
+            let totalTokenValueUsd = 0;
+
+            for (const token of tokenBalances.slice(0, 20)) {
+                const symbol = (token.symbol || '???').padEnd(12);
+                const chain = (token.networkName || token.chainId || 'Unknown').substring(0, 15).padEnd(15);
+                const balance = parseFloat(token.balance || '0').toFixed(6).padEnd(15);
+                const priceUsd = token.priceUsd ? `$${parseFloat(token.priceUsd).toFixed(4)}` : 'N/A';
+                const valueUsd = parseFloat(token.valueUsd || '0');
+                totalTokenValueUsd += valueUsd;
+                const valueUsdStr = `$${valueUsd.toFixed(2)}`.padEnd(17);
+
+                console.log(`│ ${symbol} │ ${chain} │ ${balance} │ ${priceUsd.padEnd(14)} │ ${valueUsdStr} │`);
+            }
+
+            if (tokenBalances.length > 20) {
+                console.log(`│              │                 │                 │                │ ... +${tokenBalances.length - 20} more │`);
+            }
+
+            console.log('├──────────────┴─────────────────┴─────────────────┴────────────────┴───────────────────┤');
+            console.log(`│ TOTAL TOKEN VALUE:${(' '.repeat(62) + '$' + totalTokenValueUsd.toFixed(2)).slice(-68)} │`);
+            console.log('└────────────────────────────────────────────────────────────────────────────────────────┘\n');
+        } else {
+            console.log('\n   ℹ️ No token balances found (only native assets present)\n');
+        }
 
         console.timeEnd('⏱️ 1_SETUP_AND_INIT');
         console.log('🎯 [PERF] Setup and Init completed at:', (performance.now() - perfStart).toFixed(0) + 'ms');
@@ -664,11 +925,12 @@ const test_service = async function (this: any) {
         ];
 
         // Test multiple chains (Bitcoin, Litecoin, Dogecoin, etc.)
-        const chainsToTest = [
-            { name: 'Bitcoin', symbol: 'BTC', coinType: 0, networkId: 'bip122:000000000019d6689c085ae165831e93' },
-            { name: 'Litecoin', symbol: 'LTC', coinType: 2, networkId: 'bip122:12a765e31ffd4059bada1e25190f6e98' },
-            { name: 'Dogecoin', symbol: 'DOGE', coinType: 3, networkId: 'bip122:1a91e3dace36e2be3bf030a65679fe82' },
-        ];
+        const chainsToTest:any = []
+        // const chainsToTest = [
+        //     { name: 'Bitcoin', symbol: 'BTC', coinType: 0, networkId: 'bip122:000000000019d6689c085ae165831e93' },
+        //     { name: 'Litecoin', symbol: 'LTC', coinType: 2, networkId: 'bip122:12a765e31ffd4059bada1e25190f6e98' },
+        //     { name: 'Dogecoin', symbol: 'DOGE', coinType: 3, networkId: 'bip122:1a91e3dace36e2be3bf030a65679fe82' },
+        // ];
 
         // Generate paths for indices 0-7
         const pathsToTest: any[] = [];
@@ -720,34 +982,29 @@ const test_service = async function (this: any) {
         console.log('└────────┴─────────────────┴─────────┴───────────────────────────────┴───────────────────┘\n');
 
         // ========================================
-        // ADD PATHS AND GET PUBKEYS
+        // ADD PATHS AND GET PUBKEYS (BATCH MODE)
         // ========================================
-        console.log('🔑 [ADDING PATHS] Adding all generated paths to SDK...');
-        const pathsBeforeAdd = app.paths.length;
-        const pubkeysBeforeAdd = app.pubkeys.length;
+        // Only add paths if we have any to add (don't call with empty array!)
+        if (pathsToTest.length > 0) {
+            console.log('🔑 [ADDING PATHS] Adding all generated paths to SDK in batch mode...');
+            const pathsBeforeAdd = app.paths.length;
+            const pubkeysBeforeAdd = app.pubkeys.length;
+            const balancesBeforeAdd = app.balances?.length || 0;
 
-        for (const path of pathsToTest) {
             try {
-                await app.addPath(path);
+                // Use batch addPaths() method - single API call for all paths!
+                const result = await app.addPaths(pathsToTest);
+
+                console.log(`✅ [BATCH ADD COMPLETE]`);
+                console.log(`   Paths: ${pathsBeforeAdd} → ${app.paths.length} (+${app.paths.length - pathsBeforeAdd})`);
+                console.log(`   Pubkeys: ${pubkeysBeforeAdd} → ${app.pubkeys.length} (+${app.pubkeys.length - pubkeysBeforeAdd})`);
+                console.log(`   Balances: ${balancesBeforeAdd} → ${app.balances?.length || 0} (+${(app.balances?.length || 0) - balancesBeforeAdd})`);
+                console.log(`   ✨ Single API call replaced ${pathsToTest.length} individual calls!`);
             } catch (error: any) {
-                console.warn(`⚠️  Failed to add path ${path.note}: ${error.message}`);
+                console.error(`❌ [BATCH ADD FAILED] ${error.message}`);
             }
-        }
-
-        console.log(`✅ [PATHS ADDED] Paths: ${pathsBeforeAdd} → ${app.paths.length} (+${app.paths.length - pathsBeforeAdd})`);
-        console.log(`✅ [PUBKEYS] Pubkeys: ${pubkeysBeforeAdd} → ${app.pubkeys.length} (+${app.pubkeys.length - pubkeysBeforeAdd})`);
-
-        // ========================================
-        // SYNC BALANCES FOR ALL PATHS
-        // ========================================
-        console.log('\n💰 [SYNCING BALANCES] Fetching balances for all added paths...');
-        const balancesBeforeSync = app.balances?.length || 0;
-
-        try {
-            await app.getBalances();
-            console.log(`✅ [BALANCES SYNCED] Balances: ${balancesBeforeSync} → ${app.balances?.length || 0} (+${(app.balances?.length || 0) - balancesBeforeSync})`);
-        } catch (error: any) {
-            console.error(`❌ [SYNC FAILED] ${error.message}`);
+        } else {
+            console.log('ℹ️ [SKIPPING] No paths to add for Bitcoin test (chainsToTest is empty)');
         }
 
         // ========================================
@@ -829,174 +1086,250 @@ const test_service = async function (this: any) {
         console.log('₿  [MULTI-PATH TEST] Complete');
         console.log('₿  =========================================================\n');
 
-        // // ========================================
-        // // LITECOIN MULTIPLE ACCOUNT TEST (LEGACY)
-        // // ========================================
-        // console.log('\n🪙 =========================================================');
-        // console.log('🪙 [LITECOIN TEST] Testing multiple account handling...');
-        // console.log('🪙 =========================================================\n');
-        //
-        // // Filter for Litecoin pubkeys
-        // const ltcPubkeys = pubkeys.filter((p: any) =>
-        //     p.networks && p.networks.includes('bip122:12a765e31ffd4059bada1e25190f6e98')
-        // );
-        //
-        // console.log(`📊 [LITECOIN PUBKEYS] Found ${ltcPubkeys.length} Litecoin pubkeys:`);
-        // console.log('┌────────────────────────────────────────────────────────────────────────────┐');
-        // console.log('│ Type       │ Note                    │ Script Type  │ Path              │');
-        // console.log('├────────────┼─────────────────────────┼──────────────┼───────────────────┤');
-        //
-        // for (const pubkey of ltcPubkeys) {
-        //     const type = (pubkey.type || 'unknown').substring(0, 10).padEnd(10);
-        //     const note = (pubkey.note || 'N/A').substring(0, 23).padEnd(23);
-        //     const scriptType = (pubkey.scriptType || 'N/A').substring(0, 12).padEnd(12);
-        //     const path = (pubkey.pathMaster || 'N/A').substring(0, 17).padEnd(17);
-        //
-        //     console.log(`│ ${type} │ ${note} │ ${scriptType} │ ${path} │`);
-        // }
-        // console.log('└────────────┴─────────────────────────┴──────────────┴───────────────────┘\n');
-        //
-        // // Expected pubkey types for Litecoin
-        // const expectedTypes = ['p2pkh', 'p2sh-p2wpkh', 'p2wpkh'];
-        // const foundTypes = [...new Set(ltcPubkeys.map((p: any) => p.scriptType))];
-        //
-        // console.log('🔍 [VALIDATION] Checking for all expected Litecoin account types:');
-        // for (const expectedType of expectedTypes) {
-        //     const found = foundTypes.includes(expectedType);
-        //     console.log(`   ${found ? '✅' : '❌'} ${expectedType}: ${found ? 'Found' : 'MISSING'}`)
-        // }
-        //
-        // if (ltcPubkeys.length === 0) {
-        //     console.warn('⚠️  [WARNING] No Litecoin pubkeys found - skipping Litecoin test');
-        // } else {
-        //     // Find Litecoin balances
-        //     const ltcBalances = balances.filter((b: any) =>
-        //         b.caip && b.caip.includes('bip122:12a765e31ffd4059bada1e25190f6e98')
-        //     );
-        //
-        //     console.log(`\n💰 [LITECOIN BALANCES] Found ${ltcBalances.length} balance entries:`);
-        //     if (ltcBalances.length > 0) {
-        //         let totalLtcBalance = 0;
-        //         let totalLtcValue = 0;
-        //
-        //         for (const balance of ltcBalances) {
-        //             const addr = (balance.address || balance.pubkey || 'N/A').substring(0, 20);
-        //             const bal = parseFloat(balance.balance || '0');
-        //             const val = parseFloat(balance.valueUsd || '0');
-        //
-        //             totalLtcBalance += bal;
-        //             totalLtcValue += val;
-        //
-        //             console.log(`   ${addr}...: ${bal.toFixed(8)} LTC ($${val.toFixed(2)})`);
-        //         }
-        //
-        //         console.log(`   ───────────────────────────────────────────`);
-        //         console.log(`   TOTAL: ${totalLtcBalance.toFixed(8)} LTC ($${totalLtcValue.toFixed(2)})`);
-        //     } else {
-        //         console.warn('⚠️  [BALANCES] No Litecoin balances found (addresses might be empty)');
-        //     }
-        //
-        //     // THE CRITICAL TEST: Set asset context for Litecoin
-        //     console.log('\n🎯 [CRITICAL TEST] Setting asset context for Litecoin...');
-        //
-        //     const ltcCaip = 'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2';
-        //     console.log(`   Using CAIP: ${ltcCaip}`);
-        //
-        //     try {
-        //         const ltcAssetContext = await app.setAssetContext({ caip: ltcCaip });
-        //
-        //         console.log('\n📦 [ASSET CONTEXT] Result:');
-        //         console.log(`   Network ID: ${ltcAssetContext.networkId}`);
-        //         console.log(`   Symbol: ${ltcAssetContext.symbol}`);
-        //         console.log(`   Balance: ${ltcAssetContext.balance || '0'} LTC`);
-        //         console.log(`   Value: $${ltcAssetContext.valueUsd || ltcAssetContext.value || '0'}`);
-        //         console.log(`   Number of pubkeys: ${ltcAssetContext.pubkeys?.length || 0}`);
-        //         console.log(`   Number of balances: ${ltcAssetContext.balances?.length || 0}`);
-        //
-        //         // Check if pubkeys are included
-        //         if (!ltcAssetContext.pubkeys || ltcAssetContext.pubkeys.length === 0) {
-        //             console.error('❌ [BUG FOUND] Asset context has NO pubkeys!');
-        //             console.error('   This explains why receive tab works but assetDetails doesn\'t');
-        //         } else if (ltcAssetContext.pubkeys.length < ltcPubkeys.length) {
-        //             console.warn(`⚠️  [BUG FOUND] Asset context has fewer pubkeys than expected!`);
-        //             console.warn(`   Expected: ${ltcPubkeys.length}, Got: ${ltcAssetContext.pubkeys.length}`);
-        //             console.warn('   Missing pubkeys will not show in UI');
-        //
-        //             // Show which ones are missing
-        //             console.log('\n🔍 [MISSING PUBKEYS] Checking which types are missing:');
-        //             const contextScriptTypes = ltcAssetContext.pubkeys.map((p: any) => p.scriptType);
-        //             for (const expectedType of expectedTypes) {
-        //                 const inContext = contextScriptTypes.includes(expectedType);
-        //                 console.log(`   ${inContext ? '✅' : '❌'} ${expectedType}: ${inContext ? 'In context' : 'MISSING from context'}`);
-        //             }
-        //         } else {
-        //             console.log('✅ [SUCCESS] Asset context includes all pubkeys!');
-        //         }
-        //
-        //         // Display pubkeys in asset context
-        //         if (ltcAssetContext.pubkeys && ltcAssetContext.pubkeys.length > 0) {
-        //             console.log('\n📋 [ASSET CONTEXT PUBKEYS]:');
-        //             for (const pubkey of ltcAssetContext.pubkeys) {
-        //                 console.log(`   ${pubkey.note || 'Unknown'} (${pubkey.scriptType || 'N/A'})`);
-        //                 console.log(`      ${(pubkey.master || pubkey.pubkey || pubkey.address || '').substring(0, 60)}...`);
-        //             }
-        //         }
-        //
-        //         // Check balance aggregation
-        //         if (ltcAssetContext.balances && ltcAssetContext.balances.length > 0) {
-        //             const contextTotalBalance = ltcAssetContext.balances.reduce(
-        //                 (sum: number, b: any) => sum + parseFloat(b.balance || '0'),
-        //                 0
-        //             );
-        //             console.log(`\n💰 [BALANCE AGGREGATION] Context aggregates ${contextTotalBalance.toFixed(8)} LTC`);
-        //
-        //             if (ltcAssetContext.balance) {
-        //                 const reportedBalance = parseFloat(ltcAssetContext.balance);
-        //                 if (Math.abs(reportedBalance - contextTotalBalance) > 0.00000001) {
-        //                     console.warn('⚠️  [WARNING] Balance mismatch!');
-        //                     console.warn(`   Aggregated: ${contextTotalBalance.toFixed(8)} LTC`);
-        //                     console.warn(`   Reported: ${reportedBalance.toFixed(8)} LTC`);
-        //                 } else {
-        //                     console.log('✅ [SUCCESS] Balance properly aggregated across all accounts');
-        //                 }
-        //             }
-        //         }
-        //
-        //         // Final validation
-        //         console.log('\n🎯 [LITECOIN VALIDATION]:');
-        //         const ltcChecks = {
-        //             'Has network ID': !!ltcAssetContext.networkId,
-        //             'Has symbol': !!ltcAssetContext.symbol,
-        //             'Has pubkeys array': Array.isArray(ltcAssetContext.pubkeys),
-        //             'Has multiple pubkeys': ltcAssetContext.pubkeys && ltcAssetContext.pubkeys.length > 1,
-        //             'All pubkey types present': ltcAssetContext.pubkeys &&
-        //                 ltcAssetContext.pubkeys.some((p: any) => p.scriptType === 'p2pkh') &&
-        //                 ltcAssetContext.pubkeys.some((p: any) => p.scriptType === 'p2wpkh'),
-        //             'Has balance': ltcAssetContext.balance !== undefined,
-        //             'Has balances array': Array.isArray(ltcAssetContext.balances),
-        //         };
-        //
-        //         let ltcTestsPassed = true;
-        //         for (const [check, passed] of Object.entries(ltcChecks)) {
-        //             console.log(`   ${passed ? '✅' : '❌'} ${check}`);
-        //             if (!passed) ltcTestsPassed = false;
-        //         }
-        //
-        //         if (!ltcTestsPassed) {
-        //             console.log('\n⚠️  [WARNING] Some Litecoin checks failed - see details above');
-        //             console.log('\n📝 [DEBUG INFO] Full Litecoin asset context:');
-        //             console.log(JSON.stringify(ltcAssetContext, null, 2));
-        //         }
-        //
-        //     } catch (error: any) {
-        //         console.error('❌ [ERROR] Failed to set Litecoin asset context:', error.message);
-        //         console.error(error);
-        //     }
-        // }
 
-        console.log('\n🪙 =========================================================');
-        console.log('🪙 [LITECOIN TEST] Complete');
-        console.log('🪙 =========================================================\n');
+        // ========================================
+        // BALANCE PORTFOLIO OVERVIEW TABLE
+        // ========================================
+        console.log('\n💼 [PORTFOLIO OVERVIEW] Complete wallet balance summary:\n');
+
+        // Helper function to create middle ellipsis for long strings
+        const ellipsisMiddle = (str: string, maxLen: number = 40): string => {
+            if (str.length <= maxLen) return str.padEnd(maxLen);
+            const sideLen = Math.floor((maxLen - 3) / 2);
+            return str.substring(0, sideLen) + '...' + str.substring(str.length - sideLen);
+        };
+
+        // Separate native and token entries
+        const nativeEntries: any[] = [];
+        const tokenEntries: any[] = [];
+        let grandTotalUsd = 0;
+        let nativeTotalUsd = 0;
+        let tokenTotalUsd = 0;
+
+        // DEBUG: Log balances structure - DEEP AUDIT
+        console.log('\n🔍 [DEEP AUDIT] Analyzing app.balances structure:');
+        console.log(`   Total balances: ${app.balances?.length || 0}`);
+
+        if (app.balances && app.balances.length > 0) {
+            // Find all CACAO/MAYA balances
+            const mayaBalances = app.balances.filter((b: any) =>
+                b.symbol === 'CACAO' || b.symbol === 'MAYA' ||
+                (b.caip && b.caip.includes('mayachain'))
+            );
+
+            console.log(`\n   Found ${mayaBalances.length} CACAO/MAYA balance entries:`);
+
+            for (let i = 0; i < mayaBalances.length; i++) {
+                const bal = mayaBalances[i];
+                console.log(`\n   [${i}] CACAO/MAYA Balance Entry:`);
+                console.log(`      symbol: ${bal.symbol}`);
+                console.log(`      balance: ${bal.balance} (type: ${typeof bal.balance})`);
+                console.log(`      value: ${bal.value}`);
+                console.log(`      valueUsd: ${bal.valueUsd}`);
+                console.log(`      priceUsd: ${bal.priceUsd}`);
+                console.log(`      address: ${bal.address}`);
+                console.log(`      pubkey: ${bal.pubkey}`);
+                console.log(`      master: ${bal.master}`);
+                console.log(`      caip: ${bal.caip}`);
+                console.log(`      networkId: ${bal.networkId}`);
+                console.log(`      All fields:`, Object.keys(bal));
+            }
+
+            console.log(`\n   First balance (any asset) structure:`);
+            console.log(JSON.stringify(app.balances[0], null, 2));
+        }
+
+        for (const pubkey of app.pubkeys) {
+            // Find balances for this pubkey
+            const address = pubkey.master || pubkey.address || pubkey.pubkey;
+
+            // DEBUG: Log matching attempt
+            console.log(`\n🔍 [DEBUG] Matching for address: ${address}`);
+            console.log(`   pubkey.master: ${pubkey.master}`);
+            console.log(`   pubkey.address: ${pubkey.address}`);
+            console.log(`   pubkey.pubkey: ${pubkey.pubkey}`);
+
+            const matchingBalances = app.balances?.filter((b: any) => {
+                const matches = b.address === address || b.pubkey === address || b.master === address;
+                if (matches) {
+                    console.log(`   ✅ MATCH FOUND: b.pubkey=${b.pubkey}, balance=${b.balance}`);
+                }
+                return matches;
+            }) || [];
+
+            console.log(`   Matching balances found: ${matchingBalances.length}`);
+
+            // Get the path in BIP32 format
+            const pathStr = pubkey.path || addressNListToBIP32(pubkey.addressNList || []);
+            const symbol = pubkey.symbol || '???';
+
+            // If we have balances, add each one as an entry
+            if (matchingBalances.length > 0) {
+                for (const balance of matchingBalances) {
+                    // Handle balance field variations
+                    let balanceNative = 0;
+                    if (balance.balance) {
+                        balanceNative = parseFloat(balance.balance);
+                    } else if (balance.value) {
+                        balanceNative = parseFloat(balance.value);
+                    } else if (balance.valueUsd && balance.priceUsd) {
+                        // Calculate native balance from USD values if missing
+                        const price = parseFloat(balance.priceUsd);
+                        if (price > 0) {
+                            balanceNative = parseFloat(balance.valueUsd) / price;
+                        }
+                    }
+
+                    const balanceUsd = parseFloat(balance.valueUsd || balance.priceUsd || '0');
+
+                    // Skip entries with zero balance AND zero value (truly empty)
+                    if (balanceNative === 0 && balanceUsd === 0) {
+                        console.log(`   ⚠️ Skipping zero-balance entry for ${balance.symbol || symbol}`);
+                        continue;
+                    }
+
+                    // Debug suspicious entries (USD value but no native balance)
+                    if (balanceNative === 0 && balanceUsd > 0) {
+                        console.log(`   🔍 [SUSPICIOUS] ${balance.symbol} has $${balanceUsd} USD but 0 native balance!`);
+                        console.log(`      Raw balance data:`, JSON.stringify({
+                            balance: balance.balance,
+                            value: balance.value,
+                            valueUsd: balance.valueUsd,
+                            priceUsd: balance.priceUsd
+                        }, null, 2));
+                    }
+
+                    grandTotalUsd += balanceUsd;
+
+                    const isToken = balance.contract || balance.isToken ||
+                                  (balance.type && balance.type.toLowerCase() === 'token') ||
+                                  (balance.caip && !['BTC', 'ETH', 'AVAX', 'BNB', 'MATIC', 'BCH', 'LTC', 'DOGE', 'DASH', 'CACAO', 'MAYA', 'RUNE'].includes(balance.symbol));
+
+                    const entry = {
+                        path: pathStr,
+                        address: address || 'N/A',
+                        symbol: balance.symbol || symbol,
+                        balanceNative: balanceNative,
+                        balanceUsd: balanceUsd,
+                        note: pubkey.note || balance.networkName || '',
+                        isToken: isToken
+                    };
+
+                    if (isToken) {
+                        tokenEntries.push(entry);
+                        tokenTotalUsd += balanceUsd;
+                    } else {
+                        nativeEntries.push(entry);
+                        nativeTotalUsd += balanceUsd;
+                    }
+                }
+            } else {
+                // Show path even if no balance (helps identify unused accounts)
+                nativeEntries.push({
+                    path: pathStr,
+                    address: address || 'N/A',
+                    symbol: symbol,
+                    balanceNative: 0,
+                    balanceUsd: 0,
+                    note: pubkey.note || '',
+                    isToken: false
+                });
+            }
+        }
+
+        // Sort by USD value descending (highest balances first)
+        nativeEntries.sort((a, b) => b.balanceUsd - a.balanceUsd);
+        tokenEntries.sort((a, b) => b.balanceUsd - a.balanceUsd);
+
+        // Combine for full portfolio view
+        const portfolioEntries = [...nativeEntries, ...tokenEntries];
+
+        // Better table rendering function
+        function renderPortfolioTable(headers: string[], rows: any[][], title?: string) {
+            const colWidths = headers.map((h, i) => {
+                const maxWidth = Math.max(
+                    h.length,
+                    ...rows.map(r => String(r[i] || '').length)
+                );
+                return maxWidth + 2;
+            });
+
+            const separator = '─';
+            const totalWidth = colWidths.reduce((sum, w) => sum + w, 0) + colWidths.length + 1;
+            const topLine = '┌' + separator.repeat(totalWidth - 2) + '┐';
+            const midLine = '├' + colWidths.map(w => separator.repeat(w)).join('┼') + '┤';
+            const bottomLine = '└' + colWidths.map(w => separator.repeat(w)).join('┴') + '┘';
+
+            console.log(topLine);
+            if (title) {
+                const titlePadding = Math.floor((totalWidth - title.length - 2) / 2);
+                console.log('│' + ' '.repeat(titlePadding) + title + ' '.repeat(totalWidth - titlePadding - title.length - 2) + '│');
+                console.log(midLine);
+            }
+            console.log('│' + headers.map((h, i) => ` ${h.padEnd(colWidths[i] - 2)} `).join('│') + '│');
+            console.log(midLine);
+
+            rows.forEach(row => {
+                console.log('│' + row.map((cell, i) => ` ${String(cell).padEnd(colWidths[i] - 2)} `).join('│') + '│');
+            });
+
+            console.log(bottomLine);
+        }
+
+        // Display the table - only show non-zero balances
+        const displayEntries = portfolioEntries.filter(e => e.balanceNative > 0 || e.balanceUsd > 0);
+
+        if (displayEntries.length > 0) {
+            const portfolioRows = displayEntries.map(entry => [
+                entry.path.substring(0, 20),
+                ellipsisMiddle(entry.address, 35),
+                entry.symbol.substring(0, 8),
+                entry.balanceNative.toFixed(8),
+                `$${entry.balanceUsd.toFixed(2)}`
+            ]);
+
+            renderPortfolioTable(
+                ['Path', 'Address', 'Asset', 'Balance', 'Value USD'],
+                portfolioRows,
+                'PORTFOLIO OVERVIEW'
+            );
+
+            console.log(`\n💰 TOTAL PORTFOLIO VALUE: $${grandTotalUsd.toFixed(2)}\n`);
+        } else {
+            console.log('⚠️ No balances with value found in portfolio\n');
+        }
+
+        // Summary statistics with native/token breakdown
+        const nonZeroNative = nativeEntries.filter(e => e.balanceUsd > 0);
+        const nonZeroTokens = tokenEntries.filter(e => e.balanceUsd > 0);
+        const nonZeroEntries = portfolioEntries.filter(e => e.balanceUsd > 0);
+
+        console.log('📊 [PORTFOLIO STATS]');
+        console.log(`   Total Addresses: ${portfolioEntries.length} (${nativeEntries.length} native + ${tokenEntries.length} tokens)`);
+        console.log(`   Addresses with Balance: ${nonZeroEntries.length} (${nonZeroNative.length} native + ${nonZeroTokens.length} tokens)`);
+        console.log(`   Total Value: $${grandTotalUsd.toFixed(2)} USD`);
+        console.log(`   Native Value: $${nativeTotalUsd.toFixed(2)} USD (${grandTotalUsd > 0 ? ((nativeTotalUsd / grandTotalUsd) * 100).toFixed(1) : '0'}%)`);
+        console.log(`   Token Value: $${tokenTotalUsd.toFixed(2)} USD (${grandTotalUsd > 0 ? ((tokenTotalUsd / grandTotalUsd) * 100).toFixed(1) : '0'}%)`);
+        if (nonZeroEntries.length > 0) {
+            const avgBalance = grandTotalUsd / nonZeroEntries.length;
+            console.log(`   Average Balance: $${avgBalance.toFixed(2)} USD`);
+        }
+
+        // Maya-specific summary
+        const mayaEntries = portfolioEntries.filter(e => e.symbol === 'CACAO' || e.symbol === 'MAYA');
+        const mayaTotalUsd = mayaEntries.reduce((sum, e) => sum + e.balanceUsd, 0);
+        const mayaTotalNative = mayaEntries.reduce((sum, e) => sum + e.balanceNative, 0);
+
+        if (mayaEntries.length > 0) {
+            console.log(`\n🔱 [MAYA SUMMARY]`);
+            console.log(`   Maya Addresses: ${mayaEntries.length}`);
+            console.log(`   Maya Addresses with Balance: ${mayaEntries.filter(e => e.balanceUsd > 0).length}`);
+            console.log(`   Total CACAO: ${mayaTotalNative.toFixed(8)} CACAO`);
+            console.log(`   Total Maya Value: $${mayaTotalUsd.toFixed(2)} USD`);
+            console.log(`   Maya % of Portfolio: ${grandTotalUsd > 0 ? ((mayaTotalUsd / grandTotalUsd) * 100).toFixed(2) : '0'}%`);
+        }
+
+        console.log('');
 
         // Exit successfully
         log.info(tag, '🎉 All tests completed successfully! Exiting with code 0.');
@@ -1009,91 +1342,6 @@ const test_service = async function (this: any) {
         // Exit with failure code
         process.exit(1)
     }
-}
-
-async function testVaultPubkeySpeed() {
-    console.log('🚀 [VAULT SPEED TEST] Testing vault pubkey fetching speed...');
-    
-    const bitcoinPaths = [
-        // Account 0
-        [2147483692, 2147483648, 2147483648], // m/44'/0'/0' (p2pkh)
-        [2147483697, 2147483648, 2147483648], // m/49'/0'/0' (p2sh-p2wpkh)
-        [2147483732, 2147483648, 2147483648], // m/84'/0'/0' (p2wpkh)
-        
-        // Account 1
-        [2147483692, 2147483648, 2147483649], // m/44'/0'/1' (p2pkh)
-        [2147483697, 2147483648, 2147483649], // m/49'/0'/1' (p2sh-p2wpkh)
-        [2147483732, 2147483648, 2147483649], // m/84'/0'/1' (p2wpkh)
-        
-        // Account 2  
-        [2147483692, 2147483648, 2147483650], // m/44'/0'/2' (p2pkh)
-        [2147483697, 2147483648, 2147483650], // m/49'/0'/2' (p2sh-p2wpkh)
-        [2147483732, 2147483648, 2147483650], // m/84'/0'/2' (p2wpkh)
-    ];
-    
-    const startTime = performance.now();
-    const results = [];
-    
-    for (let i = 0; i < bitcoinPaths.length; i++) {
-        const pathStart = performance.now();
-        
-        try {
-            const response = await fetch('kkapi://system/info/get-public-key', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    address_n: bitcoinPaths[i],
-                    show_display: false
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data: any = await response.json();
-            const pathTime = performance.now() - pathStart;
-            
-            results.push({
-                path: `m/${bitcoinPaths[i].map(n => n >= 0x80000000 ? `${n - 0x80000000}'` : n.toString()).join('/')}`,
-                xpub: data.xpub,
-                time_ms: Math.round(pathTime)
-            });
-            
-            console.log(`✅ [VAULT] Path ${i + 1}/${bitcoinPaths.length}: ${Math.round(pathTime)}ms`);
-            
-        } catch (error: any) {
-            console.error(`❌ [VAULT] Path ${i + 1} failed: ${error.message}`);
-            results.push({
-                path: `m/${bitcoinPaths[i].map(n => n >= 0x80000000 ? `${n - 0x80000000}'` : n.toString()).join('/')}`,
-                error: error.message,
-                time_ms: performance.now() - pathStart
-            });
-        }
-    }
-    
-    const totalTime = performance.now() - startTime;
-    const successCount = results.filter(r => r.xpub).length;
-    const avgTime = results.reduce((sum, r) => sum + r.time_ms, 0) / results.length;
-    
-    console.log('🎯 [VAULT SPEED TEST] Results:');
-    console.log(`   📊 Total time: ${Math.round(totalTime)}ms`);
-    console.log(`   ✅ Successful: ${successCount}/${bitcoinPaths.length}`);
-    console.log(`   ⚡ Average per path: ${Math.round(avgTime)}ms`);
-    console.log(`   🔥 Projected 27-path time: ${Math.round(avgTime * 27)}ms`);
-    
-    if (successCount > 0) {
-        console.log('📋 [VAULT] Sample results:');
-        results.slice(0, 3).forEach(r => {
-            if (r.xpub) {
-                console.log(`   ${r.path}: ${r.xpub.substring(0, 20)}... (${r.time_ms}ms)`);
-            }
-        });
-    }
-    
-    return { totalTime, successCount, avgTime, results };
 }
 
 // Start the test

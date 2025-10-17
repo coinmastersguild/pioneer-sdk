@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/e2e-balance-scan-test",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "E2E test suite for validating balance tracking across multiple address indices",
   "main": "src/index.ts",
   "scripts": {

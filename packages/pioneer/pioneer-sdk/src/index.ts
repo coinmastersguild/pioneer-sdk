@@ -1735,6 +1735,51 @@ export class SDK {
         throw e;
       }
     };
+    this.addPaths = async function (paths: any[]) {
+      const tag = `${TAG} | addPaths | `;
+      try {
+        console.log(tag, `Adding ${paths.length} paths in batch mode...`);
+
+        // Add all paths to the paths array
+        this.paths.push(...paths);
+
+        // Get pubkeys for all paths
+        const newPubkeys = [];
+        for (const path of paths) {
+          try {
+            const pubkey = await getPubkey(path.networks[0], path, this.keepKeySdk, this.context);
+            this.addPubkey(pubkey);
+            newPubkeys.push(pubkey);
+          } catch (error: any) {
+            console.warn(tag, `Failed to get pubkey for path ${path.note}:`, error.message);
+          }
+        }
+
+        console.log(tag, `Successfully added ${newPubkeys.length} pubkeys`);
+
+        // Collect unique networks from all paths
+        const networkSet = new Set<string>();
+        for (const path of paths) {
+          if (path.networks && Array.isArray(path.networks)) {
+            path.networks.forEach((net: string) => networkSet.add(net));
+          }
+        }
+
+        const uniqueNetworks = [...networkSet];
+        console.log(tag, `Fetching balances for ${uniqueNetworks.length} unique networks in single API call...`);
+
+        // Single API call for all networks
+        await this.getBalancesForNetworks(uniqueNetworks);
+        this.buildDashboardFromBalances();
+
+        console.log(tag, `Batch add complete: ${paths.length} paths, ${newPubkeys.length} pubkeys, ${this.balances?.length || 0} balances`);
+
+        return { success: true, pubkeys: newPubkeys };
+      } catch (e) {
+        console.error(tag, 'Failed:', e);
+        throw e;
+      }
+    };
     this.getAssets = async function () {
       /*
         Get Asset Rules

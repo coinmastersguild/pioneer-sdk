@@ -1,7 +1,7 @@
 {
   "author": "highlander",
   "name": "@coinmasters/pioneer-sdk",
-  "version": "4.13.53",
+  "version": "4.13.54",
   "dependencies": {
     "@keepkey/keepkey-sdk": "^0.2.62",
     "@pioneer-platform/loggerdog": "^8.3.1",

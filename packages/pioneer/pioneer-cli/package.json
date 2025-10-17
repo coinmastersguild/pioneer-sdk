@@ -1,6 +1,6 @@
 {
   "name": "@pioneer-platform/pioneer-cli",
-  "version": "1.0.32",
+  "version": "1.0.33",
   "description": "CLI for Pioneer SDK - Streamlined testing and development tools",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

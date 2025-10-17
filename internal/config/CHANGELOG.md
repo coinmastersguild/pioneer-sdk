@@ -1,5 +1,11 @@
 # @internal/config
 
+## 2.10.41
+
+### Patch Changes
+
+- bump
+
 ## 2.10.40
 
 ### Patch Changes
