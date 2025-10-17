@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/e2e-swap-suite",
-  "version": "1.12.27",
+  "version": "1.12.50",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

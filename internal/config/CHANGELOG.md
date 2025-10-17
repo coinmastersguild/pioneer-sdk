@@ -1,5 +1,143 @@
 # @internal/config
 
+## 2.10.40
+
+### Patch Changes
+
+- bump
+
+## 2.10.39
+
+### Patch Changes
+
+- bump
+
+## 2.10.38
+
+### Patch Changes
+
+- bump
+
+## 2.10.37
+
+### Patch Changes
+
+- bump
+
+## 2.10.36
+
+### Patch Changes
+
+- bump
+
+## 2.10.35
+
+### Patch Changes
+
+- bump
+
+## 2.10.34
+
+### Patch Changes
+
+- bump
+
+## 2.10.33
+
+### Patch Changes
+
+- bump
+
+## 2.10.32
+
+### Patch Changes
+
+- bump
+
+## 2.10.31
+
+### Patch Changes
+
+- bump
+
+## 2.10.30
+
+### Patch Changes
+
+- bump
+
+## 2.10.29
+
+### Patch Changes
+
+- bump
+
+## 2.10.28
+
+### Patch Changes
+
+- bump
+
+## 2.10.27
+
+### Patch Changes
+
+- bump
+
+## 2.10.26
+
+### Patch Changes
+
+- bump
+
+## 2.10.25
+
+### Patch Changes
+
+- bump
+
+## 2.10.24
+
+### Patch Changes
+
+- bump
+
+## 2.10.23
+
+### Patch Changes
+
+- bump
+
+## 2.10.22
+
+### Patch Changes
+
+- bump
+
+## 2.10.21
+
+### Patch Changes
+
+- bump
+
+## 2.10.20
+
+### Patch Changes
+
+- bump
+
+## 2.10.19
+
+### Patch Changes
+
+- bump
+
+## 2.10.18
+
+### Patch Changes
+
+- bump
+
 ## 2.10.17
 
 ### Patch Changes

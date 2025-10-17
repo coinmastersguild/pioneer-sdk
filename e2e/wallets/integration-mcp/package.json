@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/integration-mcp",
-  "version": "1.0.13",
+  "version": "1.0.36",
   "description": "E2E integration test for Pioneer MCP server",
   "main": "dist/index.js",
   "scripts": {

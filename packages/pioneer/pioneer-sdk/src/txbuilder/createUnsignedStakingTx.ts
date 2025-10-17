@@ -24,7 +24,7 @@ export async function createUnsignedStakingTx(
   params: StakingTxParams,
   pubkeys: any[],
   pioneer: any,
-  keepKeySdk: any,
+  pubkeyContext: any,
 ): Promise<any> {
   const tag = TAG + ' | createUnsignedStakingTx | ';
 
@@ -32,17 +32,19 @@ export async function createUnsignedStakingTx(
     if (!pioneer) throw new Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    
-    // Auto-correct context if wrong network
-    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
-      keepKeySdk.pubkeyContext = pubkeys.find(pk => 
-        pk.networks?.includes(networkId)
-      );
+
+    // Use the passed pubkeyContext directly - it's already been set by Pioneer SDK
+    if (!pubkeyContext) {
+      throw new Error(`No pubkey context provided for networkId: ${networkId}`);
     }
-    
-    if (!keepKeySdk.pubkeyContext) {
-      throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
+
+    if (!pubkeyContext.networks?.includes(networkId)) {
+      throw new Error(`Pubkey context is for wrong network. Expected ${networkId}, got ${pubkeyContext.networks}`);
     }
+
+    console.log(tag, `✅ Using pubkeyContext for network ${networkId}:`, {
+      address: pubkeyContext.address,
+    });
 
     // Map networkId to chain and get network-specific configs
     let chain: string;
@@ -78,7 +80,7 @@ export async function createUnsignedStakingTx(
 
     console.log(tag, `Building ${params.type} transaction for ${chain}`);
 
-    const fromAddress = keepKeySdk.pubkeyContext.address || keepKeySdk.pubkeyContext.pubkey;
+    const fromAddress = pubkeyContext.address || pubkeyContext.pubkey;
     
     // Get account info
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))

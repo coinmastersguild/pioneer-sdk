@@ -15,7 +15,7 @@ export async function createUnsignedRippleTx(
   memo: string,
   pubkeys: any,
   pioneer: any,
-  keepKeySdk: any,
+  pubkeyContext: any,
   isMax: boolean,
 ): Promise<any> {
   let tag = TAG + ' | createUnsignedRippleTx | ';
@@ -25,20 +25,21 @@ export async function createUnsignedRippleTx(
 
     // Determine networkId from caip
     const networkId = caipToNetworkId(caip);
-    //console.log(tag, 'networkId:', networkId);
 
-    // Auto-correct context if wrong network
-    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
-      keepKeySdk.pubkeyContext = pubkeys.find((pk: any) => 
-        pk.networks?.includes(networkId)
-      );
-    }
-    
-    if (!keepKeySdk.pubkeyContext) {
-      throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
+    // Use the passed pubkeyContext directly - it's already been set by Pioneer SDK
+    if (!pubkeyContext) {
+      throw new Error(`No pubkey context provided for networkId: ${networkId}`);
     }
 
-    const fromAddress = keepKeySdk.pubkeyContext.address || keepKeySdk.pubkeyContext.pubkey;
+    if (!pubkeyContext.networks?.includes(networkId)) {
+      throw new Error(`Pubkey context is for wrong network. Expected ${networkId}, got ${pubkeyContext.networks}`);
+    }
+
+    console.log(tag, `✅ Using pubkeyContext for network ${networkId}:`, {
+      address: pubkeyContext.address,
+    });
+
+    const fromAddress = pubkeyContext.address || pubkeyContext.pubkey;
 
     let accountInfo = await pioneer.GetAccountInfo({
       address: fromAddress,

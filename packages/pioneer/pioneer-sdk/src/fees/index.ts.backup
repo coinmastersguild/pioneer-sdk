@@ -64,18 +64,6 @@ function getNetworkName(networkId: string): string {
 }
 
 /**
- * Timeout wrapper for async operations
- */
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
-    )
-  ]);
-}
-
-/**
  * Main fee fetching and normalization function
  * Handles all the complexity of different API formats and returns
  * a clean, normalized structure for the UI
@@ -96,87 +84,10 @@ export async function getFees(
       return getCosmosFees(networkId);
     }
 
-    // Hardcode DOGE fees at 10 sat/byte (API and Blockbook often unreliable for DOGE)
-    if (networkId === 'bip122:00000000001a91e3dace36e2be3bf030') {
-      console.log(tag, 'Using hardcoded fees for Dogecoin: 10 sat/byte');
-      return {
-        slow: {
-          label: 'Slow',
-          value: '10',
-          unit: 'sat/byte',
-          description: 'Low priority - 30+ minutes',
-          estimatedTime: '~30 minutes',
-          priority: 'low'
-        },
-        average: {
-          label: 'Average',
-          value: '10',
-          unit: 'sat/byte',
-          description: 'Normal priority - 10-30 minutes',
-          estimatedTime: '~15 minutes',
-          priority: 'medium'
-        },
-        fastest: {
-          label: 'Fast',
-          value: '10',
-          unit: 'sat/byte',
-          description: 'High priority - next block',
-          estimatedTime: '~5 minutes',
-          priority: 'high'
-        },
-        networkId,
-        networkType: 'UTXO',
-        raw: { hardcoded: true, reason: 'DOGE fee estimation unreliable' }
-      };
-    }
-
-    // Get raw fee data from API with timeout for Dash (slow API)
-    let feeResponse;
-    if (networkId === 'bip122:000007d91d1254d60e2dd1ae58038307') {
-      // Dash with 3 second timeout and fallback
-      try {
-        const apiCall = pioneer.GetFeeRateByNetwork
-          ? pioneer.GetFeeRateByNetwork({ networkId })
-          : pioneer.GetFeeRate({ networkId });
-        feeResponse = await withTimeout(apiCall, 3000);
-      } catch (timeoutError) {
-        console.warn(tag, 'Dash fee API timeout, using fallback fees');
-        return {
-          slow: {
-            label: 'Economy',
-            value: '5',
-            unit: 'sat/byte',
-            description: 'Low priority - 30+ minutes',
-            estimatedTime: '~30 minutes',
-            priority: 'low'
-          },
-          average: {
-            label: 'Standard',
-            value: '8',
-            unit: 'sat/byte',
-            description: 'Normal priority - 10-30 minutes',
-            estimatedTime: '~15 minutes',
-            priority: 'medium'
-          },
-          fastest: {
-            label: 'Priority',
-            value: '10',
-            unit: 'sat/byte',
-            description: 'High priority - next block',
-            estimatedTime: '~5 minutes',
-            priority: 'high'
-          },
-          networkId,
-          networkType: 'UTXO',
-          raw: { hardcoded: true, reason: 'Dash API timeout, using conservative fallback fees' }
-        };
-      }
-    } else {
-      // Normal API call for other networks
-      feeResponse = await (pioneer.GetFeeRateByNetwork
-        ? pioneer.GetFeeRateByNetwork({ networkId })
-        : pioneer.GetFeeRate({ networkId }));
-    }
+    // Get raw fee data from API
+    const feeResponse = await (pioneer.GetFeeRateByNetwork
+      ? pioneer.GetFeeRateByNetwork({ networkId })
+      : pioneer.GetFeeRate({ networkId }));
 
     if (!feeResponse || !feeResponse.data) {
       throw new Error(`No fee data returned for ${networkId}`);
@@ -242,30 +153,6 @@ function normalizeFeeData(
     fastestValue = feeData.fastest.toString();
   } else {
     throw new Error('Unknown fee data format');
-  }
-
-  // UNIT CONVERSION: Detect if API returned sat/kB instead of sat/byte
-  // If values are unreasonably high, they're likely in sat/kB and need to be divided by 1000
-  if (networkType === 'UTXO') {
-    const slowNum = parseFloat(slowValue);
-    const avgNum = parseFloat(averageValue);
-    const fastestNum = parseFloat(fastestValue);
-
-    // Detection threshold: if ANY value > 500, likely in wrong units (sat/kB instead of sat/byte)
-    // This is safe because even BTC rarely exceeds 500 sat/byte
-    const conversionThreshold = 500;
-    
-    if (slowNum > conversionThreshold || avgNum > conversionThreshold || fastestNum > conversionThreshold) {
-      console.warn(`[FEES] Detected wrong units for ${networkName}: values appear to be in sat/kB instead of sat/byte`);
-      console.warn(`[FEES] Original values: slow=${slowNum}, avg=${avgNum}, fastest=${fastestNum}`);
-      
-      // Convert from sat/kB to sat/byte
-      slowValue = (slowNum / 1000).toFixed(3);
-      averageValue = (avgNum / 1000).toFixed(3);
-      fastestValue = (fastestNum / 1000).toFixed(3);
-      
-      console.warn(`[FEES] Converted to sat/byte: slow=${slowValue}, avg=${averageValue}, fastest=${fastestValue}`);
-    }
   }
 
   // Apply sanity checks for UTXO networks to prevent absurdly high fees
@@ -482,7 +369,7 @@ function getCosmosFees(networkId: string): NormalizedFeeRates {
   // These match the fees in txbuilder/createUnsignedTendermintTx.ts
   const cosmosFeesMap: Record<string, { base: number; unit: string; denom: string }> = {
     'cosmos:thorchain-mainnet-v1': { base: 0.02, unit: 'RUNE', denom: 'rune' },
-    'cosmos:mayachain-mainnet-v1': { base: 0.5, unit: 'CACAO', denom: 'cacao' },
+    'cosmos:mayachain-mainnet-v1': { base: 0.2, unit: 'MAYA', denom: 'maya' },
     'cosmos:cosmoshub-4': { base: 0.005, unit: 'ATOM', denom: 'uatom' },
     'cosmos:osmosis-1': { base: 0.035, unit: 'OSMO', denom: 'uosmo' },
   };

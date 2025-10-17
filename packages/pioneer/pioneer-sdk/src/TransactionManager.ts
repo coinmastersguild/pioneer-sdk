@@ -16,6 +16,7 @@ interface TransactionDependencies {
   assetContext: any;
   balances: any[];
   pubkeys: any[];
+  pubkeyContext: any; // Current pubkey context for signing
   nodes: any[];
   pioneer: any;
   keepKeySdk: any;
@@ -26,6 +27,7 @@ export class TransactionManager {
   private assetContext: any;
   private balances: any[];
   private pubkeys: any[];
+  private pubkeyContext: any;
   private nodes: any[];
   private pioneer: any;
   private keepKeySdk: any;
@@ -36,6 +38,7 @@ export class TransactionManager {
     this.assetContext = dependencies.assetContext;
     this.balances = dependencies.balances;
     this.pubkeys = dependencies.pubkeys;
+    this.pubkeyContext = dependencies.pubkeyContext;
     this.nodes = dependencies.nodes;
     this.pioneer = dependencies.pioneer;
     this.keepKeySdk = dependencies.keepKeySdk;
@@ -70,7 +73,7 @@ export class TransactionManager {
             memo,
             this.pubkeys,
             this.pioneer,
-            this.keepKeySdk,
+            this.pubkeyContext,
             isMax,
             feeLevel,
             changeScriptType,
@@ -86,7 +89,7 @@ export class TransactionManager {
             memo,
             this.pubkeys,
             this.pioneer,
-            this.keepKeySdk,
+            this.pubkeyContext,
             isMax,
             to,
           );
@@ -100,7 +103,7 @@ export class TransactionManager {
             memo,
             this.pubkeys,
             this.pioneer,
-            this.keepKeySdk,
+            this.pubkeyContext,
             isMax,
             feeLevel,
           );
@@ -114,7 +117,7 @@ export class TransactionManager {
             memo,
             this.pubkeys,
             this.pioneer,
-            this.keepKeySdk,
+            this.pubkeyContext,
             isMax,
           );
           break;
@@ -237,10 +240,24 @@ export class TransactionManager {
             }
             case 'cosmos:mayachain-mainnet-v1/slip44:931':
             case 'cosmos:mayachain-mainnet-v1/denom:maya': {
+              // CRITICAL AUDIT: Log everything about the signing context
+              console.log(tag, '🔍 ===== MAYACHAIN SIGNING AUDIT =====');
+              console.log(tag, '📋 unsignedTx:', JSON.stringify(unsignedTx, null, 2));
+              console.log(tag, '🔑 unsignedTx.addressNList:', unsignedTx.addressNList);
+              console.log(tag, '📍 unsignedTx.signerAddress:', unsignedTx.signerAddress);
+              console.log(tag, '🌐 pubkeyContext:', this.pubkeyContext);
+              console.log(tag, '🔐 pubkeyContext.addressNList:', this.pubkeyContext?.addressNList);
+              console.log(tag, '🔐 pubkeyContext.addressNListMaster:', this.pubkeyContext?.addressNListMaster);
+              console.log(tag, '📬 pubkeyContext.address:', this.pubkeyContext?.address);
+              console.log(tag, '=======================================');
+
               if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgSend') {
                 const responseSign =
                   await this.keepKeySdk.mayachain.mayachainSignAminoTransfer(unsignedTx);
                 signedTx = responseSign.serialized;
+
+                console.log(tag, '✅ Signing completed');
+                console.log(tag, '📦 responseSign:', responseSign);
               } else if (unsignedTx.signDoc.msgs[0].type === 'mayachain/MsgDeposit') {
                 const responseSign =
                   await this.keepKeySdk.mayachain.mayachainSignAminoDeposit(unsignedTx);

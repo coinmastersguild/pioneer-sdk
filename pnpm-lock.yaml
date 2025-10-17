@@ -212,6 +212,40 @@ importers:
         specifier: ^4.0.12
         version: 4.3.0(@coinmasters/api@3.8.8)(@coinmasters/toolbox-cosmos@11.1.8)(@coinmasters/toolbox-evm@11.1.8)(@coinmasters/toolbox-utxo@11.1.8)
 
+  e2e/transfers/e2e-balance-scan-test:
+    dependencies:
+      '@coinmasters/pioneer-sdk':
+        specifier: '*'
+        version: 4.13.52(@types/node@18.15.13)
+      '@coinmasters/types':
+        specifier: '*'
+        version: 4.10.2
+      '@pioneer-platform/loggerdog':
+        specifier: '*'
+        version: 8.6.0(@types/node@18.15.13)
+      '@pioneer-platform/pioneer-caip':
+        specifier: '*'
+        version: 9.5.0
+      '@pioneer-platform/pioneer-coins':
+        specifier: '*'
+        version: 9.6.0(@types/node@18.15.13)
+      dotenv:
+        specifier: ^16.0.3
+        version: 16.6.1
+      wait-promise:
+        specifier: ^0.4.1
+        version: 0.4.1
+    devDependencies:
+      '@types/node':
+        specifier: ^18.11.9
+        version: 18.15.13
+      ts-node:
+        specifier: ^10.9.1
+        version: 10.9.2(@types/node@18.15.13)(typescript@5.2.2)
+      typescript:
+        specifier: 5.2.2
+        version: 5.2.2
+
   e2e/transfers/e2e-transfer-suite:
     dependencies:
       '@coinmasters/pioneer-sdk':
@@ -958,6 +992,9 @@ packages:
       '@coinmasters/toolbox-cosmos': 11.1.8
       '@coinmasters/toolbox-evm': 11.1.8
       '@coinmasters/toolbox-utxo': 11.1.8
+
+  '@coinmasters/pioneer-sdk@4.13.52':
+    resolution: {integrity: sha512-vHwjJflt/tSrpvMeAGG1OR80Rp8VByPWd3waVeyh/4VrbQDlfJQlrg8yoGmVAQbq4HBICXiFsYIRdldFGxq0Ow==}
 
   '@coinmasters/tokens@3.10.1':
     resolution: {integrity: sha512-lzT7SVdhT2pRhFjQau87Xod2D0iJqvt9epOnpUYriF5+wBSVhGDdBWVIAUiALtRnT3vk9Z+ctcOddBylTXRThA==}
@@ -5803,6 +5840,25 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  '@coinmasters/pioneer-sdk@4.13.52(@types/node@18.15.13)':
+    dependencies:
+      '@keepkey/keepkey-sdk': 0.2.62
+      '@pioneer-platform/loggerdog': 8.6.0(@types/node@18.15.13)
+      '@pioneer-platform/pioneer-caip': 9.5.0
+      '@pioneer-platform/pioneer-client': 9.2.8
+      '@pioneer-platform/pioneer-coins': 9.6.0(@types/node@18.15.13)
+      '@pioneer-platform/pioneer-discovery': 0.0.21(@types/node@18.15.13)
+      '@pioneer-platform/pioneer-events': 8.6.0
+      coinselect: 3.1.13
+    transitivePeerDependencies:
+      - '@swc/core'
+      - '@swc/wasm'
+      - '@types/node'
+      - bufferutil
+      - debug
+      - supports-color
+      - utf-8-validate
+
   '@coinmasters/tokens@3.10.1': {}
 
   '@coinmasters/toolbox-cosmos@11.1.8(@pioneer-platform/helpers@4.3.0)':
@@ -5873,19 +5929,19 @@ snapshots:
 
   '@cosmjs/amino@0.32.0':
     dependencies:
-      '@cosmjs/crypto': 0.32.0
-      '@cosmjs/encoding': 0.32.0
-      '@cosmjs/math': 0.32.0
+      '@cosmjs/crypto': 0.32.4
+      '@cosmjs/encoding': 0.32.4
+      '@cosmjs/math': 0.32.4
       '@cosmjs/utils': 0.32.4
 
   '@cosmjs/crypto@0.32.0':
     dependencies:
-      '@cosmjs/encoding': 0.32.0
-      '@cosmjs/math': 0.32.0
+      '@cosmjs/encoding': 0.32.4
+      '@cosmjs/math': 0.32.4
       '@cosmjs/utils': 0.32.4
       '@noble/hashes': 1.8.0
-      bn.js: 5.2.1
-      elliptic: 6.5.4
+      bn.js: 5.2.2
+      elliptic: 6.6.1
       libsodium-wrappers-sumo: 0.7.15
 
   '@cosmjs/crypto@0.32.4':
@@ -5894,8 +5950,8 @@ snapshots:
       '@cosmjs/math': 0.32.4
       '@cosmjs/utils': 0.32.4
       '@noble/hashes': 1.8.0
-      bn.js: 5.2.1
-      elliptic: 6.5.4
+      bn.js: 5.2.2
+      elliptic: 6.6.1
       libsodium-wrappers-sumo: 0.7.15
 
   '@cosmjs/encoding@0.32.0':
@@ -5917,18 +5973,18 @@ snapshots:
 
   '@cosmjs/math@0.32.0':
     dependencies:
-      bn.js: 5.2.1
+      bn.js: 5.2.2
 
   '@cosmjs/math@0.32.4':
     dependencies:
-      bn.js: 5.2.1
+      bn.js: 5.2.2
 
   '@cosmjs/proto-signing@0.32.0':
     dependencies:
       '@cosmjs/amino': 0.32.0
-      '@cosmjs/crypto': 0.32.0
-      '@cosmjs/encoding': 0.32.0
-      '@cosmjs/math': 0.32.0
+      '@cosmjs/crypto': 0.32.4
+      '@cosmjs/encoding': 0.32.4
+      '@cosmjs/math': 0.32.4
       '@cosmjs/utils': 0.32.4
       cosmjs-types: 0.9.0
 
@@ -5946,8 +6002,8 @@ snapshots:
     dependencies:
       '@confio/ics23': 0.6.8
       '@cosmjs/amino': 0.32.0
-      '@cosmjs/encoding': 0.32.0
-      '@cosmjs/math': 0.32.0
+      '@cosmjs/encoding': 0.32.4
+      '@cosmjs/math': 0.32.4
       '@cosmjs/proto-signing': 0.32.0
       '@cosmjs/stream': 0.32.4
       '@cosmjs/tendermint-rpc': 0.32.4
@@ -6616,6 +6672,20 @@ snapshots:
       - '@swc/wasm'
       - '@types/node'
 
+  '@pioneer-platform/pioneer-discovery@0.0.21(@types/node@18.15.13)':
+    dependencies:
+      '@coinmasters/tokens': 3.10.1
+      '@coinmasters/types': 4.10.2
+      '@pioneer-platform/loggerdog': 8.6.0(@types/node@18.15.13)
+      '@pioneer-platform/pioneer-caip': 9.5.0
+      ethers: 6.15.0
+    transitivePeerDependencies:
+      - '@swc/core'
+      - '@swc/wasm'
+      - '@types/node'
+      - bufferutil
+      - utf-8-validate
+
   '@pioneer-platform/pioneer-discovery@0.0.21(@types/node@20.10.0)':
     dependencies:
       '@coinmasters/tokens': 3.10.1
@@ -6807,7 +6877,7 @@ snapshots:
     dependencies:
       '@noble/curves': 1.2.0
       '@noble/hashes': 1.3.3
-      '@scure/base': 1.1.3
+      '@scure/base': 1.1.9
 
   '@scure/bip39@1.2.1':
     dependencies:
@@ -10860,7 +10930,7 @@ snapshots:
       bindings: 1.5.0
       bn.js: 4.12.2
       create-hmac: 1.1.7
-      elliptic: 6.5.4
+      elliptic: 6.6.1
       nan: 2.23.0
 
   tinybench@2.9.0: {}

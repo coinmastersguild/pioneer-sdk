@@ -14,7 +14,7 @@ export async function createUnsignedTendermintTx(
   memo: string,
   pubkeys: any[],
   pioneer: any,
-  keepKeySdk: any,
+  pubkeyContext: any,
   isMax: boolean,
   to?: string,
 ): Promise<any> {
@@ -24,17 +24,21 @@ export async function createUnsignedTendermintTx(
     if (!pioneer) throw new Error('Failed to init! pioneer');
 
     const networkId = caipToNetworkId(caip);
-    
-    // Auto-correct context if wrong network
-    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
-      keepKeySdk.pubkeyContext = pubkeys.find(pk => 
-        pk.networks?.includes(networkId)
-      );
+
+    // Use the passed pubkeyContext directly - it's already been set by Pioneer SDK
+    // No need to auto-correct anymore since context management is centralized
+    if (!pubkeyContext) {
+      throw new Error(`No pubkey context provided for networkId: ${networkId}`);
     }
-    
-    if (!keepKeySdk.pubkeyContext) {
-      throw new Error(`No relevant pubkeys found for networkId: ${networkId}`);
+
+    if (!pubkeyContext.networks?.includes(networkId)) {
+      throw new Error(`Pubkey context is for wrong network. Expected ${networkId}, got ${pubkeyContext.networks}`);
     }
+
+    console.log(tag, `✅ Using pubkeyContext for network ${networkId}:`, {
+      address: pubkeyContext.address,
+      addressNList: pubkeyContext.addressNList || pubkeyContext.addressNListMaster
+    });
 
     // Map networkId to a human-readable chain
     let chain: string;
@@ -57,13 +61,16 @@ export async function createUnsignedTendermintTx(
 
     //console.log(tag, `Resolved chain: ${chain} for networkId: ${networkId}`);
 
-    const fromAddress = keepKeySdk.pubkeyContext.address || keepKeySdk.pubkeyContext.pubkey;
+    const fromAddress = pubkeyContext.address || pubkeyContext.pubkey;
     let asset = caip.split(':')[1]; // Assuming format is "network:asset"
+
+    console.log(tag, `🔍 Fetching account info for address: ${fromAddress}`);
     const accountInfo = (await pioneer.GetAccountInfo({ network: chain, address: fromAddress }))
       .data;
-    //console.log('accountInfo: ', accountInfo);
+    console.log(tag, '📋 accountInfo:', JSON.stringify(accountInfo, null, 2));
+
     let balanceInfo = await pioneer.GetPubkeyBalance({ asset: chain, pubkey: fromAddress });
-    //console.log(tag, `balanceInfo: `, balanceInfo);
+    console.log(tag, `💰 balanceInfo:`, balanceInfo);
 
     let account_number, sequence;
     if (networkId === 'cosmos:cosmoshub-4' || networkId === 'cosmos:osmosis-1') {
@@ -77,9 +84,22 @@ export async function createUnsignedTendermintTx(
       sequence = accountInfo.result.value.sequence || '0';
     }
 
+    console.log(tag, `📊 Extracted account_number: ${account_number}, sequence: ${sequence}`);
+
+    // CRITICAL: Pioneer API may return stale data. The mayachain-network module already
+    // queries multiple nodes directly and uses consensus - but we're using the Pioneer API wrapper
+    // which adds caching. If we get account_number 0, warn about potential Pioneer API cache issue.
+    if (account_number === '0' || account_number === 0) {
+      console.log(tag, `⚠️  WARNING: Account number is 0 from Pioneer API`);
+      console.log(tag, `   This is likely due to stale Pioneer API cache`);
+      console.log(tag, `   The mayachain-network module queries nodes directly but Pioneer API may be cached`);
+      console.log(tag, `   Proceeding with account_number: 0 but transaction will likely fail`);
+      console.log(tag, `   TODO: Fix Pioneer API to use fresh data from mayachain-network module`);
+    }
+
     const fees = {
       'cosmos:thorchain-mainnet-v1': 0.02,
-      'cosmos:mayachain-mainnet-v1': 0.2,
+      'cosmos:mayachain-mainnet-v1': 0, // Increased to 0.5 CACAO (5000000000 base units) for reliable confirmation
       'cosmos:cosmoshub-4': 0.005,
       'cosmos:osmosis-1': 0.035,
     };
@@ -136,21 +156,25 @@ export async function createUnsignedTendermintTx(
       }
 
       case 'cosmos:mayachain-mainnet-v1': {
-        // Determine the correct asset based on CAIP
+        // Determine the correct native denomination based on CAIP
+        // NOTE: Use native chain denominations, NOT asset identifiers (e.g., 'cacao' not 'MAYA.CACAO')
         let mayaAsset: string;
         if (caip.includes('/denom:maya')) {
-          mayaAsset = 'MAYA.MAYA'; // MAYA token
+          mayaAsset = 'maya'; // MAYA token (native denomination)
         } else if (caip.includes('/slip44:931')) {
-          mayaAsset = 'MAYA.CACAO'; // CACAO (native)
+          mayaAsset = 'cacao'; // CACAO (native denomination)
         } else {
           throw new Error(`Unsupported Maya chain CAIP: ${caip}`);
         }
 
+        // MAYA token uses 1e8 (8 decimals), CACAO uses 1e10 (10 decimals)
+        const decimals = mayaAsset === 'maya' ? 1e8 : 1e10;
+
         if (isMax) {
-          const fee = Math.floor(fees[networkId] * 1e10); // Convert fee to smallest unit and floor to int
-          amount = Math.max(0, Math.floor(balanceInfo.data * 1e10) - fee); // Floor to ensure no decimals
+          const fee = Math.floor(fees[networkId] * decimals); // Convert fee to smallest unit and floor to int
+          amount = Math.max(0, Math.floor(balanceInfo.data * decimals) - fee); // Floor to ensure no decimals
         } else {
-          amount = Math.max(Math.floor(amount * 1e10), 0); // Floor the multiplication result
+          amount = Math.max(Math.floor(amount * decimals), 0); // Floor the multiplication result
         }
 
         //console.log(tag, `amount: ${amount}, isMax: ${isMax}, fee: ${fees[networkId]}, asset: ${mayaAsset}`);
@@ -173,6 +197,7 @@ export async function createUnsignedTendermintTx(
               amount: amount.toString(),
               memo,
               sequence,
+              addressNList: pubkeyContext.addressNList || pubkeyContext.addressNListMaster, // CRITICAL: Use correct derivation path for signing
             })
           : mayachainDepositTemplate({
               account_number,

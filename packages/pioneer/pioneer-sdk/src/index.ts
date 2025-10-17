@@ -1178,6 +1178,7 @@ export class SDK {
           balances: this.balances,
           pioneer: this.pioneer,
           pubkeys: this.pubkeys,
+          pubkeyContext: this.pubkeyContext,
           nodes: this.nodes,
           keepKeySdk: this.keepKeySdk,
         };
@@ -1202,7 +1203,7 @@ export class SDK {
           delegateParams,
           this.pubkeys,
           this.pioneer,
-          this.keepKeySdk,
+          this.pubkeyContext,
         );
         console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
@@ -1223,7 +1224,7 @@ export class SDK {
           undelegateParams,
           this.pubkeys,
           this.pioneer,
-          this.keepKeySdk,
+          this.pubkeyContext,
         );
         console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
@@ -1244,7 +1245,7 @@ export class SDK {
           claimParams,
           this.pubkeys,
           this.pioneer,
-          this.keepKeySdk,
+          this.pubkeyContext,
         );
         console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
@@ -1265,7 +1266,7 @@ export class SDK {
           claimAllParams,
           this.pubkeys,
           this.pioneer,
-          this.keepKeySdk,
+          this.pubkeyContext,
         );
         //console.log(tag, 'unsignedTx: ', unsignedTx);
         return unsignedTx;
@@ -1283,6 +1284,7 @@ export class SDK {
           balances: this.balances,
           pioneer: this.pioneer,
           pubkeys: this.pubkeys,
+          pubkeyContext: this.pubkeyContext, // CRITICAL: Must include pubkeyContext for signing!
           nodes: this.nodes,
           keepKeySdk: this.keepKeySdk,
         };
@@ -1716,6 +1718,20 @@ export class SDK {
         return true;
       } catch (e) {
         console.error(tag, 'e: ', e);
+        throw e;
+      }
+    };
+    this.addPath = async function (path: any) {
+      const tag = `${TAG} | addPath | `;
+      try {
+        this.paths.push(path);
+        const pubkey = await getPubkey(path.networks[0], path, this.keepKeySdk, this.context);
+        this.addPubkey(pubkey);
+        await this.getBalancesForNetworks(path.networks);
+        this.buildDashboardFromBalances();
+        return { success: true, pubkey };
+      } catch (e) {
+        console.error(tag, 'Failed:', e);
         throw e;
       }
     };
@@ -2298,18 +2314,29 @@ export class SDK {
         }
 
         // Auto-set pubkey context for this asset's network
-        // Use the first matching pubkey from assetPubkeys we already filtered
+        // IMPORTANT: Only auto-set if no pubkey context exists OR if current context is for wrong network
+        // This preserves custom pubkey contexts set via setPubkeyContext()
         if (assetPubkeys && assetPubkeys.length > 0) {
-          this.pubkeyContext = assetPubkeys[0];
-          // Also set it on keepKeySdk so tx builders can access it
-          if (this.keepKeySdk) {
-            this.keepKeySdk.pubkeyContext = assetPubkeys[0];
+          const networkId = caipToNetworkId(asset.caip || asset.networkId);
+          const currentContextValid = this.pubkeyContext?.networks?.includes(networkId);
+
+          if (!this.pubkeyContext || !currentContextValid) {
+            // No context or wrong network - auto-set to first matching pubkey
+            this.pubkeyContext = assetPubkeys[0];
+            console.log(
+              tag,
+              'Auto-set pubkey context for network:',
+              this.pubkeyContext.address || this.pubkeyContext.pubkey,
+            );
+          } else {
+            // Valid context already exists for this network - preserve it
+            console.log(
+              tag,
+              'Preserving existing pubkey context for network:',
+              this.pubkeyContext.address || this.pubkeyContext.pubkey,
+              `(addressNList: [${(this.pubkeyContext.addressNList || this.pubkeyContext.addressNListMaster).join(', ')}])`,
+            );
           }
-          console.log(
-            tag,
-            'Auto-set pubkey context for network:',
-            this.pubkeyContext.address || this.pubkeyContext.pubkey,
-          );
         }
 
         this.events.emit('SET_ASSET_CONTEXT', this.assetContext);
@@ -2344,16 +2371,14 @@ export class SDK {
             ethereum account 0/1/2
         */
         this.pubkeyContext = pubkey;
-        // Also set it on keepKeySdk so tx builders can access it
-        if (this.keepKeySdk) {
-          this.keepKeySdk.pubkeyContext = pubkey;
-        }
         console.log(
           tag,
           'Pubkey context set to:',
           pubkey.address || pubkey.pubkey,
           'note:',
           pubkey.note,
+          'addressNList:',
+          pubkey.addressNList || pubkey.addressNListMaster,
         );
 
         return true;

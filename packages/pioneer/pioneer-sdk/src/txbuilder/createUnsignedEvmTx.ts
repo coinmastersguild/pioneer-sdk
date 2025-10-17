@@ -98,7 +98,7 @@ export async function createUnsignedEvmTx(
   memo,
   pubkeys,
   pioneer,
-  keepKeySdk,
+  pubkeyContext,
   isMax,
   feeLevel = 5, // Added feeLevel parameter with default of 5 (average)
 ) {
@@ -112,6 +112,11 @@ export async function createUnsignedEvmTx(
     // Extract chainId from networkId
     const chainId = extractChainIdFromNetworkId(networkId);
 
+    // Use the passed pubkeyContext directly - it's already been set by Pioneer SDK
+    if (!pubkeyContext) {
+      throw new Error(`No pubkey context provided for networkId: ${networkId}`);
+    }
+
     // Check if context is valid for this network
     const isValidForNetwork = (pubkey: any) => {
       if (!pubkey?.networks) return false;
@@ -122,66 +127,116 @@ export async function createUnsignedEvmTx(
       // For non-EVM, check exact match
       return pubkey.networks.includes(networkId);
     };
-    
-    // Check if we have a context at all
-    if (!keepKeySdk.pubkeyContext) {
-      console.log(tag, 'No context set - auto-selecting first matching pubkey');
-      keepKeySdk.pubkeyContext = pubkeys.find(pk => isValidForNetwork(pk));
-    } else {
-      // We have a context - check if it's valid for this network
-      console.log(tag, 'Current context networks:', keepKeySdk.pubkeyContext.networks, 'For networkId:', networkId);
-      
-      if (!isValidForNetwork(keepKeySdk.pubkeyContext)) {
-        // Context exists but wrong network - auto-correct
-        console.log(tag, 'Auto-correcting context - wrong network detected');
-        keepKeySdk.pubkeyContext = pubkeys.find(pk => isValidForNetwork(pk));
-      } else {
-        console.log(tag, 'Context is valid for this network - using existing context');
-      }
+
+    if (!isValidForNetwork(pubkeyContext)) {
+      throw new Error(`Pubkey context is for wrong network. Expected ${networkId}, got ${pubkeyContext.networks}`);
     }
-    
-    const address = keepKeySdk.pubkeyContext?.address || keepKeySdk.pubkeyContext?.pubkey;
-    console.log(tag, '✅ Using FROM address from pubkeyContext:', address, 'note:', keepKeySdk.pubkeyContext?.note);
+
+    const address = pubkeyContext.address || pubkeyContext.pubkey;
+    console.log(tag, '✅ Using FROM address from pubkeyContext:', address, 'note:', pubkeyContext.note);
     if (!address) throw new Error('No address found for the specified network');
 
-    // Fetch gas price in gwei and convert to wei
-    // Note: In the future, we should fetch different gas prices for different fee levels
-    // For now, we'll use a multiplier on the base gas price
+    // Fetch gas price and convert to wei
     const gasPriceData = await pioneer.GetGasPriceByNetwork({ networkId });
-    let baseGasPrice: bigint;
+    console.log(tag, 'Gas price data from API:', JSON.stringify(gasPriceData.data));
 
-    // Check if the returned value is reasonable (in wei or gwei)
-    // If it's less than 1 gwei (1e9 wei), it's probably already in wei but too low
-    // For mainnet, we need at least 10-30 gwei typically
-    const MIN_GAS_PRICE_WEI = BigInt(10e9); // 10 gwei minimum for mainnet
-
-    if (BigInt(gasPriceData.data) < MIN_GAS_PRICE_WEI) {
-      // The API is returning a value that's way too low (like 0.296 gwei)
-      // Use a reasonable default for mainnet
-      console.log(tag, 'Gas price from API too low:', gasPriceData.data, 'wei - using minimum:', MIN_GAS_PRICE_WEI.toString());
-      baseGasPrice = MIN_GAS_PRICE_WEI;
-    } else {
-      baseGasPrice = BigInt(gasPriceData.data);
-    }
-
-    // Apply fee level multiplier
-    // feeLevel: 1 = slow (80% of base), 5 = average (100%), 9 = fast (150%)
     let gasPrice: bigint;
-    if (feeLevel <= 2) {
-      // Slow - 80% of base price
-      gasPrice = (baseGasPrice * BigInt(80)) / BigInt(100);
-      console.log(tag, 'Using SLOW gas price (80% of base)');
-    } else if (feeLevel >= 8) {
-      // Fast - 150% of base price
-      gasPrice = (baseGasPrice * BigInt(150)) / BigInt(100);
-      console.log(tag, 'Using FAST gas price (150% of base)');
+
+    // Default fallback gas prices by chain ID (in gwei)
+    const defaultGasPrices: Record<number, number> = {
+      1: 30,      // Ethereum mainnet
+      56: 3,      // BSC
+      137: 50,    // Polygon
+      43114: 25,  // Avalanche
+      8453: 0.1,  // Base
+      10: 0.1,    // Optimism
+    };
+
+    const fallbackGasGwei = defaultGasPrices[chainId] || 20; // Default 20 gwei
+    const MIN_GAS_PRICE_WEI = BigInt(fallbackGasGwei * 1e9);
+
+    // Check if API returned an object with fee levels or a single value
+    if (typeof gasPriceData.data === 'object' && gasPriceData.data !== null && !Array.isArray(gasPriceData.data)) {
+      // API returned object with fee levels (e.g., { slow, average, fastest })
+      let selectedGasPrice: string | number | undefined;
+
+      if (feeLevel <= 2) {
+        // Slow
+        selectedGasPrice = gasPriceData.data.slow || gasPriceData.data.average || gasPriceData.data.fastest;
+        console.log(tag, 'Selecting SLOW gas price from API');
+      } else if (feeLevel >= 8) {
+        // Fast
+        selectedGasPrice = gasPriceData.data.fastest || gasPriceData.data.fast || gasPriceData.data.average;
+        console.log(tag, 'Selecting FAST gas price from API');
+      } else {
+        // Average
+        selectedGasPrice = gasPriceData.data.average || gasPriceData.data.fast || gasPriceData.data.fastest;
+        console.log(tag, 'Selecting AVERAGE gas price from API');
+      }
+
+      // Convert to number and validate
+      let gasPriceNum: number;
+      if (selectedGasPrice === undefined || selectedGasPrice === null) {
+        console.warn(tag, 'No valid gas price found in API response, using fallback:', fallbackGasGwei, 'gwei');
+        gasPriceNum = fallbackGasGwei;
+      } else {
+        gasPriceNum = typeof selectedGasPrice === 'string' ? parseFloat(selectedGasPrice) : selectedGasPrice;
+
+        // Check for NaN
+        if (isNaN(gasPriceNum) || !isFinite(gasPriceNum)) {
+          console.warn(tag, 'Invalid gas price (NaN or Infinite):', selectedGasPrice, '- using fallback:', fallbackGasGwei, 'gwei');
+          gasPriceNum = fallbackGasGwei;
+        }
+      }
+
+      // Assume API returns gwei, convert to wei
+      gasPrice = BigInt(Math.round(gasPriceNum * 1e9));
+
+      // Apply minimum gas price if too low
+      if (gasPrice < MIN_GAS_PRICE_WEI) {
+        console.warn(tag, 'Gas price from API too low:', gasPrice.toString(), 'wei - using minimum:', MIN_GAS_PRICE_WEI.toString());
+        gasPrice = MIN_GAS_PRICE_WEI;
+      }
     } else {
-      // Average - use base price
-      gasPrice = baseGasPrice;
-      console.log(tag, 'Using AVERAGE gas price (100% of base)');
+      // API returned a single value or something unexpected
+      let gasPriceNum: number;
+
+      if (gasPriceData.data === undefined || gasPriceData.data === null) {
+        console.warn(tag, 'Gas price API returned null/undefined, using fallback:', fallbackGasGwei, 'gwei');
+        gasPriceNum = fallbackGasGwei;
+      } else {
+        gasPriceNum = typeof gasPriceData.data === 'string' ? parseFloat(gasPriceData.data) : gasPriceData.data;
+
+        // Check for NaN
+        if (isNaN(gasPriceNum) || !isFinite(gasPriceNum)) {
+          console.warn(tag, 'Invalid gas price (NaN or Infinite):', gasPriceData.data, '- using fallback:', fallbackGasGwei, 'gwei');
+          gasPriceNum = fallbackGasGwei;
+        }
+      }
+
+      // Assume API returns gwei, convert to wei
+      const baseGasPrice = BigInt(Math.round(gasPriceNum * 1e9));
+
+      // Apply fee level multiplier
+      if (feeLevel <= 2) {
+        gasPrice = (baseGasPrice * BigInt(80)) / BigInt(100);
+        console.log(tag, 'Using SLOW gas price (80% of base)');
+      } else if (feeLevel >= 8) {
+        gasPrice = (baseGasPrice * BigInt(150)) / BigInt(100);
+        console.log(tag, 'Using FAST gas price (150% of base)');
+      } else {
+        gasPrice = baseGasPrice;
+        console.log(tag, 'Using AVERAGE gas price (100% of base)');
+      }
+
+      // Apply minimum gas price if too low
+      if (gasPrice < MIN_GAS_PRICE_WEI) {
+        console.warn(tag, 'Gas price too low:', gasPrice.toString(), 'wei - using minimum:', MIN_GAS_PRICE_WEI.toString());
+        gasPrice = MIN_GAS_PRICE_WEI;
+      }
     }
-    
-    console.log(tag, 'Using gasPrice:', gasPrice.toString(), 'wei (', Number(gasPrice) / 1e9, 'gwei)');
+
+    console.log(tag, 'Final gasPrice:', gasPrice.toString(), 'wei (', Number(gasPrice) / 1e9, 'gwei)');
 
     let nonce;
     try {
@@ -501,22 +556,22 @@ export async function createUnsignedEvmTx(
 
     // Address path for hardware wallets - use the path from the pubkey context
     // The pubkey context should have either addressNListMaster or pathMaster
-    if (keepKeySdk.pubkeyContext?.addressNListMaster) {
+    if (pubkeyContext.addressNListMaster) {
       // Direct use if we have addressNListMaster
-      unsignedTx.addressNList = keepKeySdk.pubkeyContext.addressNListMaster;
+      unsignedTx.addressNList = pubkeyContext.addressNListMaster;
       console.log(tag, '✅ Using addressNListMaster from pubkey context:', unsignedTx.addressNList, 'for address:', address);
-    } else if (keepKeySdk.pubkeyContext?.pathMaster) {
+    } else if (pubkeyContext.pathMaster) {
       // Convert BIP32 path to addressNList if we have pathMaster
-      unsignedTx.addressNList = bip32ToAddressNList(keepKeySdk.pubkeyContext.pathMaster);
-      console.log(tag, '✅ Converted pathMaster to addressNList:', keepKeySdk.pubkeyContext.pathMaster, '→', unsignedTx.addressNList);
-    } else if (keepKeySdk.pubkeyContext?.addressNList) {
+      unsignedTx.addressNList = bip32ToAddressNList(pubkeyContext.pathMaster);
+      console.log(tag, '✅ Converted pathMaster to addressNList:', pubkeyContext.pathMaster, '→', unsignedTx.addressNList);
+    } else if (pubkeyContext.addressNList) {
       // Use addressNList if available (but this would be the non-master path)
-      unsignedTx.addressNList = keepKeySdk.pubkeyContext.addressNList;
+      unsignedTx.addressNList = pubkeyContext.addressNList;
       console.log(tag, '✅ Using addressNList from pubkey context:', unsignedTx.addressNList);
-    } else if (keepKeySdk.pubkeyContext?.path) {
+    } else if (pubkeyContext.path) {
       // Last resort - convert regular path to addressNList
-      unsignedTx.addressNList = bip32ToAddressNList(keepKeySdk.pubkeyContext.path);
-      console.log(tag, '⚠️ Using regular path (not master):', keepKeySdk.pubkeyContext.path, '→', unsignedTx.addressNList);
+      unsignedTx.addressNList = bip32ToAddressNList(pubkeyContext.path);
+      console.log(tag, '⚠️ Using regular path (not master):', pubkeyContext.path, '→', unsignedTx.addressNList);
     } else {
       // Fallback to default account 0
       unsignedTx.addressNList = [0x80000000 + 44, 0x80000000 + 60, 0x80000000, 0, 0];

@@ -8,8 +8,10 @@ export const mayachainTransferTemplate = (params: {
   amount: string;
   memo: string;
   sequence: string;
+  addressNList?: number[]; // Optional: derivation path for signing
 }) => ({
   signerAddress: params.from_address,
+  addressNList: params.addressNList, // Include addressNList for correct signing path
   signDoc: {
     account_number: params.account_number,
     chain_id: params.chain_id,

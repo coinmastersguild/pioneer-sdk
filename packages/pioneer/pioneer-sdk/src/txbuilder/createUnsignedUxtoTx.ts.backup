@@ -1,34 +1,7 @@
 import { caipToNetworkId, NetworkIdToChain } from '@pioneer-platform/pioneer-caip';
-import { bip32ToAddressNList, SLIP_44_BY_LONG, COIN_MAP_LONG } from '@pioneer-platform/pioneer-coins';
+import { bip32ToAddressNList } from '@pioneer-platform/pioneer-coins';
 import coinSelect from 'coinselect';
 import coinSelectSplit from 'coinselect/split';
-
-/**
- * Get SLIP-44 coin type for a given network ID
- * @param networkId - CAIP network identifier
- * @returns SLIP-44 coin type number
- */
-function getCoinTypeFromNetworkId(networkId: string): number {
-  const chain = NetworkIdToChain[networkId];
-  if (!chain) {
-    console.warn(`No chain mapping found for ${networkId}, defaulting to Bitcoin coin type 0`);
-    return 0;
-  }
-
-  const blockchainName = COIN_MAP_LONG[chain]?.toLowerCase();
-  if (!blockchainName) {
-    console.warn(`No blockchain name found for chain ${chain}, defaulting to Bitcoin coin type 0`);
-    return 0;
-  }
-
-  const coinType = SLIP_44_BY_LONG[blockchainName];
-  if (coinType === undefined) {
-    console.warn(`No SLIP-44 coin type found for ${blockchainName}, defaulting to Bitcoin coin type 0`);
-    return 0;
-  }
-
-  return coinType;
-}
 
 export async function createUnsignedUxtoTx(
   caip: string,
@@ -37,7 +10,7 @@ export async function createUnsignedUxtoTx(
   memo: string,
   pubkeys: any,
   pioneer: any,
-  pubkeyContext: any,
+  keepKeySdk: any,
   isMax: boolean, // Added isMax parameter
   feeLevel: number = 5, // Added feeLevel parameter with default of 5 (average)
   changeScriptType?: string, // Added changeScriptType parameter for user preference
@@ -49,19 +22,10 @@ export async function createUnsignedUxtoTx(
 
     const networkId = caipToNetworkId(caip);
 
-    // Use the passed pubkeyContext directly - it's already been set by Pioneer SDK
-    if (!pubkeyContext) {
-      throw new Error(`No pubkey context provided for networkId: ${networkId}`);
+    // Auto-correct context if wrong network
+    if (!keepKeySdk.pubkeyContext?.networks?.includes(networkId)) {
+      keepKeySdk.pubkeyContext = pubkeys.find((pk) => pk.networks?.includes(networkId));
     }
-
-    if (!pubkeyContext.networks?.includes(networkId)) {
-      throw new Error(`Pubkey context is for wrong network. Expected ${networkId}, got ${pubkeyContext.networks}`);
-    }
-
-    console.log(tag, `✅ Using pubkeyContext for network ${networkId}:`, {
-      address: pubkeyContext.address,
-      scriptType: pubkeyContext.scriptType,
-    });
 
     // For UTXO, we still need all relevant pubkeys to aggregate UTXOs
     const relevantPubkeys = pubkeys.filter(
@@ -78,11 +42,57 @@ export async function createUnsignedUxtoTx(
 
     let chain = NetworkIdToChain[networkId];
 
-    // Get correct coin type for this network
-    const coinType = getCoinTypeFromNetworkId(networkId);
-    console.log(`${tag}: Using SLIP-44 coin type ${coinType} for ${chain}`);
+    // Determine the change script type - use preference or default to p2wpkh for lower fees
+    const actualChangeScriptType =
+      changeScriptType ||
+      relevantPubkeys.find((pk) => pk.scriptType === 'p2wpkh')?.scriptType || // Prefer native segwit if available
+      relevantPubkeys[0].scriptType || // Fall back to first available
+      'p2wpkh'; // Ultimate default
+    console.log(`${tag}: Using change script type: ${actualChangeScriptType}`);
 
-    // Collect UTXOs first to determine the appropriate change address type
+    // Find the xpub that matches the desired script type
+    const changeXpub =
+      relevantPubkeys.find((pk) => pk.scriptType === actualChangeScriptType)?.pubkey ||
+      relevantPubkeys.find((pk) => pk.scriptType === 'p2wpkh')?.pubkey || // Fall back to native segwit
+      relevantPubkeys[0].pubkey; // Last resort: use first available
+
+    console.log(
+      `${tag}: Change xpub selected for ${actualChangeScriptType}:`,
+      changeXpub?.substring(0, 10) + '...',
+    );
+
+    let changeAddressIndex = await pioneer.GetChangeAddress({
+      network: chain,
+      xpub: changeXpub,
+    });
+    changeAddressIndex = changeAddressIndex.data.changeIndex;
+
+    // Determine BIP path based on script type
+    let bipPath: string;
+    switch (actualChangeScriptType) {
+      case 'p2pkh':
+        bipPath = `m/44'/0'/0'/1/${changeAddressIndex}`; // BIP44 for legacy
+        break;
+      case 'p2sh-p2wpkh':
+        bipPath = `m/49'/0'/0'/1/${changeAddressIndex}`; // BIP49 for wrapped segwit
+        break;
+      case 'p2wpkh':
+      default:
+        bipPath = `m/84'/0'/0'/1/${changeAddressIndex}`; // BIP84 for native segwit
+        break;
+    }
+
+    const path = bipPath;
+    console.log(`${tag}: Change address path: ${path} (index: ${changeAddressIndex})`);
+
+    const changeAddress = {
+      path: path,
+      isChange: true,
+      index: changeAddressIndex,
+      addressNList: bip32ToAddressNList(path),
+      scriptType: actualChangeScriptType, // Store the script type with the change address
+    };
+
     const utxos: any[] = [];
     for (const pubkey of relevantPubkeys) {
       //console.log('pubkey: ',pubkey)
@@ -121,135 +131,20 @@ export async function createUnsignedUxtoTx(
       utxo.value = Number(utxo.value);
     }
 
-    // NOW determine change script type based on collected UTXOs
-    // Find the most common script type among input UTXOs to maintain consistency
-    const inputScriptTypes = utxos.map((u) => u.scriptType).filter(Boolean);
-    const scriptTypeCount: Record<string, number> = inputScriptTypes.reduce((acc, type) => {
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Get the most common input script type
-    const mostCommonInputType =
-      Object.entries(scriptTypeCount).sort(([, a], [, b]) => b - a)[0]?.[0] || 'p2pkh';
-
-    // Determine the change script type - priority order:
-    // 1. User explicit preference (changeScriptType parameter)
-    // 2. Most common input script type (maintain consistency)
-    // 3. First available pubkey script type
-    // 4. Default to p2pkh (legacy)
-    const actualChangeScriptType =
-      changeScriptType ||
-      mostCommonInputType ||
-      relevantPubkeys[0]?.scriptType ||
-      'p2pkh';
-
-    console.log(`${tag}: Input script types:`, scriptTypeCount);
-    console.log(`${tag}: Using change script type: ${actualChangeScriptType} (matches inputs: ${mostCommonInputType})`);
-
-    // Find and validate the xpub that matches the desired script type
-    const changeXpubInfo = relevantPubkeys.find((pk) => pk.scriptType === actualChangeScriptType);
-    if (!changeXpubInfo) {
-      throw new Error(
-        `No ${actualChangeScriptType} xpub available for change address. ` +
-          `Available types: ${relevantPubkeys.map((pk) => pk.scriptType).join(', ')}. ` +
-          `Cannot create change output with mismatched script type.`,
-      );
-    }
-
-    const changeXpub = changeXpubInfo.pubkey;
-    console.log(
-      `${tag}: Change xpub selected for ${actualChangeScriptType}:`,
-      changeXpub?.substring(0, 10) + '...',
-    );
-
-    // Get change address index from Pioneer API
-    let changeAddressIndex = await pioneer.GetChangeAddress({
-      network: chain,
-      xpub: changeXpub,
-    });
-    changeAddressIndex = changeAddressIndex.data.changeIndex;
-
-    // Determine BIP path based on script type AND coin type
-    let bipPath: string;
-    switch (actualChangeScriptType) {
-      case 'p2pkh':
-        bipPath = `m/44'/${coinType}'/0'/1/${changeAddressIndex}`; // BIP44 for legacy
-        break;
-      case 'p2sh-p2wpkh':
-        bipPath = `m/49'/${coinType}'/0'/1/${changeAddressIndex}`; // BIP49 for wrapped segwit
-        break;
-      case 'p2wpkh':
-      default:
-        bipPath = `m/84'/${coinType}'/0'/1/${changeAddressIndex}`; // BIP84 for native segwit
-        break;
-    }
-
-    const path = bipPath;
-    console.log(`${tag}: Change address path: ${path} (coin type: ${coinType}, index: ${changeAddressIndex})`);
-
-    const changeAddress = {
-      path: path,
-      isChange: true,
-      index: changeAddressIndex,
-      addressNList: bip32ToAddressNList(path),
-      scriptType: actualChangeScriptType,
-    };
-
     let feeRateFromNode: any;
-    
-    // HARDCODE DOGE FEES - API is unreliable for DOGE
-    if (networkId === 'bip122:00000000001a91e3dace36e2be3bf030') {
-      console.log(`${tag}: Using hardcoded fees for DOGE (10 sat/byte)`);
-      feeRateFromNode = {
-        slow: 10,
-        average: 10,
-        fast: 10,
-        fastest: 10,
-        unit: 'sat/byte',
-        description: 'Hardcoded DOGE fees - API unreliable'
-      };
-    } else {
-      try {
-        // Try GetFeeRateByNetwork first (newer API), then fallback to GetFeeRate
-        let feeResponse;
-        if (pioneer.GetFeeRateByNetwork) {
-          console.log(`${tag}: Trying GetFeeRateByNetwork for ${networkId}`);
-          feeResponse = await pioneer.GetFeeRateByNetwork({ networkId });
-        } else {
-          console.log(`${tag}: Using GetFeeRate for ${networkId}`);
-          feeResponse = await pioneer.GetFeeRate({ networkId });
-        }
-
-        feeRateFromNode = feeResponse.data;
-        console.log(`${tag}: Got fee rates from API:`, JSON.stringify(feeRateFromNode, null, 2));
-
-      // UNIT CONVERSION: Detect if API returned sat/kB instead of sat/byte
-      // If values are unreasonably high (>500), they're likely in sat/kB
-      const conversionThreshold = 500;
-      const needsConversion =
-        (feeRateFromNode.slow && feeRateFromNode.slow > conversionThreshold) ||
-        (feeRateFromNode.average && feeRateFromNode.average > conversionThreshold) ||
-        (feeRateFromNode.fast && feeRateFromNode.fast > conversionThreshold) ||
-        (feeRateFromNode.fastest && feeRateFromNode.fastest > conversionThreshold);
-
-      if (needsConversion) {
-        console.warn(`${tag}: Detected wrong units - values appear to be in sat/kB instead of sat/byte`);
-        console.warn(`${tag}: Original values:`, {
-          slow: feeRateFromNode.slow,
-          average: feeRateFromNode.average,
-          fast: feeRateFromNode.fast,
-          fastest: feeRateFromNode.fastest,
-        });
-
-        // Convert from sat/kB to sat/byte by dividing by 1000
-        if (feeRateFromNode.slow) feeRateFromNode.slow = feeRateFromNode.slow / 1000;
-        if (feeRateFromNode.average) feeRateFromNode.average = feeRateFromNode.average / 1000;
-        if (feeRateFromNode.fast) feeRateFromNode.fast = feeRateFromNode.fast / 1000;
-        if (feeRateFromNode.fastest) feeRateFromNode.fastest = feeRateFromNode.fastest / 1000;
-
-        console.warn(`${tag}: Converted to sat/byte:`, feeRateFromNode);
+    try {
+      // Try GetFeeRateByNetwork first (newer API), then fallback to GetFeeRate
+      let feeResponse;
+      if (pioneer.GetFeeRateByNetwork) {
+        console.log(`${tag}: Trying GetFeeRateByNetwork for ${networkId}`);
+        feeResponse = await pioneer.GetFeeRateByNetwork({ networkId });
+      } else {
+        console.log(`${tag}: Using GetFeeRate for ${networkId}`);
+        feeResponse = await pioneer.GetFeeRate({ networkId });
       }
+
+      feeRateFromNode = feeResponse.data;
+      console.log(`${tag}: Got fee rates from API:`, JSON.stringify(feeRateFromNode, null, 2));
 
       // Validate the response has the expected structure
       if (!feeRateFromNode || typeof feeRateFromNode !== 'object') {
@@ -273,12 +168,11 @@ export async function createUnsignedUxtoTx(
       ) {
         throw new Error(`No valid fee rates in API response: ${JSON.stringify(feeRateFromNode)}`);
       }
-      } catch (error: any) {
-        console.error(`${tag}: Failed to get fee rates from Pioneer API:`, error.message || error);
-        throw new Error(
-          `Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`,
-        );
-      }
+    } catch (error: any) {
+      console.error(`${tag}: Failed to get fee rates from Pioneer API:`, error.message || error);
+      throw new Error(
+        `Unable to get fee rate for network ${networkId}: ${error.message || 'API unavailable'}`,
+      );
     }
 
     // Map fee level to fee rate (1-2 = slow, 3-4 = average, 5 = fastest)
@@ -317,20 +211,8 @@ export async function createUnsignedUxtoTx(
     // Only enforce minimum for safety if fee is 0 or negative
     if (effectiveFeeRate <= 0) throw Error('Failed to build valid fee! Must be > 0');
 
-    // CRITICAL: coinselect library requires WHOLE NUMBER fee rates, not decimals
-    // Round up to ensure we don't underpay on fees
-    effectiveFeeRate = Math.ceil(effectiveFeeRate);
-    
-    // Enforce Bitcoin network minimum relay fee (3 sat/vB minimum for BTC mainnet)
-    // This prevents "min relay fee not met" errors from nodes
-    const MIN_RELAY_FEE_RATE = 3;
-    if (effectiveFeeRate < MIN_RELAY_FEE_RATE) {
-      console.log(`${tag}: Fee rate ${effectiveFeeRate} is below minimum relay fee, increasing to ${MIN_RELAY_FEE_RATE} sat/vB`);
-      effectiveFeeRate = MIN_RELAY_FEE_RATE;
-    }
-    
     // The effectiveFeeRate is now the actual sat/vB from the API
-    console.log(`${tag}: Final fee rate to use (rounded, with minimums): ${effectiveFeeRate} sat/vB`);
+    console.log(`${tag}: Final fee rate to use: ${effectiveFeeRate} sat/vB`);
 
     amount = parseInt(String(amount * 1e8));
     if (amount <= 0 && !isMax) throw Error('Invalid amount! 0');
@@ -345,18 +227,6 @@ export async function createUnsignedUxtoTx(
       feeRate: effectiveFeeRate,
     });
 
-    // DEBUG: Log actual UTXO structure to see what coinselect receives
-    console.log(`${tag}: UTXO details for coin selection:`, 
-      utxos.map(u => ({
-        value: u.value,
-        txid: u.txid?.substring(0, 10) + '...',
-        vout: u.vout,
-        scriptType: u.scriptType,
-        hasPath: !!u.path,
-        hasTxHex: !!u.txHex
-      }))
-    );
-
     let result;
     if (isMax) {
       //console.log(tag, 'isMax:', isMax);
@@ -368,8 +238,7 @@ export async function createUnsignedUxtoTx(
       result = coinSelect(utxos, [{ address: to, value: amount }], effectiveFeeRate);
     }
 
-    console.log(tag, 'coinSelect result object:', result);
-    console.log(tag, 'coinSelect result.inputs:', result?.inputs);
+    console.log(tag, 'coinSelect result:', result ? 'Success' : 'Failed');
 
     if (!result || !result.inputs) {
       // Provide detailed error information
