@@ -167,8 +167,8 @@ export async function createUnsignedTendermintTx(
           throw new Error(`Unsupported Maya chain CAIP: ${caip}`);
         }
 
-        // MAYA token uses 1e8 (8 decimals), CACAO uses 1e10 (10 decimals)
-        const decimals = mayaAsset === 'maya' ? 1e8 : 1e10;
+        // MAYA token uses 1e4 (4 decimals), CACAO uses 1e10 (10 decimals)
+        const decimals = mayaAsset === 'maya' ? 1e4 : 1e10;
 
         if (isMax) {
           const fee = Math.floor(fees[networkId] * decimals); // Convert fee to smallest unit and floor to int

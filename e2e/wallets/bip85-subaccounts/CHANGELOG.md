@@ -1,5 +1,14 @@
 # @coinmasters/integration-coins
 
+## 1.12.52
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.55
+
 ## 1.12.51
 
 ### Patch Changes

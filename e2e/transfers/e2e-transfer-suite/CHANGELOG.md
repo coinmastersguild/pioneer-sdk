@@ -1,5 +1,14 @@
 # @coinmasters/e2e-transfer-dogecoin
 
+## 1.12.53
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.55
+
 ## 1.12.52
 
 ### Patch Changes

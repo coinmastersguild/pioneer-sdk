@@ -83,11 +83,11 @@ const test_service = async function (this: any) {
 
         // ===== TOKEN TEST MODE =====
         // Set to true to test MAYA token instead of native CACAO
-        const IS_TOKEN = false;
+        const IS_TOKEN = true;
 
         // ===== CUSTOM PATH TEST MODE =====
         // Set to true to force using custom path (account 1) for MAYA transfers
-        const TEST_CUSTOM_PATH = true;
+        const TEST_CUSTOM_PATH = false;
 
         if (DRY_RUN_MODE) {
             log.info('');
@@ -191,8 +191,8 @@ const test_service = async function (this: any) {
             'bip122:000007d91d1254d60e2dd1ae58038307/slip44:5': 'XetjxEsGXKLV4mHiWPLscuNFABu9K5eVDd', // DASH
             'bip122:00000000001a91e3dace36e2be3bf030/slip44:3': 'DNchRDXhaW2uPusLVQWZZbQ5QQnzYmarWJ', // DOGE
             'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2': 'LMcHLHjcAhMtM6SPQ7Da9acBQWcviaX2Fu', // LTC
-            'cosmos:mayachain-mainnet-v1/slip44:931': 'maya16vyynpdrc3wd3redas06jhmrt74zt3cjrrpgeh', // CACAO (native)
-            'cosmos:mayachain-mainnet-v1/denom:maya': 'maya16vyynpdrc3wd3redas06jhmrt74zt3cjrrpgeh', // MAYA token
+            'cosmos:mayachain-mainnet-v1/slip44:931': 'maya1denzv0qq42yj89jcatjqhh943c4sthk488mu4w', // CACAO (native)
+            'cosmos:mayachain-mainnet-v1/denom:maya': 'maya1denzv0qq42yj89jcatjqhh943c4sthk488mu4w', // MAYA token
             'cosmos:osmosis-1/slip44:118': 'osmo1hp7gnr07wprd75f4j4aze9a94aejfcqdccqdht', // OSMO
             'cosmos:cosmoshub-4/slip44:118': 'cosmos1hp7gnr07wprd75f4j4aze9a94aejfcqdsrnape', // ATOM
             'cosmos:kaiyo-1/slip44:118': 'cosmos1hp7gnr07wprd75f4j4aze9a94aejfcqdsrnape', // KAIYO (ATOM)
@@ -212,7 +212,7 @@ const test_service = async function (this: any) {
             'bip122:00000000001a91e3dace36e2be3bf030/slip44:3': 2, // DOGE (high volume, lower min tx)
             'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2': 0.001, // LTC
             'cosmos:mayachain-mainnet-v1/slip44:931': 0.001, // CACAO (native, 10 decimals) - REDUCED FOR TESTING
-            'cosmos:mayachain-mainnet-v1/denom:maya': 0.01, // MAYA token (8 decimals)
+            'cosmos:mayachain-mainnet-v1/denom:maya': 0.01, // MAYA token - precision conversion issue needs SDK fix
             'cosmos:osmosis-1/slip44:118': 0.01, // OSMO
             'cosmos:cosmoshub-4/slip44:118': 0.01, // ATOM
             'cosmos:kaiyo-1/slip44:118': 0.01, // KAIYO (ATOM)
@@ -657,8 +657,8 @@ const test_service = async function (this: any) {
                     log.info(tag, `   Expected path: m/44'/931'/0'/0/1`);
                 }
             } else {
-                // Use account 1 if available, otherwise use account 0
-                pubkey = pubkeysForContext[1] || pubkeysForContext[0];  // Fallback to account 0
+                // Always use account 0 (first pubkey) when TEST_CUSTOM_PATH is false
+                pubkey = pubkeysForContext[0];
             }
 
             if(!pubkey) throw Error('Missing context: No pubkeys available');

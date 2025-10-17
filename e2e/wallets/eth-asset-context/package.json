@@ -1,6 +1,6 @@
 {
   "name": "@coinmasters/eth-asset-context-test",
-  "version": "1.0.51",
+  "version": "1.0.52",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {

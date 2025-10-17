@@ -1,5 +1,14 @@
 # @pioneer-platform/pioneer-cli
 
+## 1.0.34
+
+### Patch Changes
+
+- bump
+
+- Updated dependencies []:
+  - @coinmasters/pioneer-sdk@4.13.55
+
 ## 1.0.33
 
 ### Patch Changes
